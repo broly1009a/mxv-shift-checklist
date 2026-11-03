@@ -125,7 +125,10 @@ export class CcpReconController {
       if (!backupPath) {
         backupPath = path.join(process.cwd(), 'data', 'backup', 'CCP');
       }
-      const sessionStartStr = await this.settingsService.getSetting('session_start_time', '05:00');
+      const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+      if (!sessionStartStr) {
+        throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+      }
       const { dateObj } = resolveTradingSessionDate(targetDate, { sessionStartStr });
       const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, dateObj);
       const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);

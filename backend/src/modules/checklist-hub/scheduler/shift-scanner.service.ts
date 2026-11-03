@@ -85,10 +85,11 @@ export class ShiftScannerService {
       // 3. Pass 1: Xử lý Reset định kỳ theo tần suất (frequencyMinutesSnapshot)
       await this.handlePeriodicTaskResets(activeLogs, systemUser);
 
-      const sessionStartSetting = await this.settingsService.getSetting(
-        'session_start_time',
-        '05:00',
-      );
+      const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+      if (!sessionStartSetting) {
+        this.logger.warn('[ShiftScanner] Chưa cấu hình session_start_time trong CSDL SystemSettings.');
+        return;
+      }
 
       // 4. Pass 2: Quét và kích hoạt các tác vụ đến giờ
       for (const log of activeLogs) {
@@ -249,10 +250,11 @@ export class ShiftScannerService {
         ? parseInt(periodicFreqStr, 10)
         : null;
 
-    const sessionStartSetting = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartSetting) {
+      this.logger.warn('[ShiftScanner] Chưa cấu hình session_start_time trong CSDL, bỏ qua quét auto-run.');
+      return;
+    }
 
     for (const log of activeLogs) {
       let hasReset = false;

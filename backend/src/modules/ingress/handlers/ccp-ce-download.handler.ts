@@ -44,10 +44,10 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const rawStart = payload.startDate || payload.sessionDay || new Date().toISOString().split('T')[0];
     const rawEnd = payload.endDate || payload.sessionDay || rawStart;
 
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedStart = resolveTradingSessionDate(rawStart, { sessionStartStr });
     const resolvedEnd = resolveTradingSessionDate(rawEnd, { sessionStartStr });
     const startDate: string = resolvedStart.dateStr;

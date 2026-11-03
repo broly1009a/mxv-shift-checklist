@@ -18,49 +18,39 @@ export interface LoggerLike {
 }
 
 /**
- * Tính toán mốc giờ tải khuyến nghị theo quy luật giờ mùa hè (DST) và mùa đông của các sàn Mỹ (CME/CBOT).
- * - Giờ mùa hè (Daylight Saving Time, từ Chủ Nhật tuần 2 tháng 3 đến Chủ Nhật tuần 1 tháng 11): 04:00 AM VN.
- * - Giờ mùa đông (Standard Time): Thị trường đóng cửa trễ hơn 1 tiếng -> 05:00 AM VN.
- */
-export function getRecommendedMarketCloseDownloadTime(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const dstStart = getNthSundayOfMonth(year, 3, 2);
-  const dstEnd = getNthSundayOfMonth(year, 11, 1);
-  const isDst = date >= dstStart && date < dstEnd;
-  return isDst ? '04:00' : '05:00';
-}
-
-function getNthSundayOfMonth(year: number, month: number, n: number): Date {
-  const date = new Date(year, month - 1, 1);
-  let count = 0;
-  while (count < n) {
-    if (date.getDay() === 0) {
-      count++;
-      if (count === n) return date;
-    }
-    date.setDate(date.getDate() + 1);
-  }
-  return date;
-}
-
-/**
  * Seed và đồng bộ cấu hình mặc định cho Bot Scheduler (Trading Manager & Checklist Hub)
- * Bảo tồn 100% cấu hình người dùng đã thiết lập, chỉ bổ sung các tác vụ hoặc tham số còn thiếu.
+ * Tuân thủ quy chuẩn Zero-Hardcoding (AGENTS.md Rule 7) & Fail-Fast (Rule 4):
+ * - Giờ chạy tác vụ đọc 100% động từ CSDL SystemSettings (bot_backup_time, bot_stat_time...).
+ * - Tuyệt đối không phỏng đoán hay hardcode các giá trị fallback giờ ('04:00', '05:00', '06:30'...).
+ * - Nếu CSDL chưa cấu hình giờ, để trống và cảnh báo để Quản trị viên thiết lập trên giao diện Web.
+ * - Bảo tồn 100% cấu hình người dùng đã thiết lập, chỉ bổ sung các tác vụ hoặc tham số còn thiếu.
  */
 export async function seedBotSchedulerConfig(
   settingsService: SystemSettingsService,
   logger?: LoggerLike,
 ): Promise<void> {
-  const recommendedCloseTime = getRecommendedMarketCloseDownloadTime();
+  const backupTime = (await settingsService.getSetting('bot_backup_time')).trim();
+  const statTime = (await settingsService.getSetting('bot_stat_time')).trim();
   const existing = await settingsService.getSetting('bot_scheduler_config', '');
 
   if (!existing) {
+    if (!backupTime) {
+      logger?.warn(
+        '[SchedulerConfigSeeder] Chưa cấu hình bot_backup_time trong CSDL SystemSettings. Các tác vụ sao lưu cần được người dùng cấu hình mốc giờ trên giao diện Quản trị.',
+      );
+    }
+    if (!statTime) {
+      logger?.warn(
+        '[SchedulerConfigSeeder] Chưa cấu hình bot_stat_time trong CSDL SystemSettings. Tác vụ thống kê cần được người dùng cấu hình mốc giờ trên giao diện Quản trị.',
+      );
+    }
+
     const defaults: SchedulerTaskConfig[] = [
       {
         id: 'RPA_DOWNLOAD_MS',
         name: 'Tải báo cáo đối chiếu đầu ngày M-System',
         enabled: true,
-        time: recommendedCloseTime,
+        time: backupTime,
         jobType: 'RPA_DOWNLOAD_REPORTS',
         payload: {
           targets: [
@@ -80,35 +70,35 @@ export async function seedBotSchedulerConfig(
         id: 'DOWNLOAD_CQG_BACKUP',
         name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
         enabled: true,
-        time: recommendedCloseTime,
+        time: backupTime,
         jobType: 'DOWNLOAD_CQG_BACKUP',
       },
       {
         id: 'AUTO_GENERATE_STATISTICS',
         name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
         enabled: true,
-        time: '06:30',
+        time: statTime,
         jobType: 'RUN_LOT_MACRO',
       },
       {
         id: 'DOWNLOAD_CAST',
         name: 'Tải báo cáo CQG CAST Balances',
         enabled: true,
-        time: '07:00',
+        time: '',
         jobType: 'DOWNLOAD_CAST',
       },
       {
         id: 'AUTO_CHECK_SOD',
         name: 'Đối chiếu số dư đầu ngày (SOD)',
         enabled: true,
-        time: '07:05',
+        time: '',
         jobType: 'AUTO_CHECK_SOD',
       },
       {
         id: 'RPA_DOWNLOAD_CCP_PHASE1',
         name: 'Tự động tải Full báo cáo CoreCCP (VNCLEAR)',
         enabled: true,
-        time: recommendedCloseTime,
+        time: backupTime,
         jobType: 'DOWNLOAD_CCP_REPORT',
         payload: { reports: ['FULL'] },
       },
@@ -116,21 +106,21 @@ export async function seedBotSchedulerConfig(
         id: 'CHECK_DSGD_BEFORE_EOD',
         name: 'Đối chiếu DSGD trước EOD',
         enabled: false,
-        time: '16:30',
+        time: '',
         jobType: 'CHECK_DSGD_BEFORE_EOD',
       },
       {
         id: 'CHECK_EOD_MS',
         name: 'Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)',
         enabled: false,
-        time: '18:00',
+        time: '',
         jobType: 'CHECK_EOD_MS',
       },
       {
         id: 'RPA_DOWNLOAD_CE',
         name: 'Tự động tải Full báo cáo CoreEX (Liên thông)',
         enabled: true,
-        time: recommendedCloseTime,
+        time: backupTime,
         jobType: 'DOWNLOAD_CE_REPORT',
         payload: { reports: ['FULL'] },
       },
@@ -138,7 +128,7 @@ export async function seedBotSchedulerConfig(
         id: 'RPA_DOWNLOAD_ACM',
         name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
         enabled: true,
-        time: recommendedCloseTime,
+        time: backupTime,
         jobType: 'FILE_AUDIT_ACM',
       },
     ];
@@ -156,7 +146,7 @@ export async function seedBotSchedulerConfig(
             id: 'RPA_DOWNLOAD_MS',
             name: 'Tải báo cáo đối chiếu đầu ngày M-System',
             enabled: true,
-            time: recommendedCloseTime,
+            time: backupTime,
             jobType: 'RPA_DOWNLOAD_REPORTS',
             payload: {
               targets: [
@@ -176,8 +166,8 @@ export async function seedBotSchedulerConfig(
         } else {
           const rpaTask = tasks[rpaTaskIdx];
           // BẢO TỒN CẤU HÌNH NGƯỜI DÙNG: Không ghi đè giờ tải nếu đã có cấu hình
-          if (!rpaTask.time) {
-            rpaTask.time = recommendedCloseTime;
+          if (!rpaTask.time && backupTime) {
+            rpaTask.time = backupTime;
             updated = true;
           }
           if (!rpaTask.payload) {
@@ -211,12 +201,12 @@ export async function seedBotSchedulerConfig(
             id: 'DOWNLOAD_CQG_BACKUP',
             name: 'Tải file sao lưu CQG (Orders, Positions, Trades)',
             enabled: true,
-            time: recommendedCloseTime,
+            time: backupTime,
             jobType: 'DOWNLOAD_CQG_BACKUP',
           });
           updated = true;
-        } else if (!existingCqg.time) {
-          existingCqg.time = recommendedCloseTime;
+        } else if (!existingCqg.time && backupTime) {
+          existingCqg.time = backupTime;
           updated = true;
         }
 
@@ -226,9 +216,12 @@ export async function seedBotSchedulerConfig(
             id: 'AUTO_GENERATE_STATISTICS',
             name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
             enabled: true,
-            time: '06:30',
+            time: statTime,
             jobType: 'RUN_LOT_MACRO',
           });
+          updated = true;
+        } else if (!existingStat.time && statTime) {
+          existingStat.time = statTime;
           updated = true;
         }
 
@@ -237,7 +230,7 @@ export async function seedBotSchedulerConfig(
             id: 'DOWNLOAD_CAST',
             name: 'Tải báo cáo CQG CAST Balances',
             enabled: true,
-            time: '07:00',
+            time: '',
             jobType: 'DOWNLOAD_CAST',
           });
           updated = true;
@@ -248,7 +241,7 @@ export async function seedBotSchedulerConfig(
             id: 'AUTO_CHECK_SOD',
             name: 'Đối chiếu số dư đầu ngày (SOD)',
             enabled: true,
-            time: '07:05',
+            time: '',
             jobType: 'AUTO_CHECK_SOD',
           });
           updated = true;
@@ -259,7 +252,7 @@ export async function seedBotSchedulerConfig(
             id: 'RPA_DOWNLOAD_CCP_PHASE1',
             name: 'Tải báo cáo CoreCCP Phase 1 (NR, TTTT, DSL, DSGD)',
             enabled: true,
-            time: '16:15',
+            time: backupTime,
             jobType: 'DOWNLOAD_CCP_REPORT',
           });
           updated = true;
@@ -270,7 +263,7 @@ export async function seedBotSchedulerConfig(
             id: 'CHECK_DSGD_BEFORE_EOD',
             name: 'Kiểm tra tiền EOD (Dsgd-Before-EOD Check)',
             enabled: false,
-            time: '16:30',
+            time: '',
             jobType: 'CHECK_DSGD_BEFORE_EOD',
           });
           updated = true;
@@ -281,7 +274,7 @@ export async function seedBotSchedulerConfig(
             id: 'CHECK_EOD_MS',
             name: 'Đối chiếu số liệu EOD & Market Maker (checkEOD, checkMM)',
             enabled: false,
-            time: '18:00',
+            time: '',
             jobType: 'CHECK_EOD_MS',
           });
           updated = true;
@@ -292,7 +285,7 @@ export async function seedBotSchedulerConfig(
             id: 'RPA_DOWNLOAD_CE',
             name: 'Tải báo cáo CoreEX (VNCLEAR)',
             enabled: false,
-            time: '19:30',
+            time: backupTime,
             jobType: 'DOWNLOAD_CE_REPORT',
           });
           updated = true;
@@ -303,7 +296,7 @@ export async function seedBotSchedulerConfig(
             id: 'RPA_DOWNLOAD_ACM',
             name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
             enabled: true,
-            time: recommendedCloseTime,
+            time: backupTime,
             jobType: 'FILE_AUDIT_ACM',
           });
           updated = true;

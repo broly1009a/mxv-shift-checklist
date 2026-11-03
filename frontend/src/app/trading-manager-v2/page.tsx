@@ -36,6 +36,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { TRADING_JOB_TYPES_STRING } from '@/config/bot-jobs.config';
 import { QlgdExecutiveDashboard } from '../trading-manager/components/QlgdExecutiveDashboard';
 import {
   tradingOpsApi,
@@ -230,8 +231,7 @@ export default function TradingManagerV2Page() {
     if (!token) return;
     setLoadingJobs(true);
     try {
-      const TRADING_JOB_TYPES =
-        'CHECK_KLGD,CHECK_DSGD_BEFORE_EOD,CHECK_CQG_SYNC,SCAN_NEGATIVE_MARGIN,DOWNLOAD_CCP_REPORT,RUN_LOT_MACRO,RUN_VALUE_MACRO,RPA_DOWNLOAD_REPORTS,DOWNLOAD_CQG_BACKUP,TRIGGER_ACM_DOWNLOAD';
+      const TRADING_JOB_TYPES = TRADING_JOB_TYPES_STRING;
       const jobs = await tradingBotApi.getJobs({ jobTypes: TRADING_JOB_TYPES, limit: 15 }, token);
       if (Array.isArray(jobs)) {
         setBotJobs(jobs);

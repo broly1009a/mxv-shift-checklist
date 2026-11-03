@@ -144,7 +144,7 @@ export class TradingOpsUploadController {
         fileBuffers,
         tradingDate,
         [],
-        sessionStartStr || '05:00',
+        sessionStartStr,
       );
 
       const systemUser = {
@@ -685,7 +685,7 @@ export class TradingOpsUploadController {
           fileBuffers,
           new Date(),
           [],
-          sessionStartStr || '05:00',
+          sessionStartStr,
         );
       } catch (err: any) {
         errors.klgd = err.message;

@@ -140,7 +140,7 @@ async handleAutonomousBackupAndStatRun() {
   const todayStr = nowVN.toISOString().split('T')[0];
   const currentTimeStr = `${String(nowVN.getUTCHours()).padStart(2, '0')}:${String(nowVN.getUTCMinutes()).padStart(2, '0')}`;
 
-  const sessionStartSetting = await this.settingsService.getSetting('session_start_time', '05:00');
+  const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
   const { dateStr: sessionDayStr } = resolveTradingSessionDate(undefined, { sessionStartStr: sessionStartSetting });
 
   // 1. BACKUP ĐỊNH KỲ (MẶC ĐỊNH 60 PHÚT)

@@ -29,10 +29,10 @@ export class ShiftJobScheduler implements OnApplicationBootstrap {
     const currentTimeStr = timeParts.timeStr;
 
     // Get target time setting (defaults to 00:01)
-    const targetTimeStr = await this.settingsService.getSetting(
-      'shift_generation_time',
-      '00:01',
-    );
+    const targetTimeStr = await this.settingsService.getSetting('shift_generation_time');
+    if (!targetTimeStr) {
+      return;
+    }
 
     if (currentTimeStr !== targetTimeStr) {
       return; // Not the configured generation time

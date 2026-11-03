@@ -31,36 +31,9 @@ import { API_BASE_URL, useAuth } from '@/context/AuthContext';
 import { useAppSocket } from '@/services/appSocket';
 import { api } from '@/services/api';
 
-// Danh sách các tác vụ thuộc nghiệp vụ Trading Manager & Hệ thống liên quan
-export const TRADING_JOB_TYPES = [
-  'CHECK_KLGD',
-  'CHECK_DSGD_BEFORE_EOD',
-  'CHECK_EOD_MS',
-  'CHECK_EOD',
-  'CHECK_CQG_SYNC',
-  'SCAN_NEGATIVE_MARGIN',
-  'DOWNLOAD_CCP_REPORT',
-  'DOWNLOAD_CE_REPORT',
-  'CHECK_EOD_CCP',
-  'RUN_LOT_MACRO',
-  'RUN_VALUE_MACRO',
-  'RUN_MACRO',
-  'RUN_LOT_TVKD_MACRO',
-  'RUN_VALUE_TVKD_MACRO',
-  'AUTO_CHECK_SOD',
-  'DOWNLOAD_CAST',
-  'RPA_DOWNLOAD_REPORTS',
-  'FILE_AUDIT_MS',
-  'FILE_AUDIT_CQG',
-  'FILE_AUDIT_CCP',
-  'FILE_AUDIT_ACM',
-  'CREATE_GTT_FILE',
-  'CHECK_GTT',
-  'GENERATE_IMPORT_GTT_FILE',
-  'VERIFY_EMAIL',
-  'EMAIL_PARSER',
-  'EMAIL_PARSE',
-];
+import { TRADING_JOB_TYPES, getJobLabel } from '@/config/bot-jobs.config';
+
+export { TRADING_JOB_TYPES, getJobLabel };
 
 export interface BotJob {
   _id: string;
@@ -398,64 +371,7 @@ export default function TradingManagerJobQueueSection({
     toast.success('Đã tải tệp nhật ký (.txt) thành công!');
   };
 
-  // Label nghiệp vụ chuẩn hóa tiếng Việt
-  const getJobLabel = (jobType: string) => {
-    switch (jobType) {
-      case 'CHECK_KLGD':
-        return 'Đối Chiếu Khớp Lệnh (Trong Phiên)';
-      case 'CHECK_DSGD_BEFORE_EOD':
-        return 'Đối Chiếu DSGD Trước EOD';
-      case 'CHECK_EOD_MS':
-      case 'CHECK_EOD':
-        return 'Đối Chiếu EOD M-System';
-      case 'CHECK_CQG_SYNC':
-        return 'Đồng Bộ & Ghép File CQG';
-      case 'DOWNLOAD_CCP_REPORT':
-        return 'Tải Báo Cáo CoreCCP (VNCLEAR)';
-      case 'DOWNLOAD_CE_REPORT':
-        return 'Tải Báo Cáo CE CoreCCP';
-      case 'CHECK_EOD_CCP':
-        return 'Đối Chiếu EOD CoreCCP';
-      case 'RUN_LOT_MACRO':
-        return 'Chạy Excel Macro Số Lot';
-      case 'RUN_VALUE_MACRO':
-        return 'Chạy Excel Macro Giá Trị';
-      case 'RUN_LOT_TVKD_MACRO':
-        return 'Thống Kê Số Lot TVKD (Macro)';
-      case 'RUN_VALUE_TVKD_MACRO':
-        return 'Thống Kê Giá Trị TVKD (Macro)';
-      case 'AUTO_CHECK_SOD':
-        return 'Kiểm Tra Đầu Ngày SOD';
-      case 'DOWNLOAD_CAST':
-        return 'Tải Báo Cáo Phí CAST';
-      case 'RUN_MACRO':
-        return 'Chạy Excel Macro Tổng Hợp';
-      case 'SCAN_NEGATIVE_MARGIN':
-        return 'Quét Ký Quỹ Âm MM';
-      case 'RPA_DOWNLOAD_REPORTS':
-        return 'Tải Báo Cáo M-System (RPA)';
-      case 'FILE_AUDIT_MS':
-        return 'Kiểm Tra & Tải Bổ Sung MS';
-      case 'FILE_AUDIT_CQG':
-        return 'Kiểm Tra & Ghép File CQG';
-      case 'FILE_AUDIT_ACM':
-        return 'Tải Báo Cáo Tự Doanh ACM';
-      case 'FILE_AUDIT_CCP':
-        return 'Kiểm Tra & Tải Bổ Sung CoreCCP';
-      case 'CREATE_GTT_FILE':
-        return 'Tạo File Giá Thanh Toán (GTT)';
-      case 'CHECK_GTT':
-        return 'Đối Chiếu Giá Thanh Toán (GTT)';
-      case 'GENERATE_IMPORT_GTT_FILE':
-        return 'Tạo File Nhập GTT (Import)';
-      case 'VERIFY_EMAIL':
-      case 'EMAIL_PARSER':
-      case 'EMAIL_PARSE':
-        return 'Quét & Bóc Tách Email';
-      default:
-        return jobType;
-    }
-  };
+  // Label nghiệp vụ chuẩn hóa tiếng Việt được import từ @/config/bot-jobs.config
 
   // Status Badge
   const getStatusBadge = (status: string, job?: any) => {

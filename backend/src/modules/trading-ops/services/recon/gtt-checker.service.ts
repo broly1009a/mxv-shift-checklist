@@ -688,10 +688,10 @@ export class GttCheckerService {
       throw new Error('Tiến trình kiểm tra GTT đang chạy trên hệ thống. Vui lòng đợi.');
     }
 
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedSession = resolveTradingSessionDate(options.targetDate, {
       sessionStartStr,
     });
