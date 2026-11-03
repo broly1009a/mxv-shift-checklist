@@ -1,3 +1,51 @@
+## [2026-11-03T15:30] FIX(SETTLED_LOTS_DOUBLE_COUNTING): Khắc Phục Triệt Để Lỗi Tính Nhân Đôi (Double) Khối Lượng Tất Toán Vị Thế (TTTT) Theo Đúng 100% Ground Truth C# IT Tool & File Thực Tế Ổ M:
+
+### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
+- **Phản ánh từ USER**: *"E Hiệp xem giúp a phần bảng thống kê lãi lỗ, chỗ tính khối lượng tất toán bị double"*.
+- **Chỉ đạo nghiêm ngặt từ USER**: *"tôi cần bạn xỏ vào M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong để lấy file backup thay vì phỏng đoán tôi sợ bạn phỏng đoán fix linh tinh lắm"* và *"bạn sửa bừa dạo dựa vào đâu vậy. tôi muốn bạn code clean chuẩn không phỏng đoán suy diễn tự chế"*.
+- **Kiểm chứng trực tiếp từ file backup thực tế trên ổ M:**:
+  - File nguồn CoreCCP: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup CCP\Futures\2026\T11.2026\02.11\TTTT.xlsx` (130,043 bytes, 684 dòng):
+    - Cột 8 (`Khối lượng mua`): **872 lots**.
+    - Cột 9 (`Khối lượng bán`): **872 lots**.
+    - Nghiệp vụ tất toán vị thế (Settlement / Closed Positions): Mỗi dòng là một cặp khớp bù trừ đối ứng giữa lệnh đóng và lệnh mở cho cùng **872 hợp đồng**. Khối lượng tất toán thực sự là **872 lots** (chứ không phải 872 + 872 = 1744).
+  - Tệp kết quả chạy bot cũ trên ổ M: `M:\...\02.11\ccp_lot_run_WRITE_045510.json`:
+    - `totalKltt: 1744` (bị double từ 872!)
+    - Từng TVKD bị nhân đôi: TVKD 001: `kltt: 56` (trong khi KLM=28, KLB=28); TVKD 002: `kltt: 102` (KLM=51, KLB=51); TVKD 003: `kltt: 318` (KLM=159, KLB=159)...
+  - File Excel lũy kế Master: `M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Thong ke ccp\output\Thong ke so lot giao dich ACM 2026.xlsx`:
+    - Sheet `T11.2026`, Dòng 5 (phiên 02/11/2026), Cột D (`Số lot tất toán`): đang bị ghi đè giá trị **`1744`** (gấp đôi số đúng 872).
+- **Căn cứ Ground Truth 100% từ C# IT Tool gốc trong repo**:
+  1. `scratch/it-tool-src/CCP-Statistics-Tool/CCP-Statistics-Tool/Services/ExcelDataService.cs#L483`:
+     ```csharp
+     Kltt = g.Sum(x => { double.TryParse(x.KhoiLuongMua?.ToString()?.Replace(",", ""), out double val); return val; }),
+     ```
+     $\rightarrow$ C# IT Tool gốc **CHỈ LẤY ĐÚNG `x.KhoiLuongMua`** (đơn vế), tuyệt đối không cộng mua + bán.
+  2. `tool-C#/operate-transaction-app/Services/TransactionCheckingService.cs#L347`:
+     ```csharp
+     totalTTTT += tongBan;
+     ```
+     $\rightarrow$ Đối với M-System, C# IT Tool gốc cũng **CHỈ LẤY ĐÚNG `tongBan`** (đơn vế).
+
+### 2. Nguyên nhân gốc (Root Cause) & Danh sách file chỉnh sửa
+- **Nguyên nhân gốc**:
+  - Tại `ccp-lot-statistics.service.ts#L862`, lập trình viên trước đây hiểu nhầm rằng tổng lot tất toán phải bằng mua + bán nên đã viết:
+    `const kltt = ttttGroup.reduce((s, r) => s + r.klMua + r.klBan, 0);` kèm comment tại L151 `totalTtttLot: number; // TTTT: tổng lot tất toán (mua + bán)`.
+  - Tương tự tại `ms-excel.parser.ts#L366`, hàm phục vụ bảng thống kê ma trận lãi lỗ trên Executive Dashboard viết:
+    `const liquidatedLots = klMua + klBan;`
+  - Cả hai vị trí đều cộng dồn cả 2 vế mua và bán của cùng một hợp đồng đã đóng, làm số liệu bị nhân đôi chính xác 200%.
+
+- **Chi tiết chỉnh sửa (Clean 1-1, Zero-Speculation)**:
+  - **[backend/src/modules/trading-ops/services/statistics/ccp-lot-statistics.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/statistics/ccp-lot-statistics.service.ts#L862-L865)**:
+    - Sửa dòng 862 thành: `const kltt = ttttGroup.reduce((s, r) => s + r.klMua, 0);` (Chuẩn theo `ExcelDataService.cs#L483`: `g.Sum(x => KhoiLuongMua)`).
+    - Cập nhật comment dòng 151 thành: `totalTtttLot: number; // TTTT: tổng lot tất toán (chuẩn C# ExcelDataService: KhoiLuongMua)`.
+  - **[backend/src/modules/trading-ops/parsers/ms-excel.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/ms-excel.parser.ts#L366-L368)**:
+    - Sửa dòng 366 thành: `const liquidatedLots = banTatToanIdx !== -1 ? klBan : klMua;` (Chuẩn theo `TransactionCheckingService.cs#L347`: `totalTTTT += tongBan`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Backend Build**: `cmd /c "cd backend && npm run build"` (`nest build`) thành công 100% (Exit code 0).
+- **Frontend Typecheck**: `cmd /c "cd frontend && npx tsc --noEmit"` thành công 100% (Exit code 0).
+
+---
+
 ## [2026-11-03T15:00] FIX(TRADING_MANAGER_PERIODIC_SCAN_SYNC): Khac Phuc Triet De Hien Tuong Treo Lau O Trang Thai "Den Lich Quet Dinh Ky"
 
 ### 1. Muc tieu thay doi & Chi dao tu USER

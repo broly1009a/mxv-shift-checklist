@@ -363,7 +363,9 @@ export function parseTTTTForExecutive(buffer: Buffer): ExecutiveTtttRow[] {
 
     const klMua = muaTatToanIdx !== -1 ? parseAccountingNumber(row[muaTatToanIdx]) : 0;
     const klBan = banTatToanIdx !== -1 ? parseAccountingNumber(row[banTatToanIdx]) : 0;
-    const liquidatedLots = klMua + klBan;
+    // Chuẩn 100% C# TransactionCheckingService.cs#L347 (totalTTTT += tongBan):
+    // Khối lượng tất toán vị thế lấy đơn vế, không cộng dồn mua + bán làm double số liệu.
+    const liquidatedLots = banTatToanIdx !== -1 ? klBan : klMua;
     const realizedPnLVnd = pnlThucTeIdx !== -1 ? parseAccountingNumber(row[pnlThucTeIdx]) : 0;
 
     if (!account || !symbol) continue;

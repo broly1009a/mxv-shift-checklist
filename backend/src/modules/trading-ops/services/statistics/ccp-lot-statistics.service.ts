@@ -148,7 +148,7 @@ export interface CcpLotResult {
   totalTtmBan: number;
   totalTtmLot: number;   // TTM: tổng lot mở (mua + bán)
   totalKltt: number;
-  totalTtttLot: number;  // TTTT: tổng lot tất toán (mua + bán)
+  totalTtttLot: number;  // TTTT: tổng lot tất toán (chuẩn C# ExcelDataService: KhoiLuongMua)
   // Phân loại (phase 2: khi có Spread/LME/Options)
   acmLot: number;
   spreadLot: number;
@@ -859,7 +859,10 @@ export class CcpLotStatisticsService {
       const ttmLaiLoDuKienVnd = ttmGroup.reduce((s, r) => s + r.laiLoDuKienVnd, 0);
 
       // ── TTTT calculations ──────────────────────────────────────────────
-      const kltt = ttttGroup.reduce((s, r) => s + r.klMua + r.klBan, 0);
+      // Chuẩn 100% C# ExcelDataService.cs#L483 (Kltt = g.Sum(x => KhoiLuongMua)):
+      // Trong file TTTT CoreCCP, mỗi dòng là một cặp khớp tất toán (KL Mua = KL Bán = số lot vị thế đóng).
+      // Chỉ lấy đơn vế (r.klMua), tuyệt đối không cộng mua + bán làm double số liệu.
+      const kltt = ttttGroup.reduce((s, r) => s + r.klMua, 0);
       const ttttLaiLoThucTeVnd = ttttGroup.reduce((s, r) => s + r.laiLoThucTeVnd, 0);
 
       result.push({
