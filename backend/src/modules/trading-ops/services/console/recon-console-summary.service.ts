@@ -1369,10 +1369,10 @@ export class ReconConsoleSummaryService {
       throw new Error('Các phân hệ bot queue hoặc shift log chưa sẵn sàng');
     }
 
-    const sessionStartSetting = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartSetting) {
+      throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedSession = resolveTradingSessionDate(dateStr, {
       sessionStartStr: sessionStartSetting,
     });

@@ -148,7 +148,7 @@ export default function ReconciliationModal({
     return today.toISOString().split('T')[0];
   });
 
-  const [sessionStart, setSessionStart] = useState<string>('05:00');
+  const [sessionStart, setSessionStart] = useState<string>('');
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);

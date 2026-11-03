@@ -207,9 +207,9 @@ export default function LegacyBackupThongKeSection({
   const [updatingAutoBackup, setUpdatingAutoBackup] = useState<boolean>(false);
   const [sessionStartTime, setSessionStartTime] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('tm_session_start_time') || '05:00';
+      return localStorage.getItem('tm_session_start_time') || '';
     }
-    return '05:00';
+    return '';
   });
 
   // Helper lưu cài đặt vào CSDL MongoDB system_settings

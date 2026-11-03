@@ -124,10 +124,10 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     let resolvedDateStr = new Date().toISOString().split('T')[0];
 
     if (backupMsBase) {
-      const sessionStartStr = await this.settingsService.getSetting(
-        'session_start_time',
-        '05:00',
-      );
+      const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+      if (!sessionStartStr) {
+        throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+      }
       const { dateObj: targetDate, dateStr } = resolveTradingSessionDate(
         sessionDay || payload.targetDate,
         { sessionStartStr },

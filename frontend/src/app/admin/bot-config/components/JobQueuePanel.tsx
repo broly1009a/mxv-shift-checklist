@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { getJobLabel } from '@/config/bot-jobs.config';
 import {
   Activity,
   RefreshCw,
@@ -180,24 +181,7 @@ export default function JobQueuePanel({
     }
   };
 
-  const getJobLabel = (jobType: string) => {
-    switch (jobType) {
-      case 'RPA_DOWNLOAD_REPORTS':
-        return 'Tải Báo Cáo RPA';
-      case 'FILE_AUDIT_MS':
-        return 'Kiểm Tra & Tải Bổ Sung MS';
-      case 'FILE_AUDIT_CQG':
-        return 'Kiểm Tra & Ghép File CQG';
-      case 'FILE_AUDIT_ACM':
-        return ' Tải Báo Cáo Tự Doanh ACM';
-      case 'RUN_LOT_MACRO':
-        return ' Chạy Excel Macro Số Lot';
-      case 'RUN_VALUE_MACRO':
-        return ' Chạy Excel Macro Giá Trị';
-      default:
-        return jobType;
-    }
-  };
+  // getJobLabel được import dùng chung từ @/config/bot-jobs.config
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 animate-fade-in" style={{ color: 'var(--text-primary)' }}>

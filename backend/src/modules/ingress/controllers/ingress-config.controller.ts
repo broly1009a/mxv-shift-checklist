@@ -207,10 +207,7 @@ export class IngressConfigController {
       schedulerConfig = JSON.parse(schedulerConfigRaw);
     } catch (e) {}
 
-    const sessionStartTime = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartTime = await this.settingsService.getSetting('session_start_time');
     const usdExchangeRateStr = await this.settingsService.getSetting(
       'usd_exchange_rate',
       '',

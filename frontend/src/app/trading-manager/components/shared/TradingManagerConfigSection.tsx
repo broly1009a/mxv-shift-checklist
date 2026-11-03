@@ -73,8 +73,8 @@ export default function TradingManagerConfigSection({
   const [exchangeRateSource, setExchangeRateSource] = useState<string>('');
 
   // Session time
-  const [sessionStartTime, setSessionStartTime] = useState<string>('05:00');
-  const [sessionEndTime, setSessionEndTime] = useState<string>('05:00');
+  const [sessionStartTime, setSessionStartTime] = useState<string>('');
+  const [sessionEndTime, setSessionEndTime] = useState<string>('');
 
   // 10 Paths + 2 CoreCCP paths
   const [reconFolderCheckPath, setReconFolderCheckPath] = useState<string>('');
@@ -172,12 +172,12 @@ export default function TradingManagerConfigSection({
       setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 0));
       setExchangeRatesLastSynced(map.ccp_rates_last_synced || map.exchange_rates_last_synced || '');
       setExchangeRateSource(map.exchange_rate_source || '');
-      const loadedStartTime = map.session_start_time || '05:00';
+      const loadedStartTime = map.session_start_time || '';
       setSessionStartTime(loadedStartTime);
       if (typeof window !== 'undefined') {
         localStorage.setItem('tm_session_start_time', loadedStartTime);
       }
-      setSessionEndTime(map.session_end_time || '05:00');
+      setSessionEndTime(map.session_end_time || '');
 
       if (map.ccp_exchange_rates_matrix) {
         try {

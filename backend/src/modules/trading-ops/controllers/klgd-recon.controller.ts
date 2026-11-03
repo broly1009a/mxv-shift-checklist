@@ -110,7 +110,7 @@ export class KlgdReconController {
         klgdFiles,
         new Date(),
         [],
-        sessionStartStr || '05:00',
+        sessionStartStr,
       );
     } catch (err: any) {
       errors.klgd = err.message;

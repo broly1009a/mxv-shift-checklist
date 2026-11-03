@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { useAppSocket } from '@/services/appSocket';
+import { TRADING_JOB_TYPES_STRING } from '@/config/bot-jobs.config';
 import { api } from '@/services/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TradingManagerGuideModal from './components/shared/TradingManagerGuideModal';
@@ -86,27 +87,7 @@ export default function TradingManagerPage() {
     }
   }, []);
 
-  const TRADING_JOB_TYPES = useMemo(() => [
-    'CHECK_KLGD',
-    'CHECK_DSGD_BEFORE_EOD',
-    'CHECK_CQG_SYNC',
-    'SCAN_NEGATIVE_MARGIN',
-    'DOWNLOAD_CCP_REPORT',
-    'DOWNLOAD_CE_REPORT',
-    'CHECK_EOD_CCP',
-    'RUN_LOT_MACRO',
-    'RUN_VALUE_MACRO',
-    'RUN_MACRO',
-    'RPA_DOWNLOAD_REPORTS',
-    'DOWNLOAD_CQG_BACKUP',
-    'FILE_AUDIT_MS',
-    'FILE_AUDIT_CQG',
-    'FILE_AUDIT_CCP',
-    'FILE_AUDIT_ACM',
-    'CREATE_GTT_FILE',
-    'CHECK_GTT',
-    'GENERATE_IMPORT_GTT_FILE',
-  ].join(','), []);
+  const TRADING_JOB_TYPES = TRADING_JOB_TYPES_STRING;
 
   const fetchActiveJobs = useCallback(async () => {
     if (!token) return;

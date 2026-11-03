@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpException,
   HttpStatus,
+  BadRequestException,
   Logger,
   Inject,
   forwardRef,
@@ -73,10 +74,10 @@ export class IngressDownloadController {
       targets,
     );
 
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedSession = resolveTradingSessionDate(sessionDay || sessionDate, {
       sessionStartStr,
     });
@@ -108,10 +109,10 @@ export class IngressDownloadController {
     @Body('targetDate') targetDate?: string,
     @Body('skipMerge') skipMerge?: boolean,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedSession = resolveTradingSessionDate(sessionDay || sessionDate || targetDate, {
       sessionStartStr,
     });
@@ -142,10 +143,10 @@ export class IngressDownloadController {
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const resolvedSession = resolveTradingSessionDate(targetDateStr || sessionDateStr, {
       sessionStartStr,
     });
@@ -180,10 +181,10 @@ export class IngressDownloadController {
     @Body('isTradingCheck') isTradingCheck?: boolean,
     @Body('purpose') purpose?: string,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const rawStart = startDate || sessionDate || dateStr;
     const rawEnd = endDate || sessionDate || dateStr || rawStart;
 
@@ -475,10 +476,10 @@ export class IngressDownloadController {
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr || sessionDateStr, {
       sessionStartStr,
     });
@@ -525,10 +526,10 @@ export class IngressDownloadController {
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr || sessionDateStr, {
       sessionStartStr,
     });
@@ -606,10 +607,10 @@ export class IngressDownloadController {
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
   ) {
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new BadRequestException('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+    }
     const { dateObj: targetDate } = resolveTradingSessionDate(targetDateStr || sessionDateStr, {
       sessionStartStr,
     });
@@ -1076,7 +1077,7 @@ export class IngressDownloadController {
     const periodic = await this.settingsService.getSetting('bot_ccp_periodic_enabled', 'true');
     const periodicMinutes = await this.settingsService.getSetting('bot_ccp_periodic_minutes', '60');
     const timeEnabled = await this.settingsService.getSetting('bot_ccp_time_enabled', 'true');
-    const time = await this.settingsService.getSetting('bot_ccp_time', '06:00');
+    const time = await this.settingsService.getSetting('bot_ccp_time');
     const reportsRaw = await this.settingsService.getSetting(
       'bot_ccp_reports',
       JSON.stringify(['QLTTTKGD', 'EOD', 'NR', 'DSL', 'DSGD', 'TTTT', 'TTM', 'LSGTT']),

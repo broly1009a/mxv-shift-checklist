@@ -145,7 +145,7 @@ export class KlgdReconService {
     },
     tradingDate: Date,
     holidays: string[] = [],
-    sessionStartStr: string = '05:00',
+    sessionStartStr?: string,
     options?: {
       checkKlgd?: boolean;
       checkTtm?: boolean;
@@ -153,12 +153,10 @@ export class KlgdReconService {
       cutoffTime?: Date;
       cqgCutoffTime?: Date;
       checkTime?: Date;
+      sessionStart?: Date;
       jobStartTime?: Date | string;
     },
   ): Promise<CheckKLGDResult> {
-    if (sessionStartStr) {
-      await this.settingsService.setSetting('session_start_time', sessionStartStr);
-    }
     const rawDsgdData = files.dsgd ? parseDSGD(files.dsgd) : [];
     const rawNanoData = files.nano ? parseNano(files.nano) : [];
 
@@ -169,32 +167,33 @@ export class KlgdReconService {
 
     // Bảo toàn toàn bộ các lần khớp (partial fills) của CQG từ rawFrData theo chuẩn C# IT Tool (FileUtils.cs & TransactionCheckingService.cs)
 
-    const sessionStart = new Date(tradingDate);
-    const [sHour, sMin] = sessionStartStr.split(':').map(Number);
+    // Chuẩn C# TransactionCheckingService.cs#L53-L65:
+    // Cấu hình giờ bắt đầu phiên lấy 100% động từ CSDL (Zero Hardcoding)
+    const effectiveSessionStartStr =
+      sessionStartStr ||
+      (await this.settingsService.getSetting('session_start_time'));
+    if (!effectiveSessionStartStr) {
+      throw new Error(
+        'Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings. Vui lòng cấu hình trên giao diện Quản trị.',
+      );
+    }
+    const [sHour, sMin] = effectiveSessionStartStr.split(':').map(Number);
 
-    const isPastDateOrDateOnly =
-      (tradingDate.getHours() === 0 &&
-        tradingDate.getMinutes() === 0 &&
-        tradingDate.getSeconds() === 0) ||
-      (tradingDate.getUTCHours() === 0 &&
-        tradingDate.getUTCMinutes() === 0 &&
-        tradingDate.getUTCSeconds() === 0);
+    // Mốc thời điểm kiểm tra checkTime (chuẩn C# time)
+    const checkTime = options?.checkTime
+      ? new Date(options.checkTime)
+      : new Date(tradingDate);
+    checkTime.setSeconds(0, 0);
+    checkTime.setMilliseconds(0);
 
-    let checkTime: Date;
-    if (options?.checkTime) {
-      checkTime = new Date(options.checkTime);
-    } else if (isPastDateOrDateOnly) {
+    // Mốc bắt đầu phiên sessionStart (chuẩn C# sessionStart = time.Date + startTime)
+    const sessionStart = options?.sessionStart
+      ? new Date(options.sessionStart)
+      : new Date(tradingDate);
+
+    if (!options?.sessionStart) {
       sessionStart.setHours(sHour, sMin, 0, 0);
-      while (sessionStart.getDay() === 0 || sessionStart.getDay() === 6) {
-        sessionStart.setDate(sessionStart.getDate() - 1);
-      }
-      checkTime = new Date(sessionStart);
-      checkTime.setDate(checkTime.getDate() + 1);
-    } else {
-      checkTime = new Date(tradingDate);
-      checkTime.setSeconds(0, 0);
-      checkTime.setMilliseconds(0);
-      sessionStart.setHours(sHour, sMin, 0, 0);
+      sessionStart.setMilliseconds(0);
       if (checkTime < sessionStart) {
         sessionStart.setDate(sessionStart.getDate() - 1);
       }
@@ -708,10 +707,12 @@ export class KlgdReconService {
       findLatestFile(ccpTradingDailyPath, /tttt/i) ||
       findLatestFile(ccpDailyPath, /tttt/i);
 
-    const sessionStartStr = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartStr = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartStr) {
+      throw new Error(
+        'Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings. Vui lòng cấu hình trên giao diện Quản trị.',
+      );
+    }
 
     const [sHour, sMin] = sessionStartStr.split(':').map(Number);
     const sessionStart = new Date(tradingDate);
@@ -790,6 +791,7 @@ export class KlgdReconService {
     const reconOptions = {
       ...options,
       checkTime: effectiveCheckTime,
+      sessionStart,
     };
 
     const lmeHolidaysStr = await this.settingsService.getSetting(

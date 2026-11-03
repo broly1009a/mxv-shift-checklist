@@ -52,10 +52,12 @@ export class ReconPipelineService implements IReconPipelinePort {
    */
   public async handleCheckKlgdJob(job: any): Promise<any> {
     const payload = parseJobPayload(job);
-    const sessionStartSetting = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartSetting) {
+      throw new Error(
+        'Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings. Vui lòng cấu hình trên giao diện Quản trị.',
+      );
+    }
     const resolved = resolveTradingSessionDate(
       payload.sessionDay || payload.targetDate,
       { sessionStartStr: sessionStartSetting },
@@ -88,7 +90,7 @@ export class ReconPipelineService implements IReconPipelinePort {
       payload.result = {
         passed: true,
         isWeekendRest: true,
-        message: `Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc ${sessionStartSetting || '05:00'} sáng Thứ Hai.`,
+        message: `Thị trường đóng cửa cuối tuần. Tác vụ đối chiếu trong phiên (CHECK_KLGD) tự động tạm nghỉ cho đến khi phiên mới mở lúc ${sessionStartSetting} sáng Thứ Hai.`,
         mismatchedTrades: [],
         mismatchedTradesTotal: 0,
       };

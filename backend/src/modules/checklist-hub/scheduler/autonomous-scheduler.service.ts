@@ -13,13 +13,10 @@ import {
 
 import {
   SchedulerTaskConfig,
-  getRecommendedMarketCloseDownloadTime,
   seedBotSchedulerConfig,
 } from '../helpers/scheduler-config-seeder.helper';
 
 export type { SchedulerTaskConfig };
-export { getRecommendedMarketCloseDownloadTime };
-
 @Injectable()
 export class AutonomousSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(AutonomousSchedulerService.name);
@@ -69,10 +66,11 @@ export class AutonomousSchedulerService implements OnModuleInit {
     }
 
     // 3. Market Weekend Guard: Tạm dừng khi thị trường đóng cửa cuối tuần
-    const sessionStartSetting = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartSetting) {
+      this.logger.warn('[AutonomousScheduler] Chưa cấu hình session_start_time trong CSDL, tạm dừng chu kỳ.');
+      return;
+    }
     if (isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })) {
       return;
     }
@@ -155,10 +153,11 @@ export class AutonomousSchedulerService implements OnModuleInit {
     }
 
     // 3. Market Weekend Guard: Tạm dừng khi thị trường đóng cửa cuối tuần
-    const sessionStartSetting = await this.settingsService.getSetting(
-      'session_start_time',
-      '05:00',
-    );
+    const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+    if (!sessionStartSetting) {
+      this.logger.warn('[AutonomousScheduler] Chưa cấu hình session_start_time trong CSDL, tạm dừng chu kỳ backup.');
+      return;
+    }
     if (isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })) {
       return;
     }
@@ -360,14 +359,24 @@ export class AutonomousSchedulerService implements OnModuleInit {
       return;
     }
 
-    const recommendedCloseTime = getRecommendedMarketCloseDownloadTime();
     // Đọc các cấu hình thời điểm vận hành động từ system_settings (Tab Backup & Thống kê)
     const [backupTime, backupTimeEnabled, statTime, statTimeEnabled] = await Promise.all([
-      this.settingsService.getSetting('bot_backup_time', recommendedCloseTime),
+      this.settingsService.getSetting('bot_backup_time'),
       this.settingsService.getSetting('bot_backup_time_enabled', 'true'),
-      this.settingsService.getSetting('bot_stat_time', '06:30'),
+      this.settingsService.getSetting('bot_stat_time'),
       this.settingsService.getSetting('bot_stat_time_enabled', 'true'),
     ]);
+
+    if (!backupTime) {
+      this.logger.warn(
+        '[AutonomousScheduler] Chưa cấu hình bot_backup_time trong CSDL SystemSettings. Vui lòng thiết lập mốc giờ sao lưu trên giao diện Quản trị.',
+      );
+    }
+    if (!statTime) {
+      this.logger.warn(
+        '[AutonomousScheduler] Chưa cấu hình bot_stat_time trong CSDL SystemSettings. Vui lòng thiết lập mốc giờ chạy thống kê trên giao diện Quản trị.',
+      );
+    }
 
     // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS, DOWNLOAD_CQG_BACKUP, CoreCCP và CoreEX)
     if (backupTime && /^\d{2}:\d{2}$/.test(backupTime)) {
@@ -469,10 +478,10 @@ export class AutonomousSchedulerService implements OnModuleInit {
       );
 
       // Prepare payload and look for matching checklist task to link
-      const sessionStartSetting = await this.settingsService.getSetting(
-        'session_start_time',
-        '05:00',
-      );
+      const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
+      if (!sessionStartSetting) {
+        throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+      }
 
       // Market Weekend Guard: Không kích hoạt các task sao lưu / báo cáo thị trường khi cuối tuần đóng cửa
       if (isMarketWeekendClosed(new Date(), { sessionStartStr: sessionStartSetting })) {
