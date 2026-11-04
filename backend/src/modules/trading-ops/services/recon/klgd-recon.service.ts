@@ -224,8 +224,9 @@ export class KlgdReconService {
       return tradeTime <= checkTime;
     });
 
-    // Chuẩn C# TransactionCheckingService.cs#L167 (timeMatched > time => continue):
-    // Lọc nanoData theo mốc chặn trên cố định theo phút checkTime (HH:mm:00.000)
+    // Lọc nanoData theo phiên giao dịch:
+    // Với Trade Date chuẩn từ parser, tradeTime của lệnh xuyên đêm mang ngày hôm sau (ví dụ: 2026-11-04 04:47 > 2026-11-03 06:00),
+    // do đó lọc đồng thời sessionStart (chặn lệnh cũ của phiên trước) và mốc chặn trên checkTime.
     const nanoData = rawNanoData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
@@ -494,7 +495,8 @@ export class KlgdReconService {
         ccpDsgdRecords = parsed.records || [];
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
-        this.logger.warn(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+        this.logger.error(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+        ccpStatus = 'FAILED';
       }
     }
     if (files.ttmCcp) {
@@ -681,11 +683,23 @@ export class KlgdReconService {
     const ttttPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTTT.xlsx');
     const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
 
-    const acmTradesPath =
-      findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
-      findLatestFile(acmDailyPath, /Nano|Fill/i) ||
-      findLatestFile(acmTradingDailyPath, /Straits/i) ||
-      findLatestFile(acmDailyPath, /Straits/i);
+    const resolveAcmFile = () => {
+      const candidates = [
+        findLatestFile(acmTradingDailyPath, /Nano|Fill/i),
+        findLatestFile(acmDailyPath, /Nano|Fill/i),
+        findLatestFile(acmTradingDailyPath, /Straits/i),
+        findLatestFile(acmDailyPath, /Straits/i),
+      ].filter((p): p is string => !!p && fs.existsSync(p));
+      const validCandidate = candidates.find((p) => {
+        try {
+          return fs.statSync(p).size > 5000;
+        } catch {
+          return false;
+        }
+      });
+      return validCandidate || candidates[0] || null;
+    };
+    const acmTradesPath = resolveAcmFile();
 
     const cqgFrPath =
       resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||

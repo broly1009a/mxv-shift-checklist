@@ -477,7 +477,9 @@ export class MsApiAdapter implements IIngressPort {
 
     const targetPath = path.join(targetDir, reportDef.fileName);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(targetPath, buffer);
+    const tmpPath = `${targetPath}.${Date.now()}.${Math.random().toString(36).substring(7)}.tmp`;
+    fs.writeFileSync(tmpPath, buffer);
+    fs.renameSync(tmpPath, targetPath);
 
     // Đồng thời tạo file alias market.csv nếu đang lưu dưới tên market truoc 6h.csv để tương thích 100% với các tool cũ
     if (reportDef.fileName.toLowerCase().includes('market')) {

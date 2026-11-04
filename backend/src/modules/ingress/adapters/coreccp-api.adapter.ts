@@ -578,7 +578,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(targetPath, buffer);
+    const tmpPath = `${targetPath}.${Date.now()}.${Math.random().toString(36).substring(7)}.tmp`;
+    fs.writeFileSync(tmpPath, buffer);
+    fs.renameSync(tmpPath, targetPath);
     return buffer;
   }
 
@@ -791,9 +793,12 @@ export class CoreCcpApiAdapter implements IIngressPort {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(searchCodeOrSheetName || 'Sheet1');
 
+    const tmpPath = `${targetFilePath}.${Date.now()}.${Math.random().toString(36).substring(7)}.tmp`;
+
     if (rows.length === 0) {
       worksheet.addRow(['(Không có dữ liệu phát sinh trong phiên)']);
-      await workbook.xlsx.writeFile(targetFilePath);
+      await workbook.xlsx.writeFile(tmpPath);
+      fs.renameSync(tmpPath, targetFilePath);
       return;
     }
 
@@ -815,7 +820,8 @@ export class CoreCcpApiAdapter implements IIngressPort {
       fgColor: { argb: 'FFE8F0FE' },
     };
 
-    await workbook.xlsx.writeFile(targetFilePath);
+    await workbook.xlsx.writeFile(tmpPath);
+    fs.renameSync(tmpPath, targetFilePath);
   }
 
   /**

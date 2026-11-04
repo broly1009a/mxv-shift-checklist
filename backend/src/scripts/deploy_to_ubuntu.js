@@ -88,6 +88,10 @@ const specificFiles = [
     remote: '/opt/mxv-checklist/CHANGELOG_AI.md',
   },
   {
+    local: path.join(repoRoot, 'TASK_RECON_KLGD_ROOT_CAUSE_INVESTIGATION_AND_FIX.md'),
+    remote: '/opt/mxv-checklist/TASK_RECON_KLGD_ROOT_CAUSE_INVESTIGATION_AND_FIX.md',
+  },
+  {
     local: path.join(repoRoot, 'frontend/next.config.ts'),
     remote: '/opt/mxv-checklist/frontend/next.config.ts',
   },

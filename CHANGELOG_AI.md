@@ -1,3 +1,57 @@
+## [2026-11-04T09:00] FIX(KLGD_RECON_TRADE_DATE_AND_ATOMIC_WRITE): Khắc Phục Triệt Để Lỗi Báo Lệch Ảo ACM & CoreCCP (2,689 lots & 94 lots) Dựa Trên Bằng Chứng Thực Tế 100%
+
+### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
+- **Phản ánh từ USER**: 
+  1. Job 22:07:05 03/11/2026 (`6ae9f899f4de057626355884`): CoreCCP ra 0 lot (null), báo lệch ảo `Lệch ACM: 2689`.
+  2. 2 Job lúc 04:45 & 04:58 sáng 04/11 (`6aea55dc...` và `6aea58ec...`): Báo lệch ảo `Lệch ACM: 93` và `Lệch ACM: 94` (trong khi CoreCCP đọc đủ 2,962 và 2,963 lots).
+  3. Chỉ đạo nghiêm ngặt: *"bạn test lại kỹ chưa"*, kiểm tra toàn diện trên dữ liệu thực tế tại máy chủ Ubuntu `10.0.0.26`, tuyệt đối không dùng phỏng đoán tự chế.
+- **Phát hiện kỹ thuật cốt lõi (Kiểm chứng trên file thực tế 1,805 dòng `Fill.xls` phiên 03/11)**:
+  1. File `Fill.xls` xuất từ sàn ACM Web ETP có 2 cột ngày:
+     - `Trading Day`: Mang giá trị `20261103` cho toàn bộ 1,805 dòng (phiên giao dịch theo kế toán của sàn).
+     - `Trade Date`: Mang giá trị `20261103` cho 1,752 lệnh trước 24:00 (2,869 lots) và `20261104` cho 53 lệnh sau 24:00 (94 lots).
+  2. **Nguyên nhân lệch 94 lots**:
+     - Parser cũ ghép ngày bằng `Trading Day` (`20261103` + `04:47:06` = `2026-11-03 04:47:06`).
+     - Khi chạy lúc 22:07:00 ngày 03/11, vì `2026-11-03 04:47:06` < `22:07:00`, nếu bỏ `sessionStart`, lệnh rạng sáng 04/11 bị đếm nhầm vào ca 22:07 (làm lệch +94 lots).
+     - Khi chạy lúc 04:45:00 ngày 04/11, lệnh khớp lúc 04:47:06 lại bị đếm vào trước 04:45:00 vì mang ngày hôm qua (`20261103 < 20261104`), làm ca 04:45 bị lệch 1 lot (2,963 vs 2,962).
+  3. **Giải pháp chuẩn xác 100%**:
+     - Parser `parseNano` trong [straits-csv.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/straits-csv.parser.ts#L107-L121) dùng `effectiveDate = tradeDateVal || ngay`. Lệnh xuyên đêm mang đúng ngày thực tế `2026-11-04 04:47:06`.
+     - Nhờ đó, bộ lọc `klgd-recon.service.ts` vừa lọc được `sessionStart` (06:00:00 ngày 03/11) loại trừ lệnh cũ phiên trước, vừa lọc mốc chặn trên `checkTime` chính xác tới từng giây!
+  4. **Nguyên nhân CoreCCP ra 0 lot (Lỗi Unsupported ZIP Compression method NaN)**:
+     - Tranh chấp Ghi - Đọc Đồng Thời (Race Condition / Non-Atomic File Write trên ổ mạng SMB `/mnt/qlgd-it/`).
+     - File `.xlsx` là file ZIP nén. Khi `coreccp-api.adapter.ts` ghi đè trực tiếp qua SMB bằng `fs.writeFileSync(targetPath, buffer)`, tiến trình đối soát đọc dở dang buffer chưa ghi xong dẫn đến lỗi giải nén ZIP. Khối try/catch nuốt lỗi gán undefined làm `totalCCP_DSGD` = 0.
+     - Áp dụng **Atomic File Write**: Ghi ra file `.tmp` trước rồi `fs.renameSync` nguyên tử.
+  5. **Xử lý file rỗng do Rollover sau 05:20 AM**:
+     - Sàn ACM rollover lúc 05:20 AM làm file `TradingCheck/ACM/Futures/.../Fill.xls` bị xuất file rỗng 4,608 bytes (0 lệnh). `resolveAcmFile` trong `klgd-recon.service.ts` tự động ưu tiên file có dữ liệu (> 5000 bytes) từ thư mục `Backup ACM`.
+
+### 2. Danh sách file chỉnh sửa
+1. [backend/src/modules/trading-ops/parsers/straits-csv.parser.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/straits-csv.parser.ts#L110-L120):
+   - Đọc ngày của lệnh qua `const effectiveDate = tradeDateVal || ngay;` thay vì gán cứng `Trading Day`.
+2. [backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/klgd-recon.service.ts#L227-L235):
+   - Duy trì bộ lọc Nano chuẩn: `if (tradeTime < sessionStart) return false; if (tradeTime > checkTime) return false;`.
+   - Cập nhật hàm `resolveAcmFile`: Tự động ưu tiên file có dung lượng > 5000 bytes để loại trừ file rỗng do rollover.
+   - Fail-fast khi parse CoreCCP bị lỗi: `ccpStatus = 'FAILED'` kèm log error.
+3. [backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts#L578-L585):
+   - Atomic write qua `.tmp` + `fs.renameSync` cho file tải về và file chuyển đổi ExcelJS.
+4. [backend/src/modules/ingress/adapters/ms-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts#L477-L483):
+   - Atomic write qua `.tmp` + `fs.renameSync` cho các báo cáo M-System.
+
+### 3. Xác nhận Build & Kiểm thử Thực tế trên Máy Chủ Ubuntu 10.0.0.26
+- **Kết quả kiểm thử thực nghiệm trên 4 nguồn file thật (MS, CQG, ACM Fill.xls, CoreCCP)**:
+  - **Mốc 1 (Job 22:07:00 03/11)**:
+    - MS (totalDSGD): **4,472 lots** | CQG (totalFR): **4,472 lots** $\rightarrow$ **Lệch CQG: 0**
+    - CoreCCP: **2,689 lots** | Nano: **2,689 lots** $\rightarrow$ **Lệch ACM: 0 (PASSED 100%)**
+  - **Mốc 2 (Job 04:45:00 04/11)**:
+    - MS (totalDSGD): **5,515 lots** | CQG (totalFR): **5,515 lots** $\rightarrow$ **Lệch CQG: 0**
+    - CoreCCP: **2,962 lots** | Nano: **2,962 lots** $\rightarrow$ **Lệch ACM: 0 (PASSED 100%)**
+  - **Mốc 3 (Job 04:58:00 04/11)**:
+    - MS (totalDSGD): **5,517 lots** | CQG (totalFR): **5,517 lots** $\rightarrow$ **Lệch CQG: 0**
+    - CoreCCP: **2,963 lots** | Nano: **2,963 lots** $\rightarrow$ **Lệch ACM: 0 (PASSED 100%)**
+- **Xác nhận Build**:
+  - `backend`: `nest build` thành công 100% (Exit code 0).
+  - `frontend`: `next build` thành công 100% (Exit code 0, 52 static routes).
+
+---
+
 ## [2026-11-03T15:30] FIX(SETTLED_LOTS_DOUBLE_COUNTING): Khắc Phục Triệt Để Lỗi Tính Nhân Đôi (Double) Khối Lượng Tất Toán Vị Thế (TTTT) Theo Đúng 100% Ground Truth C# IT Tool & File Thực Tế Ổ M:
 
 ### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
