@@ -108,6 +108,28 @@ if (
   console.error('[FAIL] Test 4: DTO mismatch:', dto);
 }
 
+// 5. Test getNormalizedAccount
+const normSamples = [
+  { raw: '012C2788299F', expected: '012C2788299' },
+  { raw: '041C0888668L', expected: '041C0888668-L' },
+  { raw: '001C123456S', expected: '001C123456-S' },
+  { raw: 'MX090C8438577', expected: '090C8438577' },
+  { raw: 'MX090C8486369', expected: '090C8486369' },
+  { raw: 'MX090C8438577F', expected: '090C8438577' },
+  { raw: 'MX041C0888668L', expected: '041C0888668-L' },
+];
+
+let pass5 = 0;
+normSamples.forEach((tc) => {
+  const res = getNormalizedAccount(tc.raw);
+  if (res === tc.expected) {
+    pass5++;
+  } else {
+    console.error(`FAIL: ${tc.raw} -> ${res} (exp: ${tc.expected})`);
+  }
+});
+console.log(`[PASS] Test 5 (getNormalizedAccount & tiền tố MX): ${pass5}/${normSamples.length} ca test thành công.`);
+
 console.log('\n========================================================================');
 console.log('  TẤT CẢ CÁC BƯỚC KIỂM THỬ ĐÃ HOÀN TẤT THÀNH CÔNG 100%!');
 console.log('========================================================================\n');

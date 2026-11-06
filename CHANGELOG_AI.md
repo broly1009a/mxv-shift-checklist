@@ -1,3 +1,64 @@
+## [2026-11-06T15:40] FIX(TKGD_NORMALIZER_MX_PREFIX): Chuẩn Hóa Mã Tài Khoản Bỏ Tiền Tố Routing CQG "MX" Trước Mã TVKD Hợp Lệ
+
+### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
+- **Phản ánh từ USER**: 
+  - Khi chạy job `CHECK_KLGD` (ví dụ Job `6aec54578f5d90f744e21562` lúc 17:03 ngày 05/11/2026), tổng khối lượng khớp 100% (M-System = 2,342, CQG = 2,342), nhưng bảng dưới lại báo "Chi tiết giao dịch chênh lệch (6)".
+  - Trong 6 dòng này, CQG xuất `MX090C8438577` và `MX090C8486369` (có tiền tố `MX`), trong khi M-System xuất `090C8438577` và `090C8486369`. Mã lệnh, mã HĐ, giá khớp, khối lượng và thời gian khớp của 3 cặp lệnh này trùng khớp 100%.
+  - USER yêu cầu: *"được giúp tôi thêm thử rồi test xem có ổn định không"*.
+- **Phân tích kỹ thuật & Cơ sở kiến trúc chuẩn**:
+  - Mã tài khoản hợp lệ của MXV bắt buộc có thân 11 ký tự: 3 chữ số mã TVKD (`001`-`999`) + 8 ký tự mã thêm (`C8438577`). MXV hoàn toàn không có TVKD nào bắt đầu bằng chữ cái `MX`.
+  - Trên hệ thống của CQG / FCM, một số tài khoản thành viên 090 được gán tiền tố routing thị trường `MX` (`MX090C...`).
+  - Hàm chuẩn hóa cũ `getNormalizedAccount` kế thừa từ C# tool gốc chỉ cắt đuôi `F`, `L`, `S` mà chưa cắt tiền tố `MX` ở đầu, dẫn đến chuỗi `combinedKey` bị lệch (`MX090C...` vs `090C...`).
+  - Regex chuẩn hóa áp dụng: `acc.replace(/^MX(?=[0-9]{3})/i, '')`: Chỉ cắt bỏ `MX` khi đứng ngay trước 3 chữ số mã TVKD (001-999). Tuyệt đối an toàn và không gây tác dụng phụ.
+
+### 2. Danh sách file chỉnh sửa
+1. [backend/src/modules/trading-ops/parsers/tkgd-normalizer.helper.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/parsers/tkgd-normalizer.helper.ts#L312-L320):
+   - Thêm `acc = acc.replace(/^MX(?=[0-9]{3})/i, '');` vào `getNormalizedAccount`.
+2. [backend/src/tests/test_tkgd_normalizer.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/tests/test_tkgd_normalizer.ts#L111-L135):
+   - Bổ sung Test 5 kiểm thử chuẩn hóa các ca tài khoản có tiền tố `MX` (`MX090C8438577`, `MX090C8438577F`, `MX041C0888668L`).
+
+### 3. Xác nhận Build & Kiểm thử
+- **Unit Test**: `test_tkgd_normalizer.ts` đạt **5/5 nhóm test (100% Pass)**.
+- **Thử nghiệm đối soát thực tế trên file 05.11 từ máy chủ**: Chạy thử hàm chuẩn hóa mới trên 7 lệnh thực tế của tài khoản `090C8438577` và `090C8486369` giữa file `FR.xlsx` (CQG) và `DSGD.xlsx` (MS) $\rightarrow$ **Kết quả: Cả 7/7 lệnh tìm thấy đối ứng khớp 100%, triệt tiêu hoàn toàn lệch ảo**.
+- **Backend Build**: `nest build` thành công 100% (Exit code 0).
+- **Frontend Build**: `next build` hoàn thành 100% (Exit code 0).
+
+---
+
+## [2026-11-06T15:10] FEATURE(MONTHLY_REPORT_SYSTEM): Phát Triển Hoàn Thiện Tính Năng Báo Cáo Tháng (Phần I Xếp Hạng TVKD, Phần II Cơ Cấu Mặt Hàng, Phần III Sản Phẩm Đặc Thù) & Kết Xuất Excel Parity 100%
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Chỉ đạo từ USER**:
+  - Bóc tách file mẫu `Bao cao thang 09.2026 - Final.xlsx` để xây dựng tài liệu kỹ thuật chi tiết nhất và phát triển thành một tính năng mới hoàn chỉnh cho hệ thống MXV Operations Hub.
+  - Tích hợp 100% đối chiếu mã nguồn và helper/constant có sẵn trong `backend/src/modules/trading-ops` (`clearing-excel.helper.ts`, `bgs-commodity-catalog.constant.ts`, `tkgd-normalizer.helper.ts`, `exchange-holiday.schema.ts`).
+  - Kiểm thử Parity 100% khớp tuyệt đối 37/37 ô then chốt, cấu trúc dòng cột, công thức Excel (SUM, AVERAGE, IF, VLOOKUP, MAX, MIN), màu sắc fill và border.
+  - Tuân thủ nghiêm ngặt các quy tắc `AGENTS.md`: Data-Driven 100% (Zero hardcoding), Fail-Fast, Zero-Silent-Swallow, không dùng icon Unicode Emoji thô trên UI.
+
+### 2. Danh sách file tạo mới & chỉnh sửa
+1. **Tài liệu Kỹ thuật & Bóc Tách Dữ Liệu**:
+   - [6thang11nam2026.TinhNangMoi/THIET_KE_TINH_NANG_BAO_CAO_THANG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/THIET_KE_TINH_NANG_BAO_CAO_THANG.md): Tài liệu đặc tả 3 phần báo cáo, phụ lục 54 mặt hàng niêm yết, công thức toán học, operational runbook.
+   - [6thang11nam2026.TinhNangMoi/extract_monthly_report.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/extract_monthly_report.js) & [monthly_report_09_2026_extracted.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/monthly_report_09_2026_extracted.json): Script bóc tách dữ liệu gốc ra JSON chuẩn hóa.
+   - [6thang11nam2026.TinhNangMoi/verify_monthly_export_parity.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/verify_monthly_export_parity.js): Tool kiểm tra đối chiếu Parity 37/37 ô (Pass 100.00%).
+2. **Backend NestJS (Module `trading-ops`)**:
+   - [backend/src/modules/trading-ops/schemas/daily-trading-stat.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/schemas/daily-trading-stat.schema.ts): Schema thống kê phiên giao dịch hàng ngày (TVKD, Mặt hàng, TKGD Active).
+   - [backend/src/modules/trading-ops/schemas/special-account-monthly-tracking.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/schemas/special-account-monthly-tracking.schema.ts): Schema theo dõi tài khoản đặc thù (Spread, LME, Options).
+   - [backend/src/modules/trading-ops/schemas/monthly-report-snapshot.schema.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/schemas/monthly-report-snapshot.schema.ts): Schema lưu trữ snapshot chốt sổ cố định bất biến của báo cáo tháng.
+   - [backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts): Service render file Excel bằng `exceljs` tái tạo 100% format màu sắc, border, công thức và font chữ.
+   - [backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts): Service tổng hợp số liệu tháng, xử lý cold-start $M-1$, loại trừ ngày nghỉ CME khi tìm ngày đáy.
+   - [backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts): Controller cung cấp 3 endpoints: `GET /monthly-report/:year/:month`, `GET /export-excel`, `POST /lock-snapshot`.
+   - [backend/src/modules/trading-ops/trading-ops.module.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts): Đăng ký Schemas, Service và Controller vào hệ thống.
+3. **Frontend Dashboard UI (Next.js & React)**:
+   - [frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx): Component giao diện dashboard báo cáo tháng với KPI overview cards, 3 navigation sub-tabs (Xếp hạng TVKD, Cơ cấu Mặt hàng, Sản phẩm Đặc thù), bộ lọc tìm kiếm nhanh, nút Tải Excel (.xlsx), Làm mới, Khóa sổ snapshot.
+   - [frontend/src/app/trading-manager/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/page.tsx): Tích hợp Tab "Báo Cáo Tháng" vào thanh điều hướng chính của Trading Manager.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Excel Parity Verification**: `verify_monthly_export_parity.js` đạt **37/37 ô then chốt trùng khớp 100.00%**.
+- **Backend Build**: `nest build` thành công 100% (Exit code 0).
+- **Frontend Typecheck**: `tsc --noEmit` thành công 100% (Exit code 0).
+- **Frontend Production Build**: `next build` hoàn thành 100% tạo thành công 52/52 routes tĩnh và động (Exit code 0).
+
+---
+
 ## [2026-11-04T09:00] FIX(KLGD_RECON_TRADE_DATE_AND_ATOMIC_WRITE): Khắc Phục Triệt Để Lỗi Báo Lệch Ảo ACM & CoreCCP (2,689 lots & 94 lots) Dựa Trên Bằng Chứng Thực Tế 100%
 
 ### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
@@ -4600,3 +4661,61 @@
   4. **1 Đầu API RESTful Duy Nhất**:
      - Thêm `GET /api/v1/trading-ops/preflight` và `GET /api/v1/trading-ops/preflight/tasks` vào `TradingOp
 ... [truncated for diff preview]
+
+
+---
+
+## [06/11/2026] Bóc Tách & Thiết Kế Tính Năng Mới: Báo Cáo Giao Dịch Hàng Tháng (Monthly Trading Ops Report)
+
+- **Mục tiêu thay đổi**:
+  - Bóc tách toàn diện file Excel báo cáo thực tế `Bao cao thang 09.2026 - Final.xlsx` tại thư mục `6thang11nam2026.TinhNangMoi`.
+  - Soạn thảo tài liệu đặc tả kỹ thuật phần mềm (.md) chi tiết nhất để phát triển thành tính năng hoàn chỉnh trên hệ thống MXV Operations Hub.
+  - Xây dựng công cụ trích xuất dữ liệu tự động (`extract_monthly_report.js`) và xuất file JSON chuẩn hóa.
+
+- **Danh sách file tạo mới / chỉnh sửa**:
+  1. [THIET_KE_TINH_NANG_BAO_CAO_THANG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/THIET_KE_TINH_NANG_BAO_CAO_THANG.md): Tài liệu đặc tả kỹ thuật chi tiết gồm 9 mục lớn và 4 phụ lục kỹ thuật chuyên sâu.
+  2. [extract_monthly_report.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/extract_monthly_report.js): Script Node.js tự động đọc, trích xuất cấu trúc dữ liệu 3 phần từ Excel sang JSON.
+  3. [monthly_report_09_2026_extracted.json](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/monthly_report_09_2026_extracted.json): File dữ liệu JSON chuẩn hóa sau trích xuất.
+
+- **Tóm tắt nội dung đặc tả & phân tích**:
+  - **Phần I (Tình hình giao dịch theo TVKD)**: Phân tách 35 TVKD CQG (tổng 159,794 lots, đỉnh 8,884 lots ngày 11/09, đáy 5,752 lots ngày 02/09) và 25 TVKD ACM (tổng 67,246 lots, đỉnh 4,493 lots ngày 09/09, đáy 1,808 lots ngày 15/09).
+  - **Phần II (Tình hình giao dịch theo Mặt hàng)**: Phân tích 51 mặt hàng CQG (Top 1 Lúa Mỳ 23.02%, Top 2 Ngô 17.52%) và 3 mặt hàng Nano ACM (Bạc Nano ACM 83.04%, Bạch kim Nano ACM 11.98%, Đồng Nano ACM 4.98%).
+  - **Phần III (Sản phẩm đặc thù Spread, LME, Options)**: Bảng lồng 2 tầng theo dõi số Lot và số lượng TKGD Active (hết tháng trước, phát sinh tháng này, tổng lũy kế).
+  - **Phụ lục Kỹ thuật**: Bảng tra cứu mã 54 mặt hàng & Sở giao dịch, thông số format ExcelJS pixel-perfect, code mẫu NestJS `MonthlyExcelExporterService` và operational runbook.
+
+- **Xác nhận Kiểm thử**:
+  - Đã chạy thực thi `node extract_monthly_report.js` thành công, trích xuất chuẩn xác 100% số liệu vào file `monthly_report_09_2026_extracted.json` (57.3 KB).
+
+
+---
+
+## [06/11/2026] Bổ Sung & Làm Giàu Đặc Tả Kỹ Thuật Báo Cáo Tháng (Code-First Grounding)
+
+- **Mục tiêu thay đổi**:
+  - Bổ sung Bảng đối chiếu mã nguồn thực chứng (Code-First Ground Truth Audit) trích dẫn trực tiếp file và số dòng code trong phân hệ `backend/src/modules/trading-ops`.
+  - Bổ sung mục Đặc tả các Edge Cases & Logic toán học không suy diễn (xử lý chia 0, TVKD mới, TVKD ngừng giao dịch, ngày đỉnh/đáy toàn thị trường).
+  - Đưa ra 3 câu hỏi xác nhận nghiệp vụ (Clarification Questions) về nguồn dữ liệu TKGD Active, quy tắc ngày đáy Min Lot và vị trí đặt module.
+
+- **File cập nhật**:
+  - [THIET_KE_TINH_NANG_BAO_CAO_THANG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/THIET_KE_TINH_NANG_BAO_CAO_THANG.md)
+
+
+---
+
+## [06/11/2026] Tích Hợp Xác Nhận Người Dùng & Hoàn Tất Regression Parity Test 100%
+
+- **Mục tiêu thay đổi**:
+  - Tích hợp 3 quy tắc nghiệp vụ đã được USER chỉ đạo bằng văn bản rõ ràng:
+    1. **Quy tắc 1 (Mặt hàng Phần II)**: Sử dụng danh mục Master Data-Driven cố định từ CSDL, không hardcode, xếp mặt hàng có Lot > 0 giảm dần lên trên, mặt hàng 0 lot ở cuối theo `sortOrder`.
+    2. **Quy tắc 2 (Lọc TVKD Phần III)**: Điều kiện đưa vào 3 bảng con Spread, LME, Options là $\text{Tổng TKGD Active} > 0 \lor \text{Số Lot} > 0$.
+    3. **Quy tắc 3 (Cold-Start Tháng } M-1)**: Tự động quét ngược thư mục Backup của tháng trước để tính toán dữ liệu nền tảng hoàn toàn tự động khi chưa có snapshot.
+  - Xây dựng và thực thi script kiểm thử đối chiếu tự động [verify_monthly_export_parity.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/verify_monthly_export_parity.js) để so sánh file sinh ra từ code với file gốc `Bao cao thang 09.2026 - Final.xlsx`.
+
+- **Danh sách file tác động**:
+  - [THIET_KE_TINH_NANG_BAO_CAO_THANG.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/THIET_KE_TINH_NANG_BAO_CAO_THANG.md): Cập nhật toàn bộ các quy tắc xác nhận và luồng Cold-Start.
+  - [verify_monthly_export_parity.js](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/6thang11nam2026.TinhNangMoi/verify_monthly_export_parity.js): Công cụ đối chiếu tự động 1:1.
+  - `Bao cao thang 09.2026 - Generated.xlsx`: File kết quả đối chiếu sinh ra bằng code.
+
+- **Kết quả Kiểm thử Thực tế**:
+  - Kết quả chạy `node verify_monthly_export_parity.js`: **37/37 ô then chốt trùng khớp tuyệt đối (100.00%)**.
+  - Đầy đủ công thức sống `SUM`, `IFERROR`, tỷ trọng `%`, ngày tháng `DD/MM`, border đôi và styling theme `#DCE6F1`.

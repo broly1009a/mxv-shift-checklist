@@ -14,6 +14,7 @@ import {
   Sparkles,
   LayoutDashboard,
   ShieldCheck,
+  Calendar,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
@@ -29,6 +30,7 @@ import LegacyReconSection from './components/legacy-ms-cqg/LegacyReconSection';
 import TradingManagerJobQueueSection from './components/job-queue/TradingManagerJobQueueSection';
 import { QlgdExecutiveDashboard } from './components/QlgdExecutiveDashboard';
 import OmsReconSection from './components/oms-recon/OmsReconSection';
+import MonthlyReportSection from './components/monthly-report/MonthlyReportSection';
 import { getInitialTradingSessionDate } from './utils/tradingDateUtils';
 
 export default function TradingManagerPage() {
@@ -38,9 +40,9 @@ export default function TradingManagerPage() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, Hệ thống mới CoreCCP (VNCLEAR), Đối Chiếu OMS, Dashboard QLGD (Báo Cáo BGĐ), và Hàng đợi & Logs
+  // Top Tabs: Màn hình đối chiếu Khớp lệnh, Backup MS/CQG, Cấu hình, Hệ thống mới CoreCCP (VNCLEAR), Đối Chiếu OMS, Dashboard QLGD (Báo Cáo BGĐ), Báo Cáo Tháng, và Hàng đợi & Logs
   const [topTab, setTopTab] = useState<
-    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR' | 'OMS_RECON' | 'QLGD_DASHBOARD' | 'HANG_DOI_LOGS'
+    'CHECK_GD_EOD_SYNC' | 'BACKUP_THONG_KE_GTT' | 'CAU_HINH_DUONG_DAN' | 'CORE_CCP_VNCLEAR' | 'OMS_RECON' | 'QLGD_DASHBOARD' | 'MONTHLY_REPORT' | 'HANG_DOI_LOGS'
   >('CHECK_GD_EOD_SYNC');
 
   // Số lượng background job đang chạy
@@ -77,6 +79,8 @@ export default function TradingManagerPage() {
         setTopTab('OMS_RECON');
       } else if (tabParam === 'BACKUP' || tabParam === 'BACKUP_THONG_KE_GTT') {
         setTopTab('BACKUP_THONG_KE_GTT');
+      } else if (tabParam === 'MONTHLY' || tabParam === 'MONTHLY_REPORT' || tabParam === 'BAO_CAO_THANG') {
+        setTopTab('MONTHLY_REPORT');
       } else if (tabParam === 'CONFIG' || tabParam === 'CAU_HINH_DUONG_DAN') {
         setTopTab('CAU_HINH_DUONG_DAN');
       } else if (tabParam === 'LOGS' || tabParam === 'HANG_DOI_LOGS') {
@@ -460,7 +464,31 @@ export default function TradingManagerPage() {
             <span>Dashboard QLGD (Báo Cáo BGĐ)</span>
           </button>
 
-          {/* TAB 6: HÀNG ĐỢI & LOGS ROBOT */}
+          {/* TAB 6: BÁO CÁO THÁNG (MỚI) */}
+          <button
+            type="button"
+            onClick={() => setTopTab('MONTHLY_REPORT')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '8px 8px 0 0',
+              border: 'none',
+              borderBottom: topTab === 'MONTHLY_REPORT' ? '2px solid #8b5cf6' : '2px solid transparent',
+              color: topTab === 'MONTHLY_REPORT' ? '#8b5cf6' : 'var(--text-secondary)',
+              backgroundColor: topTab === 'MONTHLY_REPORT' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Calendar size={16} color={topTab === 'MONTHLY_REPORT' ? '#8b5cf6' : 'var(--text-muted)'} />
+            <span>Báo Cáo Tháng</span>
+          </button>
+
+          {/* TAB 7: HÀNG ĐỢI & LOGS ROBOT */}
           <button
             type="button"
             onClick={() => setTopTab('HANG_DOI_LOGS')}
@@ -538,8 +566,11 @@ export default function TradingManagerPage() {
         ) : topTab === 'QLGD_DASHBOARD' ? (
           /* TAB 5: BÁO CÁO BGĐ (QLGD DASHBOARD) */
           <QlgdExecutiveDashboard initialDate={selectedDate} />
+        ) : topTab === 'MONTHLY_REPORT' ? (
+          /* TAB 6: BÁO CÁO THÁNG */
+          <MonthlyReportSection token={token} />
         ) : topTab === 'HANG_DOI_LOGS' ? (
-          /* TAB 6: HÀNG ĐỢI & LOGS REAL-TIME ROBOT */
+          /* TAB 7: HÀNG ĐỢI & LOGS REAL-TIME ROBOT */
           <TradingManagerJobQueueSection
             token={token}
             selectedDate={selectedDate}

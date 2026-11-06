@@ -45,11 +45,17 @@ import { BotJob, BotJobSchema } from '../../schemas/bot-job.schema';
 import { ShiftLog, ShiftLogSchema } from '../../schemas/shift-log.schema';
 import { CcpLotRunHistory, CcpLotRunHistorySchema } from '../../schemas/ccp-lot-run-history.schema';
 import { CeLotRunHistory, CeLotRunHistorySchema } from '../../schemas/ce-lot-run-history.schema';
+import { ExchangeHoliday, ExchangeHolidaySchema } from '../../schemas/exchange-holiday.schema';
+import { DailyTradingStat, DailyTradingStatSchema } from './schemas/daily-trading-stat.schema';
+import { SpecialAccountMonthlyTracking, SpecialAccountMonthlyTrackingSchema } from './schemas/special-account-monthly-tracking.schema';
+import { MonthlyReportSnapshot, MonthlyReportSnapshotSchema } from './schemas/monthly-report-snapshot.schema';
 import { CcpLotStatisticsService } from './services/statistics/ccp-lot-statistics.service';
 import { CcpStatisticsService } from './services/statistics/ccp-statistics.service';
 import { CeLotStatisticsService } from './services/statistics/ce-lot-statistics.service';
 import { CcpAdHocStatisticsService } from './services/statistics/ccp-adhoc-statistics.service';
 import { TradingOpsPreflightService } from './services/console/trading-ops-preflight.service';
+import { MonthlyExcelExporterService } from './services/reporting/monthly-excel-exporter.service';
+import { MonthlyReportingService } from './services/reporting/monthly-reporting.service';
 
 import { KlgdReconController } from './controllers/klgd-recon.controller';
 import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-recon.controller';
@@ -58,6 +64,7 @@ import { MarginCheckerController } from './controllers/margin-checker.controller
 import { GttReconController } from './controllers/gtt-recon.controller';
 import { GttUploadController } from './controllers/gtt-upload.controller';
 import { MacroExecutionController } from './controllers/macro-execution.controller';
+import { MonthlyReportingController } from './controllers/monthly-reporting.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
 import { CeReconController } from './controllers/ce-recon.controller';
 import { OmsReconController } from './controllers/oms-recon.controller';
@@ -83,6 +90,10 @@ import { RECON_PIPELINE_PORT } from '../../shared';
       { name: ShiftLog.name, schema: ShiftLogSchema },
       { name: CcpLotRunHistory.name, schema: CcpLotRunHistorySchema },
       { name: CeLotRunHistory.name, schema: CeLotRunHistorySchema },
+      { name: DailyTradingStat.name, schema: DailyTradingStatSchema },
+      { name: SpecialAccountMonthlyTracking.name, schema: SpecialAccountMonthlyTrackingSchema },
+      { name: MonthlyReportSnapshot.name, schema: MonthlyReportSnapshotSchema },
+      { name: ExchangeHoliday.name, schema: ExchangeHolidaySchema },
     ]),
   ],
   controllers: [
@@ -93,6 +104,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     GttReconController,
     GttUploadController,
     MacroExecutionController,
+    MonthlyReportingController,
     TradingOpsMiscController,
     TradingReconLogController,
     CcpReconController,
@@ -136,6 +148,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CeLotStatisticsService,
     CcpAdHocStatisticsService,
     TradingOpsPreflightService,
+    MonthlyExcelExporterService,
+    MonthlyReportingService,
     OmsReconService,
     ReconPipelineService,
     {
@@ -153,6 +167,8 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     GttCheckerService,
     CeLotStatisticsService,
     ReconConsoleSummaryService,
+    MonthlyExcelExporterService,
+    MonthlyReportingService,
     LotStatisticsService,
     ValueStatisticsService,
     CcpAccumulatorService,

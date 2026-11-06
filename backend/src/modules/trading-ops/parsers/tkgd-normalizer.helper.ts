@@ -312,6 +312,7 @@ export function encodeCcpToTtAccount(account: string, prefix = 'A1'): string {
 export function getNormalizedAccount(account: string): string {
   if (!account) return '';
   let acc = account.trim();
+  acc = acc.replace(/^MX(?=[0-9]{3})/i, '');
   acc = acc.replace(/F$/i, '');
   acc = acc.replace(/L$/i, '-L');
   acc = acc.replace(/S$/i, '-S');
