@@ -74,7 +74,12 @@ export class MonthlyReportingController {
     @Param('month', ParseIntPipe) month: number,
     @Body('note') note?: string,
   ) {
-    return this.monthlyReportingService.lockMonthlySnapshot(year, month, note, 'OPERATOR');
+    const data = await this.monthlyReportingService.lockMonthlySnapshot(year, month, note, 'OPERATOR');
+    return {
+      success: true,
+      message: `Đã khóa sổ thành công kỳ Tháng ${month}/${year}!`,
+      data,
+    };
   }
 }
 

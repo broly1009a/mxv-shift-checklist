@@ -319,7 +319,7 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
         },
       });
       const json = await res.json();
-      if (json.success) {
+      if (json.success || json._id || json.data?._id) {
         toast.success(`Đã khóa sổ thành công kỳ Tháng ${selectedMonth}/${selectedYear}!`, { id: toastId });
         await fetchMonthlyReport(false);
       } else {

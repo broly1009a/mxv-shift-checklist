@@ -1,3 +1,27 @@
+## [2026-11-06T16:40] FIX(MONTHLY_REPORT_LOCK_ENVELOPE): Sửa Envelope Response API Khóa Sổ Snapshot & Khắc Phục Thông Báo Lỗi Ảo Frontend
+
+### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
+- **Phản ánh từ USER**:
+  - Khi xem màn hình Báo Cáo Tháng và bấm nút Chốt sổ kỳ này, hệ thống trả về JSON:
+    `{ "_id": "6aed9b0a8d24c823bf4c2941", "monthYear": "2026-11", "status": "OFFICIAL", ... }` nhưng giao diện lại báo popup `"Khóa sổ thất bại"`.
+- **Nguyên nhân kỹ thuật đã kiểm chứng trực tiếp từ mã nguồn**:
+  - Backend Controller [monthly-reporting.controller.ts#L71-L78](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts#L71-L78) trả về đối tượng Mongoose Document trực tiếp `locked` mà chưa bọc envelope `{ success: true, message: ..., data: locked }`.
+  - Frontend [MonthlyReportSection.tsx#L320-L327](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx#L320-L327) kiểm tra `if (json.success)`. Vì `json.success` là `undefined`, code nhảy vào nhánh `else` và hiển thị toast `toast.error(json.message || 'Khóa sổ thất bại')`.
+  - Trên thực tế trong MongoDB `mxv_shift_checklist.monthly_report_snapshots`, bản ghi **đã được lưu và cập nhật thành công với status 'OFFICIAL'** (`_id: 6aed9b0a8d24c823bf4c2941`).
+
+### 2. Danh sách file chỉnh sửa
+1. [backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts#L71-L82):
+   - Bọc response chuẩn `{ success: true, message: 'Đã khóa sổ thành công...', data }`.
+2. [frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx#L320-L327):
+   - Kiểm tra `if (json.success || json._id || json.data?._id)` để bắt đúng mọi định dạng response thành công.
+
+### 3. Xác nhận Build & Triển khai
+- **Backend Build**: `nest build` thành công 100% (Exit code 0).
+- **Frontend Build**: `next build` thành công 100% (53/53 routes, Exit code 0).
+- **Deployment**: Đã đồng bộ mã nguồn, build và restart PM2 `mxv-backend` & `mxv-frontend` thành công trên Ubuntu `10.0.0.26`.
+
+---
+
 ## [2026-11-06T16:10] FEATURE(MONTHLY_REPORT_STANDALONE_PAGE): Thiết Lập Trang Riêng Standalone Route /trading-manager/monthly-report & Bổ Sung Menu Sidebar
 
 ### 1. Mục tiêu thay đổi & Yêu cầu từ USER
