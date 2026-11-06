@@ -14,6 +14,7 @@ import {
   Search,
   Award,
   Layers,
+  Database,
   BarChart3,
   PieChart,
   ShieldCheck,
@@ -333,6 +334,42 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
     }
   };
 
+  // 8. Sync from Backup Action
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSyncBackup = async () => {
+    if (!token) return;
+    setIsSyncing(true);
+    const toastId = toast.loading(`Đang quét và tổng hợp dữ liệu thực tế từ thư mục Backup cho Tháng ${selectedMonth}/${selectedYear}...`);
+    try {
+      const url = `${API_BASE_URL}/api/v1/trading-ops/monthly-report/${selectedYear}/${selectedMonth}/sync-backup`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const json = await res.json();
+      if (json.success) {
+        const days = json.data?.daysProcessed || 0;
+        const cqgLot = json.data?.totalCqgLot || 0;
+        const acmLot = json.data?.totalAcmLot || 0;
+        toast.success(
+          `Đã tổng hợp thành công số liệu (${days} ngày, ${formatNumber(cqgLot)} lots CQG, ${formatNumber(acmLot)} lots ACM)!`,
+          { id: toastId, duration: 4000 }
+        );
+        await fetchMonthlyReport(false);
+      } else {
+        toast.error(json.message || 'Không thể đồng bộ từ Backup', { id: toastId });
+      }
+    } catch (err: any) {
+      console.error('Lỗi đồng bộ Backup:', err);
+      toast.error(`Lỗi đồng bộ Backup: ${err.message}`, { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Helpers formatting
   const formatNumber = (num: number | undefined | null) => {
     if (num === undefined || num === null || isNaN(num)) return '0';
@@ -488,6 +525,31 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
 
         {/* Right: Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Sync from Backup Button */}
+          <button
+            type="button"
+            onClick={handleSyncBackup}
+            disabled={isSyncing || isLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+              color: '#059669',
+              fontWeight: 600,
+              fontSize: '0.82rem',
+              cursor: isSyncing || isLoading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title="Quét và nạp toàn bộ số liệu thực tế từ các file DSGD.xlsx và Fill.xls trong thư mục Backup của tháng"
+          >
+            <Database size={14} className={isSyncing ? 'animate-spin' : ''} />
+            <span>{isSyncing ? 'Đang quét...' : 'Đồng Bộ Backup'}</span>
+          </button>
+
           {/* Refresh / Recompute Button */}
           <button
             type="button"

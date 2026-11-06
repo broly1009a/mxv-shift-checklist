@@ -81,5 +81,21 @@ export class MonthlyReportingController {
       data,
     };
   }
+
+  /**
+   * Quét và tổng hợp số liệu thực tế từ thư mục Backup (Tháng 10, Tháng 11) hoặc nạp Ground Truth (Tháng 9)
+   */
+  @Post(':year/:month/sync-backup')
+  async syncBackup(
+    @Param('year', ParseIntPipe) year: number,
+    @Param('month', ParseIntPipe) month: number,
+  ) {
+    const data = await this.monthlyReportingService.syncFromBackupFolders(year, month);
+    return {
+      success: true,
+      message: `Tổng hợp số liệu từ thư mục Backup cho kỳ Tháng ${month}/${year} thành công!`,
+      data,
+    };
+  }
 }
 

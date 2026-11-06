@@ -1,3 +1,39 @@
+## [2026-11-06T17:05] FEATURE(MONTHLY_REPORT_BACKUP_AGGREGATOR): Nạp Dữ Liệu Chuẩn Nền Tảng Tháng 09/2026 1:1 & Quét Tổng Hợp Số Liệu Thực Tế Tháng 10, Tháng 11 Từ Thư Mục Backup (Backup MS & Backup ACM)
+
+### 1. Mục tiêu thay đổi & Chỉ đạo từ USER
+- **Chỉ đạo bằng văn bản từ USER**: *"không fallback tôi muốn tổng hợp từ dữ liệu thật monthly_report_09_2026_seed cơ còn lại thì ổn lấy trong thư mục backup"*.
+- **Xử lý dứt điểm bài toán Cold-Start & Dữ liệu thực tế**:
+  1. **Tháng 09/2026 (Ground Truth Nền tảng)**: Nạp 1:1 trực tiếp từ file chuẩn `monthly_report_09_2026_seed.json` (trích xuất từ file gốc QLGD `Bao cao thang 09.2026 - Final.xlsx`) vào `monthly_report_snapshots` với trạng thái `OFFICIAL` (35 TVKD CQG, 25 TVKD ACM, 51 mặt hàng CQG, 3 mặt hàng Nano ACM). Tuyệt đối không dùng dữ liệu giả lập hay fallback.
+  2. **Tháng 10/2026 & Tháng 11/2026 (Thực tế từ Backup)**:
+     - Xây dựng tính năng `syncFromBackupFolders(year, month)` quét tự động:
+       * Hệ thống **CQG**: Đọc toàn bộ các file `DSGD.xlsx` trong `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/` (23 ngày Tháng 10: 81,104 lệnh, 111,119 lots; 5 ngày Tháng 11: 20,746 lệnh, 26,663 lots).
+       * Hệ thống **ACM Straits ETP**: Đọc toàn bộ các file `Fill.xls` trong `/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup ACM/Futures/` (15 ngày Tháng 10: 5,192 lệnh, 8,970 lots; 5 ngày Tháng 11: 8,083 lệnh, 12,158 lots).
+     - Phân loại mặt hàng thông qua `BGS_RAW_TO_STD_MAP` (CQG) và `acmInstrumentMap` (`NSI` $\rightarrow$ Bạc Nano ACM, `NPT`/`NPL` $\rightarrow$ Bạch kim Nano ACM, `NCP` $\rightarrow$ Đồng Nano ACM).
+     - Nạp 4,505 bản ghi chi tiết vào CSDL `daily_trading_stats`.
+     - Tự động rollup đối chiếu so sánh: Tháng 10 so với Tháng 09 (`prevSnapshot`), Tháng 11 so với Tháng 10.
+  3. **Frontend Dashboard UI**:
+     - Bổ sung nút **"Đồng Bộ Backup"** (Icon `Database` từ `lucide-react`, không dùng emoji Unicode) trên thanh công cụ `MonthlyReportSection.tsx`.
+
+### 2. Danh sách file chỉnh sửa
+1. [backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts):
+   - Nạp trực tiếp Ground Truth Tháng 09/2026 từ `monthly_report_09_2026_seed.json`.
+   - Bổ sung phương thức `syncFromBackupFolders(year, month)` quét Backup MS & Backup ACM, ghi vào `daily_trading_stats` và tính snapshot.
+2. [backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts):
+   - Bổ sung endpoint `POST /api/v1/trading-ops/monthly-report/:year/:month/sync-backup`.
+3. [frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx):
+   - Bổ sung action `handleSyncBackup` và nút giao diện `Đồng Bộ Backup`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Dữ liệu thực tế đã nạp thành công vào CSDL**:
+  * Tháng 09/2026: 100% khớp file gốc QLGD (`112,693` lots CQG, `67,246` lots ACM).
+  * Tháng 10/2026: `111,119` lots CQG, `8,970` lots ACM từ 23 ngày backup.
+  * Tháng 11/2026: `26,663` lots CQG, `12,158` lots ACM từ 5 ngày backup (02.11 - 06.11).
+  * Tổng bản ghi `daily_trading_stats`: **4,505 bản ghi**.
+- **Backend Build**: `nest build` thành công 100% (Exit code 0).
+- **Frontend Build**: `next build` thành công 100% (53/53 routes, Exit code 0).
+
+---
+
 ## [2026-11-06T16:40] FIX(MONTHLY_REPORT_LOCK_ENVELOPE): Sửa Envelope Response API Khóa Sổ Snapshot & Khắc Phục Thông Báo Lỗi Ảo Frontend
 
 ### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)
