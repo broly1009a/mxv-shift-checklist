@@ -1,3 +1,20 @@
+## [2026-11-06T16:10] FEATURE(MONTHLY_REPORT_STANDALONE_PAGE): Thiết Lập Trang Riêng Standalone Route /trading-manager/monthly-report & Bổ Sung Menu Sidebar
+
+### 1. Mục tiêu thay đổi & Yêu cầu từ USER
+- **Chỉ đạo từ USER**: *"sao không tạo 1 trang riêng mà phải dùng trong tab tab=MONTHLY_REPORT"*.
+- Tạo một trang riêng độc lập chuẩn Next.js App Router tại route `/trading-manager/monthly-report`.
+- Bổ sung menu item trực quan "Báo Cáo Tháng" vào thanh điều hướng Sidebar cho cả khối QLGD và các khối khác (Admin/IT).
+- Tích hợp nút quay lại ("Quay lại Trading Hub"), nút bật/tắt toàn màn hình (Fullscreen toggle), hiển thị tiêu đề và subtitle trang riêng.
+
+### 2. Danh sách file tạo mới & chỉnh sửa
+1. [frontend/src/app/trading-manager/monthly-report/page.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/monthly-report/page.tsx): Trang riêng độc lập bọc `ProtectedRoute`, header thanh điều hướng, nút quay lại, nút toàn màn hình và render `MonthlyReportSection`.
+2. [frontend/src/components/Sidebar.tsx](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/Sidebar.tsx): Bổ sung mục điều hướng `Báo Cáo Tháng` trỏ trực tiếp tới `/trading-manager/monthly-report`.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `next build` hoàn thành 100% sinh route tĩnh `○ /trading-manager/monthly-report` (53/53 routes, Exit code 0).
+
+---
+
 ## [2026-11-06T15:40] FIX(TKGD_NORMALIZER_MX_PREFIX): Chuẩn Hóa Mã Tài Khoản Bỏ Tiền Tố Routing CQG "MX" Trước Mã TVKD Hợp Lệ
 
 ### 1. Mục tiêu thay đổi & Bằng chứng thực tế (Proof of Ground Truth)

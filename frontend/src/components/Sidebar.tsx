@@ -775,6 +775,18 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <Terminal size={18} style={{ flexShrink: 0 }} />
               <span>Logs Hàng đợi</span>
             </Link>
+
+            {/* 8. Báo Cáo Tháng -> /trading-manager/monthly-report */}
+            <Link
+              href="/trading-manager/monthly-report"
+              onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
+              className={`nav-link ${pathname.startsWith('/trading-manager/monthly-report') ? 'active' : ''}`}
+              title={isCollapsed ? "Báo Cáo Tháng" : undefined}
+            >
+              <Calendar size={18} style={{ flexShrink: 0 }} />
+              <span>Báo Cáo Tháng</span>
+            </Link>
           </>
         ) : (
           /* MẶC ĐỊNH CHO CÁC KHỐI KHÁC (IT, ADMIN, V.V...) - GIỮ NGUYÊN HOÀN TOÀN NHƯ CŨ */
@@ -908,6 +920,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                 >
                   <Layers size={18} style={{ flexShrink: 0 }} />
                   <span>Trading Manager (Hub)</span>
+                </Link>
+                <Link
+                  href="/trading-manager/monthly-report"
+                  onClick={onClose}
+                  className={`nav-link ${pathname.startsWith('/trading-manager/monthly-report') ? 'active' : ''}`}
+                  title={isCollapsed ? "Báo Cáo Tháng" : undefined}
+                >
+                  <Calendar size={18} style={{ flexShrink: 0 }} />
+                  <span>Báo Cáo Tháng</span>
                 </Link>
               </>
             )}
