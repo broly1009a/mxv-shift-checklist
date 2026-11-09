@@ -112,11 +112,17 @@ export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
     const isTradingCheck = payload.isTradingCheck === true || payload.purpose === 'CHECK';
     let rawBackupMs = payload.outputDir || payload.backupPathMs;
     if (!rawBackupMs) {
-      const msBackupBase = await getMsBackupBase(this.settingsService);
-      rawBackupMs = isTradingCheck
-        ? (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-          msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck')
-        : msBackupBase;
+      if (isTradingCheck) {
+        const checkBase = await this.settingsService.getSetting(
+          'recon_folder_check_path',
+          await this.settingsService.getSetting('bot_trading_check_path', ''),
+        );
+        rawBackupMs = checkBase
+          ? (checkBase.toLowerCase().endsWith('futures') ? checkBase : path.join(checkBase, 'Futures'))
+          : await getMsBackupBase(this.settingsService);
+      } else {
+        rawBackupMs = await getMsBackupBase(this.settingsService);
+      }
     }
     const backupMsBase = resolveStoragePathCrossPlatform(rawBackupMs);
 

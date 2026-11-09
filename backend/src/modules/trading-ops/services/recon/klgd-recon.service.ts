@@ -647,25 +647,17 @@ export class KlgdReconService {
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath)
-    const tradingCheckBase = resolveStoragePathCrossPlatform(
+    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath) đọc từ CSDL cấu hình
+    const rawTradingCheck =
+      (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
       (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
-    );
-    const msTradingDailyPath = options?.customDataDir || path.join(tradingCheckBase, subFolder);
-    const cqgTradingDailyPath = options?.customDataDir || path.join(
-      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
-      subFolder,
-    );
-    const acmTradingDailyPath = options?.customDataDir || path.join(
-      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
-      subFolder,
-    );
+      '';
+    const tradingCheckBase = rawTradingCheck ? resolveStoragePathCrossPlatform(rawTradingCheck) : '';
+    const msTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, subFolder) : '');
+    const cqgTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'CQG', subFolder) : '');
+    const acmTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'ACM', subFolder) : '');
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
-    const ccpTradingDailyPath = options?.customDataDir || path.join(
-      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const ccpTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'CCP', subFolder) : '');
 
     const msDailyPath = path.join(msBackupBase, subFolder);
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);

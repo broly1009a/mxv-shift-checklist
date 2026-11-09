@@ -587,11 +587,14 @@ export function resolveCcpDailyPath(subFolder: string, rawCcpBase?: string): str
 /**
  * Phân giải đường dẫn thư mục TradingCheck CCP
  */
-export function resolveTradingCheckCcpDailyPath(subFolder: string, rawCcpBase?: string): string {
+export function resolveTradingCheckCcpDailyPath(subFolder: string, rawCcpBase?: string, rawCheckBase?: string): string {
   const defaultDataPath = path.join(process.cwd(), 'data', 'trading-check', 'ccp', 'futures');
-  const checkBase = rawCcpBase
-    ? resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP')
-    : defaultDataPath;
+  let checkBase = defaultDataPath;
+  if (rawCheckBase) {
+    checkBase = path.join(resolveStoragePathCrossPlatform(rawCheckBase), 'CCP');
+  } else if (rawCcpBase) {
+    checkBase = resolveStoragePathCrossPlatform(rawCcpBase);
+  }
   const target = path.join(checkBase, subFolder);
   if (fs.existsSync(target)) return target;
 

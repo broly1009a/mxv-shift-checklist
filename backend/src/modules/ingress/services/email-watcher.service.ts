@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import * as fs from 'fs';
 import * as path from 'path';
-import { resolveStoragePathCrossPlatform, resolveDailySubfolder } from '../../../shared/helpers/file-path.helper';
+import { resolveStoragePathCrossPlatform, resolveDailySubfolder, getMsBackupBase } from '../../../shared/helpers/file-path.helper';
 
 @Injectable()
 export class EmailWatcherService {
@@ -853,10 +853,7 @@ export class EmailWatcherService {
     if (customDir) {
       downloadDir = this.formatDownloadDir(customDir);
     } else {
-      const msBackupBase = await this.settingsService.getSetting(
-        'bot_backup_path_ms',
-        process.env.DEFAULT_BACKUP_PATH_MS || '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures',
-      );
+      const msBackupBase = await getMsBackupBase(this.settingsService);
       const { fullPath } = resolveDailySubfolder(msBackupBase, targetDate);
       downloadDir = fullPath;
     }
@@ -989,10 +986,7 @@ export class EmailWatcherService {
 
     const sessionDateFromMail = extractSessionDateFromEmail(targetEmail.subject, targetEmail.bodyPreview || '');
     if (sessionDateFromMail && !customDir) {
-      const msBackupBase = await this.settingsService.getSetting(
-        'bot_backup_path_ms',
-        process.env.DEFAULT_BACKUP_PATH_MS || '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures',
-      );
+      const msBackupBase = await getMsBackupBase(this.settingsService);
       const { fullPath } = resolveDailySubfolder(msBackupBase, sessionDateFromMail);
       downloadDir = fullPath;
       this.logger.log(`[EmailWatcher] Đã nhận diện ngày phiên từ email (${sessionDateFromMail.toISOString().split('T')[0]}), thư mục lưu EOD chuẩn: ${downloadDir}`);

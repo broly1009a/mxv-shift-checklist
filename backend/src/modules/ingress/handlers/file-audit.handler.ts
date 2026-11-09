@@ -17,6 +17,8 @@ import {
   resolveDailySubfolder,
   getMsBackupBase,
   getAcmBackupBase,
+  getCcpBackupBase,
+  getCeBackupBase,
 } from '../../../shared/helpers/file-path.helper';
 import {
   REQUIRED_MS_FILES,
@@ -904,11 +906,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     const payload = parseJobPayload(job);
     const { dateObj: targetDate } = resolveBotTargetDate(payload);
     const ccpBackupBase =
-      payload.backupPath ||
-      (await this.settingsService.getSetting(
-        'bot_backup_path_ccp',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP',
-      ));
+      payload.backupPath || (await getCcpBackupBase(this.settingsService));
     const { fullPath: dailyPath } = resolveDailySubfolder(ccpBackupBase, targetDate);
 
     if (!fs.existsSync(dailyPath)) {
@@ -950,11 +948,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     const payload = parseJobPayload(job);
     const { dateObj: targetDate } = resolveBotTargetDate(payload);
     const ceBackupBase =
-      payload.backupPath ||
-      (await this.settingsService.getSetting(
-        'bot_backup_path_ce',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
-      ));
+      payload.backupPath || (await getCeBackupBase(this.settingsService));
     const { fullPath: dailyPath } = resolveDailySubfolder(ceBackupBase, targetDate);
 
     if (!fs.existsSync(dailyPath)) {

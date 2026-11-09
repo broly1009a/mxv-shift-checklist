@@ -8,6 +8,8 @@ import {
   resolveStoragePathCrossPlatform,
   resolveTradingSessionDate,
   decrypt,
+  getCeBackupBase,
+  getCcpBackupBase,
 } from '../../../../shared';
 import { CcpCeScraperService } from '../../../ingress';
 import { GttExcelParser } from '../../parsers';
@@ -178,14 +180,8 @@ export class CeCcpGttCheckerService {
   }> {
     const targetDate = options.targetDate ? new Date(options.targetDate) : new Date();
 
-    const ceBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_ce',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
-    );
-    const ccpBackupBase = await this.settingsService.getSetting(
-      'bot_backup_path_ccp',
-      '',
-    );
+    const ceBackupBase = await getCeBackupBase(this.settingsService);
+    const ccpBackupBase = await getCcpBackupBase(this.settingsService);
 
     const { fullPath: ceDailyPath } = resolveDailySubfolder(ceBackupBase, targetDate);
     const { fullPath: ccpDailyPath } = resolveDailySubfolder(ccpBackupBase, targetDate);
@@ -238,7 +234,6 @@ export class CeCcpGttCheckerService {
       path.join(ccpDailyPath, 'TTM.xlsx'),
       path.join(resolvedCcpBase, 'TTM CCP.xlsx'),
       path.join(process.cwd(), 'temp', 'test_ccp_downloads', 'TTM CCP.xlsx'),
-      'C:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures\\TTM CCP.xlsx',
       path.join(this.workDir, 'TTM CCP.xlsx'),
     ];
 
@@ -295,10 +290,7 @@ export class CeCcpGttCheckerService {
           const ceCreds = JSON.parse(decrypt(ceCredRaw));
           if (ceCreds.url && ceCreds.username && ceCreds.password) {
             this.logStep('Đang khởi động bot tự động đăng nhập CoreEX để tải Giá thanh toán liên thông...');
-            const ceBackupBase = await this.settingsService.getSetting(
-              'bot_backup_path_ce',
-              'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
-            );
+            const ceBackupBase = await getCeBackupBase(this.settingsService);
             const { fullPath: ceDailyPath } = resolveDailySubfolder(ceBackupBase, targetDateStr);
             let outDir = ceDailyPath;
             try {
@@ -348,10 +340,7 @@ export class CeCcpGttCheckerService {
           const ccpCreds = JSON.parse(decrypt(ccpCredRaw));
           if (ccpCreds.url && ccpCreds.username && ccpCreds.password) {
             this.logStep('Đang khởi động bot tự động đăng nhập CoreCCP để tải Giá thanh toán...');
-            const ccpBackupBase = await this.settingsService.getSetting(
-              'bot_backup_path_ccp',
-              '',
-            );
+            const ccpBackupBase = await getCcpBackupBase(this.settingsService);
             const { fullPath: ccpDailyPath } = resolveDailySubfolder(ccpBackupBase, targetDateStr);
             let outDir = ccpDailyPath;
             try {

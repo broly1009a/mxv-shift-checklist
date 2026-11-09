@@ -7,7 +7,7 @@ import { extractCqgSnapshotTime } from '../../parsers/cqg-excel.parser';
 import { getMsConversionRate } from '../../helpers/ms-exchange-rate.helper';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { TelegramService } from '../../../telegram/telegram.service';
-import { resolveStoragePathCrossPlatform, resolveDailySubfolder, FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../../shared';
+import { resolveStoragePathCrossPlatform, resolveDailySubfolder, getMsBackupBase, getCqgBackupBase, FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../../shared';
 
 export interface CqgAuditResult {
   key: string;
@@ -781,18 +781,8 @@ export class CqgMergerService {
       throw new Error('SystemSettingsService chưa sẵn sàng trong CqgMergerService.');
     }
 
-    const msBackupBase = resolveStoragePathCrossPlatform(
-      await this.settingsService.getSetting(
-        'bot_backup_path_ms',
-        '',
-      ),
-    );
-    const cqgBackupBase = resolveStoragePathCrossPlatform(
-      await this.settingsService.getSetting(
-        'bot_backup_path_cqg',
-        'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-      ),
-    );
+    const msBackupBase = await getMsBackupBase(this.settingsService);
+    const cqgBackupBase = await getCqgBackupBase(this.settingsService);
 
     const year = tradingDate.getFullYear().toString();
     const month = String(tradingDate.getMonth() + 1).padStart(2, '0');
@@ -848,12 +838,7 @@ export class CqgMergerService {
   async getDailyBackupPath(
     targetDate: Date = new Date(),
   ): Promise<{ baseDir: string; fullPath: string }> {
-    const rawBaseDir = this.settingsService
-      ? await this.settingsService.getSetting(
-          'bot_backup_path_cqg',
-          'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-        )
-      : 'M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures';
+    const rawBaseDir = this.settingsService ? await getCqgBackupBase(this.settingsService) : '';
     const baseDir = resolveStoragePathCrossPlatform(rawBaseDir);
     const { fullPath } = resolveDailySubfolder(baseDir, targetDate);
     return { baseDir, fullPath };
@@ -877,11 +862,13 @@ export class CqgMergerService {
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
         const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-        const tradingCheckBase = baseDir
-          .replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG')
-          .replace(/Backup CQG/i, 'TradingCheck/CQG');
-        const tradingCheckFullPath = path.join(tradingCheckBase, subFolder);
-        if (fs.existsSync(tradingCheckFullPath)) {
+        const rawTradingCheck = this.settingsService
+          ? (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
+            (await this.settingsService.getSetting('bot_trading_check_path', ''))
+          : '';
+        const tradingCheckBase = rawTradingCheck ? resolveStoragePathCrossPlatform(rawTradingCheck) : '';
+        const tradingCheckFullPath = tradingCheckBase ? path.join(tradingCheckBase, 'CQG', subFolder) : '';
+        if (tradingCheckFullPath && fs.existsSync(tradingCheckFullPath)) {
           fullPath = tradingCheckFullPath;
         }
       }
@@ -921,10 +908,11 @@ export class CqgMergerService {
     const msBackupBase = this.settingsService
       ? await this.settingsService.getSetting('bot_backup_path_ms', '')
       : '';
-    const tradingCheckBase = this.settingsService
-      ? (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck')
-      : msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck');
+    const rawTradingCheckMs = this.settingsService
+      ? (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
+        (await this.settingsService.getSetting('bot_trading_check_path', ''))
+      : '';
+    const tradingCheckBase = rawTradingCheckMs ? resolveStoragePathCrossPlatform(rawTradingCheckMs) : msBackupBase;
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');
     const day = String(targetDate.getDate()).padStart(2, '0');
@@ -988,11 +976,13 @@ export class CqgMergerService {
         const month = String(targetDate.getMonth() + 1).padStart(2, '0');
         const day = String(targetDate.getDate()).padStart(2, '0');
         const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
-        const tradingCheckBase = baseDir
-          .replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG')
-          .replace(/Backup CQG/i, 'TradingCheck/CQG');
-        const tradingCheckFullPath = path.join(tradingCheckBase, subFolder);
-        if (fs.existsSync(tradingCheckFullPath)) {
+        const rawTradingCheck = this.settingsService
+          ? (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
+            (await this.settingsService.getSetting('bot_trading_check_path', ''))
+          : '';
+        const tradingCheckBase = rawTradingCheck ? resolveStoragePathCrossPlatform(rawTradingCheck) : '';
+        const tradingCheckFullPath = tradingCheckBase ? path.join(tradingCheckBase, 'CQG', subFolder) : '';
+        if (tradingCheckFullPath && fs.existsSync(tradingCheckFullPath)) {
           fullPath = tradingCheckFullPath;
         }
       }
@@ -1017,10 +1007,11 @@ export class CqgMergerService {
     const msBackupBase = this.settingsService
       ? await this.settingsService.getSetting('bot_backup_path_ms', '')
       : '';
-    const tradingCheckBase = this.settingsService
-      ? (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck')
-      : msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck');
+    const rawTradingCheckMs = this.settingsService
+      ? (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
+        (await this.settingsService.getSetting('bot_trading_check_path', ''))
+      : '';
+    const tradingCheckBase = rawTradingCheckMs ? resolveStoragePathCrossPlatform(rawTradingCheckMs) : msBackupBase;
 
     const year = targetDate.getFullYear().toString();
     const month = String(targetDate.getMonth() + 1).padStart(2, '0');

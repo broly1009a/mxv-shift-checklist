@@ -1,10 +1,16 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
-import { resolveStoragePathCrossPlatform } from '../../../../shared';
+import {
+  resolveStoragePathCrossPlatform,
+  getMsBackupBase,
+  getCcpBackupBase,
+  // getAcmBackupBase, // [COMMENT THEO CHỈ THỊ USER: Không dùng nguồn Backup ACM nữa, chuyển sang Backup CCP]
+} from '../../../../shared/helpers/file-path.helper';
+import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { DailyTradingStat } from '../../schemas/daily-trading-stat.schema';
 import { SpecialAccountMonthlyTracking } from '../../schemas/special-account-monthly-tracking.schema';
 import { MonthlyReportSnapshot } from '../../schemas/monthly-report-snapshot.schema';
@@ -29,6 +35,8 @@ export class MonthlyReportingService {
     @InjectModel(ExchangeHoliday.name)
     private readonly exchangeHolidayModel: Model<ExchangeHoliday>,
     private readonly excelExporterService: MonthlyExcelExporterService,
+    @Optional()
+    private readonly settingsService?: SystemSettingsService,
   ) {}
 
   /**
@@ -57,10 +65,18 @@ export class MonthlyReportingService {
     // 1. Kiểm tra Snapshot đã chốt nếu không yêu cầu ép tính lại (chỉ trả về nếu có dữ liệu hợp lệ)
     if (!forceRefresh) {
       const existingSnapshot = await this.monthlySnapshotModel.findOne({ monthYear }).lean();
-      if (existingSnapshot && existingSnapshot.section1Tvkd?.cqg?.items?.length > 0) {
+      const hasAcmMismatch =
+        existingSnapshot?.status === 'DRAFT' &&
+        (existingSnapshot?.section1Tvkd?.acm?.summary?.lotCurrentMonth || 0) > 0 &&
+        existingSnapshot?.section2Commodities?.acm?.items?.every((it: any) => (it.lotCurrentMonth || 0) === 0);
+
+      if (existingSnapshot && existingSnapshot.section1Tvkd?.cqg?.items?.length > 0 && !hasAcmMismatch) {
         this.logger.log(`[getMonthlyReport] Trả về snapshot đã lưu cho tháng ${monthYear} (Status: ${existingSnapshot.status})`);
         return existingSnapshot;
       }
+    } else {
+      this.logger.log(`[getMonthlyReport] Ép làm mới số liệu (forceRefresh=true) cho tháng ${monthYear}. Tự động đồng bộ từ file Backup...`);
+      await this.syncFromBackupFolders(year, month);
     }
 
     // 2. Kiểm tra hoặc kích hoạt Cold-Start cho tháng M - 1 (Quy tắc 3)
@@ -156,7 +172,7 @@ export class MonthlyReportingService {
       maxDayVolume: it.maxLotDay || 0,
       minDayDate: it.minDate || '',
       minDayVolume: it.minLotDay || 0,
-      tradingDaysCount: it.tradingDaysCount || 21,
+      tradingDaysCount: it.tradingDaysCount ?? 0,
       activeAccountsPrevMonth: it.activeAccountsPreviousMonth || 0,
       activeAccountsCurrentMonth: it.activeAccountsCurrentMonth || 0,
       activeAccountsDiff: (it.activeAccountsCurrentMonth || 0) - (it.activeAccountsPreviousMonth || 0),
@@ -211,8 +227,8 @@ export class MonthlyReportingService {
         cqgShareRate: totalMarketCur > 0 ? totalCqgCur / totalMarketCur : 0,
         acmVolume: totalAcmCur,
         acmShareRate: totalMarketCur > 0 ? totalAcmCur / totalMarketCur : 0,
-        cqgTradingDays: 21,
-        acmTradingDays: 21,
+        cqgTradingDays: rawReport?.section1Tvkd?.cqg?.summary?.tradingDaysCount || (cqgItems[0]?.tradingDaysCount ?? 0),
+        acmTradingDays: rawReport?.section1Tvkd?.acm?.summary?.tradingDaysCount || (acmItems[0]?.tradingDaysCount ?? 0),
         top1Member,
         top1Commodity,
       },
@@ -344,11 +360,22 @@ export class MonthlyReportingService {
     this.logger.log(`[aggregateMonthlyReportData] Tìm thấy ${cmeHolidaySet.size} ngày nghỉ lễ CME trong tháng ${monthPrefix}`);
 
     // Truy vấn toàn bộ DailyTradingStats trong tháng
-    const dailyStats = await this.dailyTradingStatModel
+    let dailyStats = await this.dailyTradingStatModel
       .find({
         date: { $regex: `^${monthPrefix}` },
       })
       .lean();
+
+    // Nếu chưa có bản ghi nào trong tháng, tự động quét và nạp từ thư mục Backup
+    if (dailyStats.length === 0) {
+      this.logger.log(`[aggregateMonthlyReportData] Chưa có bản ghi daily_trading_stats cho tháng ${monthPrefix}. Tự động quét từ thư mục Backup...`);
+      await this.syncFromBackupFolders(year, month);
+      dailyStats = await this.dailyTradingStatModel
+        .find({
+          date: { $regex: `^${monthPrefix}` },
+        })
+        .lean();
+    }
 
     // Mapping số liệu tháng trước từ prevSnapshot (nếu có)
     const prevCqgTvkdMap = new Map<string, number>();
@@ -462,6 +489,7 @@ export class MonthlyReportingService {
           maxDate,
           minLotDay: minLot,
           minDate,
+          tradingDaysCount: val.dailyMap.size,
         });
       }
 
@@ -544,15 +572,44 @@ export class MonthlyReportingService {
           ? BGS_COMMODITY_CATALOG.filter((c) => !c.nameVn.toLowerCase().includes('nano'))
           : BGS_COMMODITY_CATALOG.filter((c) => c.nameVn.toLowerCase().includes('nano'));
 
-      // Loại bỏ trùng lặp nameVn
-      const distinctCatalog = Array.from(new Set(catalogItems.map((c) => c.nameVn))).map((name) => {
-        return { nameVn: name };
-      });
+      // Đối với ACM, danh mục chuẩn của QLGD là: Bạc Nano ACM, Bạch kim Nano ACM, Đồng Nano ACM
+      const distinctCatalog =
+        system === 'ACM'
+          ? [
+              { nameVn: 'Bạc Nano ACM' },
+              { nameVn: 'Bạch kim Nano ACM' },
+              { nameVn: 'Đồng Nano ACM' },
+            ]
+          : Array.from(new Set(catalogItems.map((c) => c.nameVn))).map((name) => {
+              return { nameVn: name };
+            });
+
+      const getLotFuzzy = (map: Map<string, number>, targetName: string): number => {
+        if (map.has(targetName)) return map.get(targetName) || 0;
+        const normTarget = targetName.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
+        for (const [k, v] of map.entries()) {
+          const normK = k.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
+          if (normK === normTarget) {
+            return v;
+          }
+        }
+        // Riêng cho 3 mặt hàng ACM Nano: so khớp bỏ qua hậu tố "acm" và chuẩn hóa Unicode
+        if (system === 'ACM') {
+          const cleanTarget = targetName.toLowerCase().replace(/\s*acm\s*/g, '').replace(/\s+/g, ' ').normalize('NFC');
+          for (const [k, v] of map.entries()) {
+            const cleanK = k.toLowerCase().replace(/\s*acm\s*/g, '').replace(/\s+/g, ' ').normalize('NFC');
+            if (cleanK === cleanTarget) {
+              return v;
+            }
+          }
+        }
+        return 0;
+      };
 
       const list: any[] = [];
       for (const item of distinctCatalog) {
-        const lotCur = commLotMap.get(item.nameVn) || 0;
-        const lotPrev = prevMap.get(item.nameVn) || 0;
+        const lotCur = getLotFuzzy(commLotMap, item.nameVn);
+        const lotPrev = getLotFuzzy(prevMap, item.nameVn);
         const growthRate = lotPrev > 0 ? lotCur / lotPrev - 1 : null;
         const marketShareRate = totalSysLot > 0 ? lotCur / totalSysLot : 0;
 
@@ -699,6 +756,7 @@ export class MonthlyReportingService {
             marketPeakDate: cqgMarketMetrics.peakDate,
             marketTroughLot: cqgMarketMetrics.troughLot,
             marketTroughDate: cqgMarketMetrics.troughDate,
+            tradingDaysCount: marketDailyCqg.size,
           },
         },
         acm: {
@@ -713,6 +771,7 @@ export class MonthlyReportingService {
             marketPeakDate: acmMarketMetrics.peakDate,
             marketTroughLot: acmMarketMetrics.troughLot,
             marketTroughDate: acmMarketMetrics.troughDate,
+            tradingDaysCount: marketDailyAcm.size,
           },
         },
       },
@@ -816,88 +875,164 @@ export class MonthlyReportingService {
       };
     }
 
-    // 2. Định vị thư mục Backup đa nền tảng
-    const msBaseRaw = 'M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures';
-    const acmBaseRaw = 'M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Backup ACM/Futures';
-    const msBase = resolveStoragePathCrossPlatform(msBaseRaw);
-    const acmBase = resolveStoragePathCrossPlatform(acmBaseRaw);
-
+    // 2. Định vị 2 nguồn Backup chuẩn (Backup MS & Backup CCP) từ CSDL SystemSettings (Zero-Hardcoding 100%)
+    // Theo chỉ thị mới nhất từ USER: Lấy file đối chiếu trực tiếp từ Backup MS và Backup CCP, loại bỏ hoàn toàn Backup ACM
     const subFolder = `${year}/T${monthStr}.${year}`;
-    const msMonthDir = path.join(msBase, subFolder);
-    const acmMonthDir = path.join(acmBase, subFolder);
+    const configuredMs = this.settingsService
+      ? await getMsBackupBase(this.settingsService)
+      : resolveStoragePathCrossPlatform(process.env.DEFAULT_BACKUP_PATH_MS || '');
+    const configuredCcp = this.settingsService
+      ? await getCcpBackupBase(this.settingsService)
+      : resolveStoragePathCrossPlatform(process.env.DEFAULT_BACKUP_PATH_CCP || '');
 
-    this.logger.log(`[syncFromBackupFolders] Quét thư mục Backup MS tại: ${msMonthDir}`);
-    this.logger.log(`[syncFromBackupFolders] Quét thư mục Backup ACM tại: ${acmMonthDir}`);
+    // [COMMENT THEO CHỈ THỊ USER: Không khuyến nghị dùng nguồn Backup ACM, đã chuyển sang dùng CoreCCP]
+    // const configuredAcm = this.settingsService
+    //   ? await getAcmBackupBase(this.settingsService)
+    //   : resolveStoragePathCrossPlatform(process.env.DEFAULT_BACKUP_PATH_ACM || '');
+    // const bkAcmBase = configuredAcm;
+    // const acmFolder = bkAcmBase ? path.join(bkAcmBase, subFolder) : '';
 
-    const hasMsDir = fs.existsSync(msMonthDir);
-    const hasAcmDir = fs.existsSync(acmMonthDir);
+    const bkMsBase = configuredMs;
+    const bkCcpBase = configuredCcp;
 
-    if (!hasMsDir && !hasAcmDir) {
-      throw new NotFoundException(`Không tìm thấy thư mục Backup cho tháng ${monthYear} tại ${msMonthDir}`);
-    }
+    const msFolder = bkMsBase ? path.join(bkMsBase, subFolder) : '';
+    const ccpFolder = bkCcpBase ? path.join(bkCcpBase, subFolder) : '';
 
-    // Quét toàn bộ thư mục ngày giao dịch dạng DD.MM
+    this.logger.log(
+      `[syncFromBackupFolders] Quét 2 nguồn Backup chuẩn cho tháng ${monthYear}: Backup MS=${msFolder}, Backup CCP=${ccpFolder}`,
+    );
+
+    // Xóa sạch toàn bộ daily_trading_stats cũ của tháng đó trước khi quét lại từ đầu để triệt tiêu bản ghi rác
+    await this.dailyTradingStatModel.deleteMany({ date: { $regex: `^${year}-${monthStr}` } });
+
+    // Quét toàn bộ thư mục ngày giao dịch dạng DD.MM từ 2 nguồn Backup chuẩn (MS & CCP), lọc bỏ Thứ 7 & CN
     const dayFoldersSet = new Set<string>();
-    if (hasMsDir) {
-      fs.readdirSync(msMonthDir).forEach((d) => {
-        if (/^\d{2}\.\d{2}$/.test(d) && fs.statSync(path.join(msMonthDir, d)).isDirectory()) {
-          dayFoldersSet.add(d);
-        }
-      });
-    }
-    if (hasAcmDir) {
-      fs.readdirSync(acmMonthDir).forEach((d) => {
-        if (/^\d{2}\.\d{2}$/.test(d) && fs.statSync(path.join(acmMonthDir, d)).isDirectory()) {
-          dayFoldersSet.add(d);
-        }
-      });
+    [msFolder, ccpFolder /*, acmFolder */].forEach((dir) => {
+      if (dir && fs.existsSync(dir)) {
+        fs.readdirSync(dir).forEach((d) => {
+          if (/^\d{2}\.\d{2}$/.test(d)) {
+            const [dayPart] = d.split('.');
+            const dayNum = parseInt(dayPart, 10);
+            const dateObj = new Date(Date.UTC(year, month - 1, dayNum, 12, 0, 0));
+            const isWeekend = dateObj.getUTCDay() === 0 || dateObj.getUTCDay() === 6;
+            if (!isWeekend) {
+              dayFoldersSet.add(d);
+            }
+          }
+        });
+      }
+    });
+
+    if (dayFoldersSet.size === 0) {
+      throw new NotFoundException(
+        `Không tìm thấy ngày giao dịch nào trong thư mục Backup cho tháng ${monthYear} (Đường dẫn quét: MS=${msFolder}, CCP=${ccpFolder}). Nếu thư mục chưa có file, người dùng vui lòng bổ sung file vào thư mục tương ứng.`,
+      );
     }
 
     const sortedDays = Array.from(dayFoldersSet).sort();
-    this.logger.log(`[syncFromBackupFolders] Tìm thấy ${sortedDays.length} ngày giao dịch trong tháng ${monthYear}: ${sortedDays.join(', ')}`);
+    this.logger.log(`[syncFromBackupFolders] Tìm thấy ${sortedDays.length} ngày trong thư mục Backup tháng ${monthYear}: ${sortedDays.join(', ')}`);
 
     let totalCqgTrades = 0;
     let totalCqgLot = 0;
     let totalAcmTrades = 0;
     let totalAcmLot = 0;
+    const missingMsDays: string[] = [];
+    const missingCcpDays: string[] = [];
+    // const missingAcmDays: string[] = []; // [COMMENT THEO CHỈ THỊ USER: Thay bằng missingCcpDays]
 
-    const acmInstrumentMap: Record<string, { stdCode: string; nameVn: string }> = {
+    // A. Bảng quy chuẩn mã hàng hóa Broker ACM (Đọc động từ CSDL SystemSettings nếu có)
+    let acmInstrumentMap: Record<string, { stdCode: string; nameVn: string }> = {
       NSI: { stdCode: 'SI5CO', nameVn: 'Bạc Nano ACM' },
       NPT: { stdCode: 'PL1NY', nameVn: 'Bạch kim Nano ACM' },
       NPL: { stdCode: 'PL1NY', nameVn: 'Bạch kim Nano ACM' },
       NCP: { stdCode: 'CP2CO', nameVn: 'Đồng Nano ACM' },
     };
+    if (this.settingsService) {
+      try {
+        const rawAcmMap = await this.settingsService.getSetting('acm_instrument_map', '');
+        if (rawAcmMap) {
+          acmInstrumentMap = { ...acmInstrumentMap, ...JSON.parse(rawAcmMap) };
+        }
+      } catch {}
+    }
 
+    // B. Nạp Danh bạ TVKD Hoàn Toàn Động (Zero-Hardcoding):
+    // Ưu tiên 1: Đọc từ CSDL SystemSettings (key tvkd_names_map / tvkd_catalog)
+    // Ưu tiên 2: Đọc từ file Master QL TT TVKD.xlsx trong Backup CCP (Danh bạ TVKD chuẩn của Sở)
+    // Ưu tiên 3: Tự động trích xuất trực tiếp từ cột [Tên TVKD] / [Tên thành viên] trong DSGD.xlsx & DSGD CCP.xlsx
     const tvkdNameMap = new Map<string, string>();
 
-    // Xử lý từng ngày giao dịch
+    if (this.settingsService) {
+      try {
+        const rawTvkdMap = await this.settingsService.getSetting('tvkd_names_map', '');
+        if (rawTvkdMap) {
+          const parsed = JSON.parse(rawTvkdMap);
+          Object.entries(parsed).forEach(([k, v]) => tvkdNameMap.set(k.padStart(3, '0'), String(v)));
+        }
+      } catch {}
+    }
+
+    if (fs.existsSync(ccpFolder)) {
+      const ccpDays = fs.readdirSync(ccpFolder).filter((d) => /^\d{2}\.\d{2}$/.test(d));
+      for (const d of ccpDays) {
+        const qlTvkdPath = path.join(ccpFolder, d, 'QL TT TVKD.xlsx');
+        if (fs.existsSync(qlTvkdPath)) {
+          try {
+            const wbQl = XLSX.readFile(qlTvkdPath);
+            const qlRows = XLSX.utils.sheet_to_json(wbQl.Sheets[wbQl.SheetNames[0]]) as any[];
+            for (const r of qlRows) {
+              const code = String(r['Mã TVKD'] || r['Ma TVKD'] || '').trim().padStart(3, '0');
+              const name = String(r['Tên TVKD'] || r['Ten TVKD'] || '').trim();
+              if (code && name) {
+                tvkdNameMap.set(code, name);
+              }
+            }
+            if (tvkdNameMap.size > 0) {
+              this.logger.log(`[syncFromBackupFolders] Đã nạp động ${tvkdNameMap.size} TVKD chuẩn từ master QL TT TVKD ngày ${d}`);
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Xử lý từng ngày giao dịch (Daily Loop)
     for (const d of sortedDays) {
-      const [dayPart] = d.split('.');
+      const [dayPart, monthPart] = d.split('.');
+      const dayNum = parseInt(dayPart, 10);
       const dateStr = `${year}-${monthStr}-${dayPart}`;
       const dayAggMap = new Map<string, any>();
 
-      // A. Đọc DSGD.xlsx từ Backup MS (CQG)
-      const dsgdPath = path.join(msMonthDir, d, 'DSGD.xlsx');
+      // Bỏ qua Thứ 7 và Chủ Nhật (Thị trường phái sinh quốc tế chỉ giao dịch T2 - T6)
+      const dateObj = new Date(Date.UTC(year, month - 1, dayNum, 12, 0, 0));
+      const isWeekend = dateObj.getUTCDay() === 0 || dateObj.getUTCDay() === 6;
+      if (isWeekend) {
+        continue;
+      }
+
+      // ----------------------------------------------------
+      // A. KHỐI CQG: Đọc trực tiếp từ Backup MS/.../DSGD.xlsx
+      // ----------------------------------------------------
+      const dsgdPath = path.join(msFolder, d, 'DSGD.xlsx');
       if (fs.existsSync(dsgdPath)) {
         try {
           const wb = XLSX.readFile(dsgdPath);
           const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
-          totalCqgTrades += rows.length;
-
           for (const r of rows) {
-            const tvkdCode = String(r['Mã TVKD'] || '').trim();
-            const tvkdName = String(r['Tên TVKD'] || '').trim() || tvkdCode;
             const acc = String(r['Mã TKGD'] || '').trim().toUpperCase();
+            const lot = Number(r['KL giao dịch']) || 0;
+            if (!acc || lot <= 0 || acc.endsWith('A')) continue; // Tuyệt đối loại bỏ ACM Nano khỏi CQG
+
+            totalCqgTrades++;
+            const tvkdCode = (String(r['Mã TVKD'] || '').trim() || acc.substring(0, 3)).padStart(3, '0');
+            const fileTvkdName = String(r['Tên TVKD'] || '').trim();
+            if (fileTvkdName && !tvkdNameMap.has(tvkdCode)) {
+              tvkdNameMap.set(tvkdCode, fileTvkdName);
+            }
+            const tvkdName = fileTvkdName || tvkdNameMap.get(tvkdCode) || `TVKD ${tvkdCode}`;
             const hd = String(r['Mã HĐ'] || '').trim().toUpperCase();
             const side = String(r['Chiều mua bán'] || '').trim().toUpperCase();
-            const lot = Number(r['KL giao dịch']) || 0;
-            if (!tvkdCode || !hd || lot <= 0) continue;
 
-            if (tvkdName && !tvkdNameMap.has(tvkdCode)) {
-              tvkdNameMap.set(tvkdCode, tvkdName);
-            }
-
-            // Trích xuất mã hàng hóa gốc (root symbol)
             let root = hd;
             const optMatch = hd.match(/^([CP]\.[A-Z0-9]+?)([FGHJKMNQUVXZ])(\d{1,2})$/);
             const futMatch = hd.match(/^([A-Z0-9]+?)([FGHJKMNQUVXZ])(\d{1,2})$/);
@@ -908,7 +1043,7 @@ export class MonthlyReportingService {
             const productCode = info?.stdCode || root;
             const productNameVi = info?.nameVn || hd;
 
-            const isSpread = acc.endsWith('-S');
+            const isSpread = acc.endsWith('-S') || acc.endsWith('S');
             const isLme = acc.endsWith('L') || acc.endsWith('-L');
             const isOptions = /^[CP]\./i.test(hd);
 
@@ -939,36 +1074,62 @@ export class MonthlyReportingService {
             totalCqgLot += lot;
           }
         } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file DSGD.xlsx tại ${dsgdPath}: ${e.message}`);
+          this.logger.warn(`Lỗi đọc file DSGD.xlsx ngày ${d}: ${e.message}`);
         }
+      } else {
+        missingMsDays.push(d);
+        this.logger.warn(`[syncFromBackupFolders] Ngày ${d}: Không tìm thấy file DSGD.xlsx trong Backup MS`);
       }
 
-      // B. Đọc Fill.xls từ Backup ACM
-      const fillPath = path.join(acmMonthDir, d, 'Fill.xls');
-      if (fs.existsSync(fillPath)) {
+      // ----------------------------------------------------
+      // B. KHỐI ACM (NANO): Đọc 100% từ Backup CCP (DSGD CCP.xlsx)
+      // Theo chỉ đạo mới nhất từ USER: Toàn bộ giao dịch ACM nằm trên hệ thống CoreCCP (DSGD CCP.xlsx)
+      // với đủ 100% 22 ngày và TVKD chuẩn, không lấy qua nguồn Broker ACM nữa.
+      // ----------------------------------------------------
+      const dayCcpDir = path.join(ccpFolder, d);
+      const ccpDsgdPath = path.join(dayCcpDir, 'DSGD CCP.xlsx');
+
+      if (fs.existsSync(ccpDsgdPath) && fs.statSync(ccpDsgdPath).size > 1000) {
         try {
-          const wb = XLSX.readFile(fillPath);
+          const wb = XLSX.readFile(ccpDsgdPath);
           const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
-          totalAcmTrades += rows.length;
 
           for (const r of rows) {
-            const tvkdCode = String(r['Trading Firm Id'] || '').trim();
-            const tvkdName = tvkdNameMap.get(tvkdCode) || `TVKD ${tvkdCode}`;
-            const inst = String(r['Instrument Id'] || '').trim().toUpperCase();
-            const side = String(r['B/S'] || '').trim().toUpperCase();
-            const lot = Number(r['Volume']) || 0;
-            if (!tvkdCode || !inst || lot <= 0) continue;
+            // Nhận diện giao dịch thuộc sàn ACM hoặc các mã hợp đồng ACM Nano
+            const exchange = String(r['Sàn giao dịch'] || r['San giao dich'] || '').trim().toUpperCase();
+            const inst = String(r['Mã HĐ'] || r['Ma HD'] || '').trim().toUpperCase();
+            const isAcmTrade =
+              exchange === 'ACM' ||
+              ['SI5CO', 'PL1NY', 'CP2CO', 'NSI', 'NPT', 'NCP'].some((c) => inst.startsWith(c));
+            if (!isAcmTrade) continue;
 
+            const tvkdCode = String(r['Mã thành viên'] || r['Ma thanh vien'] || '').trim().padStart(3, '0');
+            const fileTvkdName = String(r['Tên thành viên'] || r['Ten thanh vien'] || '').trim();
+            if (fileTvkdName && !tvkdNameMap.has(tvkdCode)) {
+              tvkdNameMap.set(tvkdCode, fileTvkdName);
+            }
+            const tvkdName = fileTvkdName || tvkdNameMap.get(tvkdCode) || `TVKD ${tvkdCode}`;
+            const side = String(r['Mua/Bán'] || r['Mua/Ban'] || 'Mua').trim().toUpperCase();
+            const lot = Number(r['KL khớp'] || r['KL khop'] || 0);
+            if (!tvkdCode || lot <= 0) continue;
+
+            totalAcmTrades++;
             let matchedComm: { stdCode: string; nameVn: string } | null = null;
             for (const [key, val] of Object.entries(acmInstrumentMap)) {
-              if (inst.includes(key)) {
+              if (inst.includes(key) || inst.includes(val.stdCode)) {
                 matchedComm = val;
                 break;
               }
             }
 
-            const productCode = matchedComm?.stdCode || 'ACM_NANO';
-            const productNameVi = matchedComm?.nameVn || 'Nano ACM';
+            const productCode = matchedComm?.stdCode || inst.substring(0, 5) || 'SI5CO';
+            const productNameVi =
+              matchedComm?.nameVn ||
+              (productCode.startsWith('CP')
+                ? 'Đồng Nano ACM'
+                : productCode.startsWith('PL')
+                  ? 'Bạch kim Nano ACM'
+                  : 'Bạc Nano ACM');
 
             const key = `ACM__${tvkdCode}__${productCode}__false__false__false`;
             let item = dayAggMap.get(key);
@@ -991,14 +1152,17 @@ export class MonthlyReportingService {
               dayAggMap.set(key, item);
             }
 
-            if (side === 'B') item.lotBuy += lot;
+            if (side.includes('MUA') || side === 'B') item.lotBuy += lot;
             else item.lotSell += lot;
             item.lotTotal += lot;
             totalAcmLot += lot;
           }
         } catch (e: any) {
-          this.logger.warn(`Lỗi khi đọc file Fill.xls tại ${fillPath}: ${e.message}`);
+          this.logger.warn(`Lỗi đọc file DSGD CCP.xlsx tại ${ccpDsgdPath}: ${e.message}`);
         }
+      } else {
+        missingCcpDays.push(d);
+        this.logger.warn(`[syncFromBackupFolders] Ngày ${d}: Không tìm thấy file DSGD CCP.xlsx trong Backup CCP`);
       }
 
       // C. Xóa bản ghi cũ của ngày đó và nạp bản ghi mới
@@ -1023,6 +1187,14 @@ export class MonthlyReportingService {
 
     const reportData = await this.aggregateMonthlyReportData(year, month, prevSnapshot);
 
+    let syncNote = `Tổng hợp trực tiếp từ 2 nguồn Backup chuẩn (Backup MS & Backup CCP) với ${sortedDays.length} ngày trong tháng.`;
+    if (missingMsDays.length > 0) {
+      syncNote += ` Chưa có DSGD trong Backup MS các ngày: ${missingMsDays.join(', ')}.`;
+    }
+    if (missingCcpDays.length > 0) {
+      syncNote += ` Chưa có DSGD CCP trong Backup CCP các ngày: ${missingCcpDays.join(', ')}.`;
+    }
+
     // Lưu snapshot với status 'OFFICIAL'
     const snapshot = await this.monthlySnapshotModel.findOneAndUpdate(
       { monthYear },
@@ -1033,7 +1205,7 @@ export class MonthlyReportingService {
         section2Commodities: reportData.section2Commodities,
         section3Specials: reportData.section3Specials,
         generatedBy: 'BACKUP_SYNC_AGGREGATOR',
-        note: `Tổng hợp tự động từ thư mục Backup thực tế (${sortedDays.length} ngày giao dịch)`,
+        note: syncNote,
         generatedAt: new Date(),
       },
       { upsert: true, new: true },
@@ -1043,6 +1215,8 @@ export class MonthlyReportingService {
       monthYear,
       daysProcessed: sortedDays.length,
       daysList: sortedDays,
+      missingMsDays,
+      missingCcpDays,
       totalCqgTrades,
       totalCqgLot,
       totalAcmTrades,

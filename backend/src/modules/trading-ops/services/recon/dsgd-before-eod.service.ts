@@ -344,36 +344,13 @@ export class DsgdBeforeEodService {
     if (system === 'CCP') {
       const rawCcpBase = options?.customMsDir || (await getCcpBackupBasePath(this.settingsService));
       dailyDir = path.join(rawCcpBase, year, `T${month}.${year}`, `${day}.${month}`);
-      if (!fs.existsSync(dailyDir) || !fs.readdirSync(dailyDir).some(f => matchTradingFileName(f, TRADING_FILE_PATTERNS.CCP_DSGD))) {
-        const mShareBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CCP\\Futures');
-        const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
-        if (fs.existsSync(mShareDir)) {
-          dailyDir = mShareDir;
-        }
-      }
     } else {
       const msBackupBase = options?.customMsDir || (await getMsBackupBase(this.settingsService));
       dailyDir = path.join(msBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
-
-      if (!fs.existsSync(path.join(dailyDir, 'DSGD.xlsx'))) {
-        const mShareBase = resolveStoragePathCrossPlatform('');
-        const mShareDir = path.join(mShareBase, year, `T${month}.${year}`, `${day}.${month}`);
-        if (fs.existsSync(path.join(mShareDir, 'DSGD.xlsx'))) {
-          dailyDir = mShareDir;
-        }
-      }
     }
 
     const acmBackupBase = options?.customAcmDir || (await getAcmBackupBase(this.settingsService));
-    let dailyAcmDir = path.join(acmBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
-
-    if (!fs.existsSync(dailyAcmDir)) {
-      const mAcmBase = resolveStoragePathCrossPlatform('M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup ACM\\Futures');
-      const mAcmDir = path.join(mAcmBase, year, `T${month}.${year}`, `${day}.${month}`);
-      if (fs.existsSync(mAcmDir)) {
-        dailyAcmDir = mAcmDir;
-      }
-    }
+    const dailyAcmDir = path.join(acmBackupBase, year, `T${month}.${year}`, `${day}.${month}`);
 
     // 2. Tìm file DSGD gốc trong thư mục backup
     let dsgdOriginalPath: string = '';
@@ -412,14 +389,22 @@ export class DsgdBeforeEodService {
     if (fs.existsSync(dsgdTempPath)) {
       dsgdTempBuffer = fs.readFileSync(dsgdTempPath);
     } else {
-      // Quét trong dailyDir và thư mục TradingCheck tương ứng
+      // Quét trong dailyDir và thư mục TradingCheck tương ứng từ CSDL cấu hình
       const searchDirs: string[] = [];
       if (fs.existsSync(dailyDir)) searchDirs.push(dailyDir);
-      const tradingCheckDir = system === 'CCP'
-        ? dailyDir.replace(/[\\/]Backup CCP[\\/]/i, path.sep + 'TradingCheck' + path.sep + 'CCP' + path.sep)
-        : dailyDir.replace(/[\\/]Backup MS[\\/]/i, path.sep + 'TradingCheck' + path.sep);
-      if (fs.existsSync(tradingCheckDir) && !searchDirs.includes(tradingCheckDir)) {
-        searchDirs.push(tradingCheckDir);
+
+      const rawTradingCheck =
+        (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
+        (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
+        '';
+      const tradingCheckBase = rawTradingCheck ? resolveStoragePathCrossPlatform(rawTradingCheck) : '';
+      if (tradingCheckBase) {
+        const tradingCheckDir = system === 'CCP'
+          ? path.join(tradingCheckBase, 'CCP', year, `T${month}.${year}`, `${day}.${month}`)
+          : path.join(tradingCheckBase, year, `T${month}.${year}`, `${day}.${month}`);
+        if (fs.existsSync(tradingCheckDir) && !searchDirs.includes(tradingCheckDir)) {
+          searchDirs.push(tradingCheckDir);
+        }
       }
 
       // Đối với CoreCCP: Tự động tải ORDERMATCH_ALL (Lịch sử giao dịch T-1) qua API nếu có cờ triggerDownload hoặc chưa có file snapshot

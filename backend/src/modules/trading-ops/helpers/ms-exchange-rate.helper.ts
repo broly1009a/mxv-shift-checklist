@@ -43,8 +43,8 @@ export async function getMsPaymentRates(settingsService: SystemSettingsService):
     const sell = Number(v?.sell);
     if (buy > 0 && sell > 0) result[pair] = { buy, sell };
   }
-  for (const pair of ['USD/VND', 'JPY/VND', 'MYR/VND']) {
-    if (!result[pair]) throw new Error(`ms_payment_rates thiếu tỷ giá Mua/Bán hợp lệ cho ${pair}.`);
+  if (!result['USD/VND']) {
+    throw new Error('ms_payment_rates thiếu tỷ giá Mua/Bán hợp lệ cho nguyên tệ cơ sở USD/VND.');
   }
   return result;
 }

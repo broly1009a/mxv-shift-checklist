@@ -33,6 +33,7 @@ import {
   getMsBackupBase,
   getCqgBackupBase,
   getAcmBackupBase,
+  getCeBackupBase,
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
   resolveTradingSessionDate,
@@ -670,10 +671,7 @@ export class IngressDownloadController {
     @Body('sessionDate') sessionDateStr?: string,
   ) {
     const targetDate = targetDateStr || sessionDateStr ? new Date(targetDateStr || sessionDateStr!) : new Date();
-    const backupPath = await this.settingsService.getSetting(
-      'bot_backup_path_ce',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
-    );
+    const backupPath = await getCeBackupBase(this.settingsService);
 
     const { fullPath: dailyPath } = resolveDailySubfolder(backupPath, targetDate);
     const resolvedBackupPath = resolveStoragePathCrossPlatform(backupPath);

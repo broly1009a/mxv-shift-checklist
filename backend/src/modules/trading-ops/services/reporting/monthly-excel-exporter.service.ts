@@ -21,6 +21,124 @@ export class MonthlyExcelExporterService {
   private readonly logger = new Logger(MonthlyExcelExporterService.name);
 
   /**
+   * Đánh màu cell tăng trưởng (% Tăng/giảm):
+   * - Xanh lá nhạt (FFC6EFCE) / chữ xanh đậm (FF006100) cho tăng trưởng > 0%
+   * - Đỏ/hồng nhạt (FFFFC7CE) / chữ đỏ đậm (FF9C0006) cho tăng trưởng < 0%
+   * - Vàng nhạt (FFFFEB9C) / chữ nâu vàng (FF9C5700) cho 0% / N/A / rỗng
+   */
+  private applyGrowthStyle(cell: ExcelJS.Cell, val: any, isBold = false): void {
+    cell.numFmt = '0.00%';
+    cell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+    let num: number | null = null;
+    if (typeof val === 'number') {
+      num = val;
+    } else if (val && val !== ' ' && !isNaN(Number(val))) {
+      num = Number(val);
+    }
+
+    if (num === null || isNaN(num) || num === 0) {
+      // Vàng nhạt (Neutral / Mới / Không đổi)
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFEB9C' },
+      };
+      cell.font = {
+        name: 'Arial',
+        size: 11,
+        bold: isBold,
+        color: { argb: 'FF9C5700' },
+      };
+    } else if (num > 0) {
+      // Xanh lá nhạt (Tăng trưởng dương)
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFC6EFCE' },
+      };
+      cell.font = {
+        name: 'Arial',
+        size: 11,
+        bold: isBold,
+        color: { argb: 'FF006100' },
+      };
+    } else {
+      // Đỏ/Hồng nhạt (Tăng trưởng âm)
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFC7CE' },
+      };
+      cell.font = {
+        name: 'Arial',
+        size: 11,
+        bold: isBold,
+        color: { argb: 'FF9C0006' },
+      };
+    }
+  }
+
+  /**
+   * Tạo 3 rule định dạng có điều kiện (Conditional Formatting) chuẩn 100% template gốc QLGD
+   */
+  private getGrowthCfRules(firstCell: string): any[] {
+    return [
+      {
+        type: 'containsText',
+        operator: 'containsText',
+        priority: 1,
+        formulae: [`NOT(ISERROR(SEARCH(" ",${firstCell})))`],
+        style: {
+          fill: {
+            type: 'pattern',
+            pattern: 'solid',
+            bgColor: { argb: 'FFFFEB9C' },
+            fgColor: { argb: 'FFFFEB9C' },
+          },
+          font: {
+            color: { argb: 'FF9C5700' },
+          },
+        },
+      },
+      {
+        type: 'cellIs',
+        operator: 'lessThan',
+        priority: 2,
+        formulae: ['0'],
+        style: {
+          fill: {
+            type: 'pattern',
+            pattern: 'solid',
+            bgColor: { argb: 'FFFFC7CE' },
+            fgColor: { argb: 'FFFFC7CE' },
+          },
+          font: {
+            color: { argb: 'FF9C0006' },
+          },
+        },
+      },
+      {
+        type: 'cellIs',
+        operator: 'greaterThan',
+        priority: 3,
+        formulae: ['0'],
+        style: {
+          fill: {
+            type: 'pattern',
+            pattern: 'solid',
+            bgColor: { argb: 'FFC6EFCE' },
+            fgColor: { argb: 'FFC6EFCE' },
+          },
+          font: {
+            color: { argb: 'FF006100' },
+          },
+        },
+      },
+    ];
+  }
+
+  /**
    * Tạo Workbook Excel Báo Cáo Tháng hoàn chỉnh 100% khớp file mẫu gốc
    */
   async buildMonthlyReportWorkbook(data: any): Promise<ExcelJS.Workbook> {
@@ -122,8 +240,7 @@ export class MonthlyExcelExporterService {
           c.alignment = { horizontal: 'right' };
         }
         if (col === 5) {
-          c.numFmt = '0.00%';
-          c.alignment = { horizontal: 'right' };
+          this.applyGrowthStyle(c, item.growthRate, false);
         }
         if ([7, 9].includes(col)) {
           c.numFmt = 'dd/mm';
@@ -171,11 +288,24 @@ export class MonthlyExcelExporterService {
         right: { style: 'thin' },
       };
       if ([3, 4, 6, 8].includes(col)) c.numFmt = '#,##0';
-      if (col === 5) c.numFmt = '0.00%';
+      if (col === 5) {
+        const totRate =
+          data.section1Tvkd.cqg.summary.lotPreviousMonth > 0
+            ? data.section1Tvkd.cqg.summary.lotCurrentMonth /
+                data.section1Tvkd.cqg.summary.lotPreviousMonth -
+              1
+            : null;
+        this.applyGrowthStyle(c, totRate, true);
+      }
       if ([7, 9].includes(col)) {
         c.numFmt = 'dd/mm';
         c.alignment = { horizontal: 'center' };
       }
+    });
+
+    ws.addConditionalFormatting({
+      ref: `E${cqgStart}:E${curRow}`,
+      rules: this.getGrowthCfRules(`E${cqgStart}`),
     });
     curRow++;
 
@@ -216,8 +346,7 @@ export class MonthlyExcelExporterService {
           c.alignment = { horizontal: 'right' };
         }
         if (col === 5) {
-          c.numFmt = '0.00%';
-          c.alignment = { horizontal: 'right' };
+          this.applyGrowthStyle(c, item.growthRate, false);
         }
         if ([7, 9].includes(col)) {
           c.numFmt = 'dd/mm';
@@ -265,11 +394,24 @@ export class MonthlyExcelExporterService {
         right: { style: 'thin' },
       };
       if ([3, 4, 6, 8].includes(col)) c.numFmt = '#,##0';
-      if (col === 5) c.numFmt = '0.00%';
+      if (col === 5) {
+        const totRate =
+          data.section1Tvkd.acm.summary.lotPreviousMonth > 0
+            ? data.section1Tvkd.acm.summary.lotCurrentMonth /
+                data.section1Tvkd.acm.summary.lotPreviousMonth -
+              1
+            : null;
+        this.applyGrowthStyle(c, totRate, true);
+      }
       if ([7, 9].includes(col)) {
         c.numFmt = 'dd/mm';
         c.alignment = { horizontal: 'center' };
       }
+    });
+
+    ws.addConditionalFormatting({
+      ref: `E${acmStart}:E${curRow}`,
+      rules: this.getGrowthCfRules(`E${acmStart}`),
     });
     curRow += 3;
 
@@ -337,7 +479,10 @@ export class MonthlyExcelExporterService {
           c.numFmt = '#,##0';
           c.alignment = { horizontal: 'right' };
         }
-        if ([5, 6].includes(col)) {
+        if (col === 5) {
+          this.applyGrowthStyle(c, item.growthRate, false);
+        }
+        if (col === 6) {
           c.numFmt = '0.00%';
           c.alignment = { horizontal: 'right' };
         }
@@ -383,7 +528,21 @@ export class MonthlyExcelExporterService {
         right: { style: 'thin' },
       };
       if ([3, 4].includes(col)) c.numFmt = '#,##0';
-      if ([5, 6].includes(col)) c.numFmt = '0.00%';
+      if (col === 5) {
+        const totRate =
+          data.section2Commodities.cqg.summary.lotPreviousMonth > 0
+            ? data.section2Commodities.cqg.summary.lotCurrentMonth /
+                data.section2Commodities.cqg.summary.lotPreviousMonth -
+              1
+            : null;
+        this.applyGrowthStyle(c, totRate, true);
+      }
+      if (col === 6) c.numFmt = '0.00%';
+    });
+
+    ws.addConditionalFormatting({
+      ref: `E${commCqgStart}:E${curRow}`,
+      rules: this.getGrowthCfRules(`E${commCqgStart}`),
     });
     curRow++;
 
@@ -426,7 +585,10 @@ export class MonthlyExcelExporterService {
           c.numFmt = '#,##0';
           c.alignment = { horizontal: 'right' };
         }
-        if ([5, 6].includes(col)) {
+        if (col === 5) {
+          this.applyGrowthStyle(c, item.growthRate, false);
+        }
+        if (col === 6) {
           c.numFmt = '0.00%';
           c.alignment = { horizontal: 'right' };
         }
@@ -472,7 +634,21 @@ export class MonthlyExcelExporterService {
         right: { style: 'thin' },
       };
       if ([3, 4].includes(col)) c.numFmt = '#,##0';
-      if ([5, 6].includes(col)) c.numFmt = '0.00%';
+      if (col === 5) {
+        const totRate =
+          data.section2Commodities.acm.summary.lotPreviousMonth > 0
+            ? data.section2Commodities.acm.summary.lotCurrentMonth /
+                data.section2Commodities.acm.summary.lotPreviousMonth -
+              1
+            : null;
+        this.applyGrowthStyle(c, totRate, true);
+      }
+      if (col === 6) c.numFmt = '0.00%';
+    });
+
+    ws.addConditionalFormatting({
+      ref: `E${commAcmStart}:E${curRow}`,
+      rules: this.getGrowthCfRules(`E${commAcmStart}`),
     });
     curRow += 2;
 
@@ -556,8 +732,11 @@ export class MonthlyExcelExporterService {
             c.alignment = { horizontal: 'right' };
           }
           if (col === 5) {
-            c.numFmt = '0.00%';
-            c.alignment = { horizontal: 'right' };
+            const rate =
+              item.lotPreviousMonth > 0
+                ? item.lotCurrentMonth / item.lotPreviousMonth - 1
+                : null;
+            this.applyGrowthStyle(c, rate, false);
           }
         });
         curRow++;
@@ -606,7 +785,18 @@ export class MonthlyExcelExporterService {
           right: { style: 'thin' },
         };
         if ([3, 4, 6, 7, 8].includes(col)) c.numFmt = '#,##0';
-        if (col === 5) c.numFmt = '0.00%';
+        if (col === 5) {
+          const totRate =
+            summary.lotPreviousMonth > 0
+              ? summary.lotCurrentMonth / summary.lotPreviousMonth - 1
+              : null;
+          this.applyGrowthStyle(c, totRate, true);
+        }
+      });
+
+      ws.addConditionalFormatting({
+        ref: `E${tStart}:E${curRow}`,
+        rules: this.getGrowthCfRules(`E${tStart}`),
       });
       curRow += 2;
     };

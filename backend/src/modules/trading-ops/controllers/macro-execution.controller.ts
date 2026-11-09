@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.service';
+import { resolveStoragePathCrossPlatform } from '../../../shared/helpers/file-path.helper';
 
 @Controller(['api/v1/trading-ops', 'api/v1/bot-engine'])
 @UseGuards(JwtAuthGuard)
@@ -78,10 +79,11 @@ export class MacroExecutionController {
       'bot_lot_script_path',
       defaultScriptPath,
     );
-    const targetRoot = await this.settingsService.getSetting(
+    let targetRoot = await this.settingsService.getSetting(
       'bot_lot_macro_target_root',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong',
+      process.env.DEFAULT_LOT_MACRO_TARGET_ROOT || '',
     );
+    targetRoot = resolveStoragePathCrossPlatform(targetRoot);
     return {
       macroPath,
       backupMs,
@@ -168,9 +170,11 @@ export class MacroExecutionController {
       'bot_python_path',
       'python',
     );
-    const targetRoot = await this.settingsService.getSetting(
-      'bot_lot_macro_target_root',
-      'M:\\Quanlygiaodich\\Tai lieu hoat dong',
+    const targetRoot = resolveStoragePathCrossPlatform(
+      await this.settingsService.getSetting(
+        'bot_lot_macro_target_root',
+        process.env.DEFAULT_LOT_MACRO_TARGET_ROOT || '',
+      ),
     );
 
     const defaultScriptPath = (() => {

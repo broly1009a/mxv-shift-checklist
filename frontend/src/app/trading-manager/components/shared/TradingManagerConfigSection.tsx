@@ -59,6 +59,10 @@ export default function TradingManagerConfigSection({
   const [msRatesLastSynced, setMsRatesLastSynced] = useState<string>('');
   const [msRateSource, setMsRateSource] = useState<string>('');
   const [syncingMsRate, setSyncingMsRate] = useState<boolean>(false);
+  const [newMsCurrCode, setNewMsCurrCode] = useState<string>('');
+  const [newMsCurrConversion, setNewMsCurrConversion] = useState<string>('');
+  const [newMsCurrBuy, setNewMsCurrBuy] = useState<string>('');
+  const [newMsCurrSell, setNewMsCurrSell] = useState<string>('');
 
   // Exchange rates - CoreCCP (VNCLEAR) Dynamic Matrix - Nạp 100% từ Database MongoDB hoặc Đồng bộ từ CoreCCP
   const [ccpUsdExchangeRate, setCcpUsdExchangeRate] = useState<number>(0);
@@ -132,44 +136,65 @@ export default function TradingManagerConfigSection({
         return parsed?.suggestedPath || p;
       };
 
-      const usdConv = Number(map.usd_exchange_rate || 0);
-      const jpyConv = Number(map.jpy_exchange_rate || 0);
-      const myrConv = Number(map.myr_exchange_rate || 0);
-      const rmbConv = Number(map.rmb_exchange_rate || 0);
-
+      // 1. Tỷ giá cơ sở bắt buộc duy nhất (Base Currency: USD)
+      const usdConv = Number(map.usd_exchange_rate || map.ccp_usd_exchange_rate || 0);
       setUsdExchangeRate(usdConv);
-      setMsConversionRates({
-        USD: usdConv,
-        JPY: jpyConv,
-        MYR: myrConv,
-        RMB: rmbConv,
-      });
       setMsRatesLastSynced(map.ms_rates_last_synced || map.exchange_rates_last_synced || '');
       setMsRateSource(map.ms_rate_source || map.exchange_rate_source || '');
 
-      let initialMsPayments: Record<string, { buy: number; sell: number }> = {
-        'USD/VND': { buy: usdConv, sell: usdConv },
-        'JPY/VND': { buy: jpyConv, sell: jpyConv },
-        'MYR/VND': { buy: myrConv, sell: myrConv },
-        'RMB/VND': { buy: rmbConv, sell: rmbConv },
-      };
+      // 2. Nhận diện 100% động các tỷ giá quy đổi từ bất kỳ key nào có dạng <CURRENCY>_exchange_rate trong CSDL
+      const initialMsConversions: Record<string, number> = { USD: usdConv };
+      Object.keys(map).forEach((k) => {
+        const match = k.match(/^([a-z0-9]+)_exchange_rate$/i);
+        if (match) {
+          const code = match[1].toUpperCase();
+          if (code !== 'CCP' && code !== 'USD') {
+            const val = Number(map[k] || 0);
+            if (val > 0) initialMsConversions[code] = val;
+          }
+        }
+      });
+      if (map.ms_conversion_rates) {
+        try {
+          const parsedConv = JSON.parse(map.ms_conversion_rates);
+          if (parsedConv && typeof parsedConv === 'object') {
+            Object.assign(initialMsConversions, parsedConv);
+          }
+        } catch {}
+      }
 
+      // 3. Nạp ma trận thanh toán ms_payment_rates từ CSDL
+      let initialMsPayments: Record<string, { buy: number; sell: number }> = {};
       if (map.ms_payment_rates) {
         try {
           const parsedMsRates = JSON.parse(map.ms_payment_rates);
           if (parsedMsRates && typeof parsedMsRates === 'object' && Object.keys(parsedMsRates).length > 0) {
-            initialMsPayments = {
-              ...initialMsPayments,
-              ...parsedMsRates,
-            };
+            initialMsPayments = parsedMsRates;
           }
-        } catch {
-          // ignore parse error
-        }
+        } catch {}
       }
-      setMsPaymentRates(initialMsPayments);
 
-      setCcpUsdExchangeRate(Number(map.ccp_usd_exchange_rate || 0));
+      // Nếu CSDL hoàn toàn rỗng, tự động sinh cặp tiền từ các tỷ giá đã tìm thấy trong CSDL
+      if (Object.keys(initialMsPayments).length === 0) {
+        Object.keys(initialMsConversions).forEach((code) => {
+          const rate = initialMsConversions[code] || 0;
+          initialMsPayments[`${code}/VND`] = { buy: rate, sell: rate };
+        });
+      }
+
+      // Đảm bảo mọi cặp tiền trong msPaymentRates đều có conversion rate
+      Object.keys(initialMsPayments).forEach((pair) => {
+        const code = pair.replace(/\/VND$/i, '').trim().toUpperCase();
+        if (initialMsConversions[code] === undefined) {
+          initialMsConversions[code] = initialMsPayments[pair]?.buy || 0;
+        }
+      });
+      setMsPaymentRates(initialMsPayments);
+      setMsConversionRates(initialMsConversions);
+
+      // 4. CoreCCP Dynamic Matrix (Không hardcode danh sách đồng tiền)
+      const ccpUsdVal = Number(map.ccp_usd_exchange_rate || usdConv || 0);
+      setCcpUsdExchangeRate(ccpUsdVal);
       setExchangeRatesLastSynced(map.ccp_rates_last_synced || map.exchange_rates_last_synced || '');
       setExchangeRateSource(map.exchange_rate_source || '');
       const loadedStartTime = map.session_start_time || '';
@@ -179,32 +204,45 @@ export default function TradingManagerConfigSection({
       }
       setSessionEndTime(map.session_end_time || '');
 
+      let initialCcpMatrix: Record<string, CcpExchangeRateItem> = {};
       if (map.ccp_exchange_rates_matrix) {
         try {
           const parsed = JSON.parse(map.ccp_exchange_rates_matrix);
           if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-            const rmbRate = Number(map.ccp_rmb_exchange_rate || 0);
-            if (!parsed['RMB'] && rmbRate > 0) {
-              parsed['RMB'] = { currencyCode: 'RMB', conversionRate: rmbRate, buyRate: rmbRate, sellRate: rmbRate };
-            }
-            setCcpRatesMatrix(parsed);
+            initialCcpMatrix = parsed;
           }
-        } catch {
-          // ignore parse error
-        }
-      } else if (map.ccp_usd_exchange_rate) {
-        const usdRate = Number(map.ccp_usd_exchange_rate);
-        const jpyRate = Number(map.ccp_jpy_exchange_rate || 0);
-        const myrRate = Number(map.ccp_myr_exchange_rate || 0);
-        const rmbRate = Number(map.ccp_rmb_exchange_rate || 0);
-        const matrix: Record<string, CcpExchangeRateItem> = {
-          USD: { currencyCode: 'USD', conversionRate: usdRate, buyRate: usdRate, sellRate: usdRate },
-        };
-        if (jpyRate > 0) matrix.JPY = { currencyCode: 'JPY', conversionRate: jpyRate, buyRate: jpyRate, sellRate: jpyRate };
-        if (myrRate > 0) matrix.MYR = { currencyCode: 'MYR', conversionRate: myrRate, buyRate: myrRate, sellRate: myrRate };
-        if (rmbRate > 0) matrix.RMB = { currencyCode: 'RMB', conversionRate: rmbRate, buyRate: rmbRate, sellRate: rmbRate };
-        setCcpRatesMatrix(matrix);
+        } catch {}
       }
+
+      // Nhận diện động các key ccp_<CURRENCY>_exchange_rate từ CSDL nếu matrix chưa có
+      Object.keys(map).forEach((k) => {
+        const match = k.match(/^ccp_([a-z0-9]+)_exchange_rate$/i);
+        if (match) {
+          const code = match[1].toUpperCase();
+          const val = Number(map[k] || 0);
+          if (val > 0 && !initialCcpMatrix[code]) {
+            initialCcpMatrix[code] = {
+              currencyCode: code,
+              conversionRate: val,
+              buyRate: val,
+              sellRate: val,
+              effectiveDate: new Date().toISOString().split('T')[0],
+            };
+          }
+        }
+      });
+
+      // Luôn đảm bảo có nguyên tệ cơ sở USD
+      if (!initialCcpMatrix['USD'] && ccpUsdVal > 0) {
+        initialCcpMatrix['USD'] = {
+          currencyCode: 'USD',
+          conversionRate: ccpUsdVal,
+          buyRate: ccpUsdVal,
+          sellRate: ccpUsdVal,
+          effectiveDate: new Date().toISOString().split('T')[0],
+        };
+      }
+      setCcpRatesMatrix(initialCcpMatrix);
 
       setReconFolderCheckPath(toWindowsM(map.recon_folder_check_path || ''));
       setReconResultFolderPath(toWindowsM(map.recon_result_folder_path || ''));
@@ -392,6 +430,61 @@ export default function TradingManagerConfigSection({
     toast.success(`Đã xóa nguyên tệ ${code}`);
   };
 
+  // Currency CRUD Helpers for M-System (MS-CQG) Dynamic Matrix
+  const handleAddMsCurrency = () => {
+    const raw = newMsCurrCode.trim().toUpperCase();
+    if (!raw) {
+      toast.error('Vui lòng nhập mã nguyên tệ (VD: EUR, SGD, GBP...)');
+      return;
+    }
+    const code = raw.replace(/\/VND$/i, '').trim().toUpperCase();
+    const pair = `${code}/VND`;
+    if (msPaymentRates[pair]) {
+      toast.error(`Cặp tiền ${pair} đã tồn tại trong danh mục M-System`);
+      return;
+    }
+    const conv = parseFloat(newMsCurrConversion) || 0;
+    if (conv <= 0) {
+      toast.error('Tỷ giá quy đổi phải lớn hơn 0');
+      return;
+    }
+    const buy = newMsCurrBuy !== '' ? (parseFloat(newMsCurrBuy) || conv) : conv;
+    const sell = newMsCurrSell !== '' ? (parseFloat(newMsCurrSell) || conv) : conv;
+
+    setMsPaymentRates((prev) => ({
+      ...prev,
+      [pair]: { buy, sell },
+    }));
+    setMsConversionRates((prev) => ({
+      ...prev,
+      [code]: conv,
+    }));
+    setNewMsCurrCode('');
+    setNewMsCurrConversion('');
+    setNewMsCurrBuy('');
+    setNewMsCurrSell('');
+    toast.success(`Đã thêm cặp tiền ${pair} vào M-System`);
+  };
+
+  const handleRemoveMsCurrency = (pair: string) => {
+    const code = pair.replace(/\/VND$/i, '').trim().toUpperCase();
+    if (code === 'USD') {
+      toast.error('Không thể xóa nguyên tệ cơ sở USD');
+      return;
+    }
+    setMsPaymentRates((prev) => {
+      const copy = { ...prev };
+      delete copy[pair];
+      return copy;
+    });
+    setMsConversionRates((prev) => {
+      const copy = { ...prev };
+      delete copy[code];
+      return copy;
+    });
+    toast.success(`Đã xóa cặp tiền ${pair}`);
+  };
+
   // Save full configuration directly to MongoDB system_settings (Bot Config)
   const handleSaveConfig = async () => {
     if (!token) return;
@@ -403,10 +496,14 @@ export default function TradingManagerConfigSection({
         ...(filterScope !== 'OMS' && filterScope !== 'CCP_CE'
           ? [
               { key: 'ms_payment_rates', value: JSON.stringify(msPaymentRates) },
+              { key: 'ms_conversion_rates', value: JSON.stringify(msConversionRates) },
               { key: 'usd_exchange_rate', value: String(msConversionRates['USD'] ?? usdExchangeRate) },
-              { key: 'jpy_exchange_rate', value: String(msConversionRates['JPY'] ?? 0) },
-              { key: 'myr_exchange_rate', value: String(msConversionRates['MYR'] ?? 0) },
-              { key: 'rmb_exchange_rate', value: String(msConversionRates['RMB'] ?? 0) },
+              ...Object.entries(msConversionRates)
+                .filter(([curr]) => curr !== 'USD')
+                .map(([curr, val]) => ({
+                  key: `${curr.toLowerCase()}_exchange_rate`,
+                  value: String(val),
+                })),
               { key: 'ms_rates_last_synced', value: msRatesLastSynced },
               { key: 'ms_rate_source', value: msRateSource },
               { key: 'recon_folder_check_path', value: reconFolderCheckPath },
@@ -434,9 +531,12 @@ export default function TradingManagerConfigSection({
               { key: 'ccp_rates_last_synced', value: exchangeRatesLastSynced },
               { key: 'exchange_rates_last_synced', value: exchangeRatesLastSynced },
               { key: 'exchange_rate_source', value: exchangeRateSource },
-              ...(ccpRatesMatrix['JPY'] ? [{ key: 'ccp_jpy_exchange_rate', value: String(ccpRatesMatrix['JPY'].conversionRate) }] : []),
-              ...(ccpRatesMatrix['MYR'] ? [{ key: 'ccp_myr_exchange_rate', value: String(ccpRatesMatrix['MYR'].conversionRate) }] : []),
-              ...(ccpRatesMatrix['RMB'] ? [{ key: 'ccp_rmb_exchange_rate', value: String(ccpRatesMatrix['RMB'].conversionRate) }] : []),
+              ...Object.entries(ccpRatesMatrix)
+                .filter(([curr]) => curr !== 'USD')
+                .map(([curr, item]) => ({
+                  key: `ccp_${curr.toLowerCase()}_exchange_rate`,
+                  value: String(item.conversionRate || 0),
+                })),
               { key: 'bot_backup_path_ccp', value: botBackupPathCcp },
               { key: 'negative_margin_monitored_accounts_ccp', value: JSON.stringify(negativeAccountsCcp) },
               { key: 'bot_backup_path_ce', value: botBackupPathCe },
@@ -450,8 +550,13 @@ export default function TradingManagerConfigSection({
         { key: 'session_end_time', value: sessionEndTime },
       ];
 
+      // Loại bỏ trùng lặp key (ví dụ bot_backup_path_acm dùng chung cả 2 phân hệ) để tránh race-condition / duplicate key
+      const uniqueMap = new Map<string, string>();
+      settingsToSave.forEach((item) => uniqueMap.set(item.key, item.value));
+      const deduplicatedSettings = Array.from(uniqueMap.entries()).map(([key, value]) => ({ key, value }));
+
       await Promise.all(
-        settingsToSave.map((s) => api.admin.saveSystemSetting(s.key, s.value, token)),
+        deduplicatedSettings.map((s) => api.admin.saveSystemSetting(s.key, s.value, token)),
       );
 
       if (typeof window !== 'undefined' && sessionStartTime) {
@@ -727,12 +832,9 @@ export default function TradingManagerConfigSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { pair: 'USD/VND', code: 'USD', isBase: true },
-                      { pair: 'JPY/VND', code: 'JPY', isBase: false },
-                      { pair: 'MYR/VND', code: 'MYR', isBase: false },
-                      { pair: 'RMB/VND', code: 'RMB', isBase: false },
-                    ].map(({ pair, code, isBase }) => {
+                    {Object.keys(msPaymentRates).map((pair) => {
+                      const code = pair.replace(/\/VND$/i, '').trim().toUpperCase();
+                      const isBase = code === 'USD';
                       const convVal = msConversionRates[code] ?? (code === 'USD' ? usdExchangeRate : 0);
                       const paymentObj = msPaymentRates[pair] || { buy: 0, sell: 0 };
                       return (
@@ -784,25 +886,83 @@ export default function TradingManagerConfigSection({
                             />
                           </td>
                           <td style={{ padding: '6px 12px', textAlign: 'right' }}>
-                            <input
-                              type="number"
-                              value={paymentObj.sell ?? 0}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setMsPaymentRates((prev) => ({
-                                  ...prev,
-                                  [pair]: { buy: prev[pair]?.buy ?? val, sell: val },
-                                }));
-                              }}
-                              className="form-input"
-                              style={{ width: '130px', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 600, textAlign: 'right', display: 'inline-block' }}
-                            />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <input
+                                type="number"
+                                value={paymentObj.sell ?? 0}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setMsPaymentRates((prev) => ({
+                                    ...prev,
+                                    [pair]: { buy: prev[pair]?.buy ?? val, sell: val },
+                                  }));
+                                }}
+                                className="form-input"
+                                style={{ width: '130px', fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 600, textAlign: 'right', display: 'inline-block' }}
+                              />
+                              {!isBase && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMsCurrency(pair)}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '4px', height: '28px', color: '#ef4444' }}
+                                  title={`Xóa cặp tiền ${pair}`}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+
+                {/* Form thêm cặp tiền mới động cho M-System */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', backgroundColor: 'var(--bg-input)', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={newMsCurrCode}
+                    onChange={(e) => setNewMsCurrCode(e.target.value.toUpperCase())}
+                    placeholder="Mã tiền (EUR, SGD...)"
+                    className="form-input"
+                    style={{ width: '150px', fontSize: '0.78rem', textTransform: 'uppercase' }}
+                  />
+                  <input
+                    type="number"
+                    value={newMsCurrConversion}
+                    onChange={(e) => setNewMsCurrConversion(e.target.value)}
+                    placeholder="Tỷ giá quy đổi"
+                    className="form-input"
+                    style={{ width: '120px', fontSize: '0.78rem' }}
+                  />
+                  <input
+                    type="number"
+                    value={newMsCurrBuy}
+                    onChange={(e) => setNewMsCurrBuy(e.target.value)}
+                    placeholder="Tỷ giá Mua (tùy chọn)"
+                    className="form-input"
+                    style={{ width: '140px', fontSize: '0.78rem' }}
+                  />
+                  <input
+                    type="number"
+                    value={newMsCurrSell}
+                    onChange={(e) => setNewMsCurrSell(e.target.value)}
+                    placeholder="Tỷ giá Bán (tùy chọn)"
+                    className="form-input"
+                    style={{ width: '140px', fontSize: '0.78rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddMsCurrency}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.74rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Plus size={12} />
+                    <span>Thêm cặp tiền</span>
+                  </button>
+                </div>
               </div>
 
               {/* Công cụ đồng bộ M-System */}

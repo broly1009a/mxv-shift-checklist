@@ -29,17 +29,14 @@ export class SystemSettingsService implements OnModuleInit {
   }
 
   async setSetting(key: string, value: string): Promise<SystemSetting> {
-    let setting = await this.systemSettingModel.findOne({ key }).exec();
-    const oldValue = setting ? setting.value : '';
+    const existing = await this.systemSettingModel.findOne({ key }).exec();
+    const oldValue = existing ? existing.value : '';
 
-    let saved: SystemSetting;
-    if (setting) {
-      setting.value = value;
-      saved = await setting.save();
-    } else {
-      setting = new this.systemSettingModel({ key, value });
-      saved = await setting.save();
-    }
+    const saved = (await this.systemSettingModel.findOneAndUpdate(
+      { key },
+      { $set: { value } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).exec()) as unknown as SystemSetting;
 
     if (key === 'bot_auto_recovery_enabled') {
       process.env.BOT_AUTO_RECOVERY_ENABLED = value;

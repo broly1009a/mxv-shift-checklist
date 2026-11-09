@@ -248,6 +248,67 @@ export const tradingOpsApi = {
 
     return res.blob();
   },
+
+  /**
+   * Lấy gói JSON Base64 chứa trọn bộ 6 file báo cáo phiên phục vụ File System Access API (showDirectoryPicker)
+   */
+  async getSessionRawFilesBundle(
+    params?: { date?: string; jobId?: string; refresh?: boolean },
+    token?: string | null,
+  ): Promise<{
+    success: boolean;
+    date: string;
+    jobId?: string;
+    source: string;
+    files: Array<{ filename: string; base64: string; size: number }>;
+    message?: string;
+  }> {
+    const url = buildUrl('/api/v1/trading-ops/export-session-raw-files-bundle', {
+      ...(params?.date ? { date: params.date } : {}),
+      ...(params?.jobId ? { jobId: params.jobId } : {}),
+      ...(params?.refresh !== undefined ? { refresh: String(params.refresh) } : {}),
+    });
+
+    const headers = getAuthHeaders(token);
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.message || 'Lỗi kết xuất gói 6 file phiên');
+    }
+
+    return res.json();
+  },
+
+  /**
+   * Tải file ZIP nén chứa trọn bộ 6 file báo cáo phiên
+   */
+  async downloadSessionRawFilesZip(
+    params?: { date?: string; jobId?: string; refresh?: boolean },
+    token?: string | null,
+  ): Promise<Blob> {
+    const url = buildUrl('/api/v1/trading-ops/export-session-raw-files-zip', {
+      ...(params?.date ? { date: params.date } : {}),
+      ...(params?.jobId ? { jobId: params.jobId } : {}),
+      ...(params?.refresh !== undefined ? { refresh: String(params.refresh) } : {}),
+    });
+
+    const headers = getAuthHeaders(token);
+    const res = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Lỗi tải file ZIP');
+      throw new Error(errText || 'Lỗi tải file ZIP 6 file phiên');
+    }
+
+    return res.blob();
+  },
 };
 
 

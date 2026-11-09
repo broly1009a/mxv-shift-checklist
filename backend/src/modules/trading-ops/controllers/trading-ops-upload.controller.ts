@@ -25,7 +25,7 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform } from '../../../shared';
+import { resolveStoragePathCrossPlatform, getMsBackupBase, getCqgBackupBase } from '../../../shared';
 import { KlgdReconService } from '../services/recon/klgd-recon.service';
 import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
 import { CqgMergerService } from '../services/merger/cqg-merger.service';
@@ -767,14 +767,8 @@ export class TradingOpsUploadController {
     const day = String(targetDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    const cqgBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-    ));
-    const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      '',
-    ));
+    const cqgBase = await getCqgBackupBase(this.settingsService);
+    const msBase = await getMsBackupBase(this.settingsService);
 
     const savedFiles: { filename: string; path: string; category: string }[] = [];
 

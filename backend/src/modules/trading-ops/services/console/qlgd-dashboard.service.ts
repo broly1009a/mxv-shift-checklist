@@ -261,17 +261,23 @@ export class QlgdDashboardService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting('bot_backup_path_ms', ''),
     );
-    const tradingCheckBase = resolveStoragePathCrossPlatform(
-      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    const rawCheckBase = await this.settingsService.getSetting(
+      'recon_folder_check_path',
+      await this.settingsService.getSetting('bot_trading_check_path', ''),
     );
-    const msTradingDailyPath = path.join(tradingCheckBase, subFolder);
+    const tradingCheckBase = rawCheckBase
+      ? resolveStoragePathCrossPlatform(
+          rawCheckBase.toLowerCase().endsWith('futures')
+            ? rawCheckBase
+            : path.join(rawCheckBase, 'Futures'),
+        )
+      : msBackupBase;
+    const msTradingDailyPath = tradingCheckBase ? path.join(tradingCheckBase, subFolder) : '';
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
-    const ccpTradingDailyPath = path.join(
-      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const ccpTradingDailyPath = rawCheckBase
+      ? path.join(resolveStoragePathCrossPlatform(rawCheckBase), 'CCP', subFolder)
+      : (rawCcpBase ? path.join(resolveStoragePathCrossPlatform(rawCcpBase), subFolder) : '');
 
     // Đảm bảo thư mục TradingCheck tồn tại trước khi tải
     if (!fs.existsSync(msTradingDailyPath)) {
@@ -438,19 +444,25 @@ export class QlgdDashboardService {
     const msBackupBase = resolveStoragePathCrossPlatform(
       await this.settingsService.getSetting('bot_backup_path_ms', ''),
     );
-    const tradingCheckBase = resolveStoragePathCrossPlatform(
-      (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
+    const rawCheckBase = await this.settingsService.getSetting(
+      'recon_folder_check_path',
+      await this.settingsService.getSetting('bot_trading_check_path', ''),
     );
+    const tradingCheckBase = rawCheckBase
+      ? resolveStoragePathCrossPlatform(
+          rawCheckBase.toLowerCase().endsWith('futures')
+            ? rawCheckBase
+            : path.join(rawCheckBase, 'Futures'),
+        )
+      : msBackupBase;
 
-    const msTradingDailyPath = path.join(tradingCheckBase, subFolder);
+    const msTradingDailyPath = tradingCheckBase ? path.join(tradingCheckBase, subFolder) : '';
     const msDailyPath = msBackupBase ? path.join(msBackupBase, subFolder) : '';
 
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
-    const ccpTradingDailyPath = path.join(
-      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const ccpTradingDailyPath = rawCheckBase
+      ? path.join(resolveStoragePathCrossPlatform(rawCheckBase), 'CCP', subFolder)
+      : '';
     const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
 
     if (refreshFromApi) {
