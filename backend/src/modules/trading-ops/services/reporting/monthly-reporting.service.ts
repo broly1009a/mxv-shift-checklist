@@ -21,6 +21,152 @@ import {
 } from '../../constants/bgs-commodity-catalog.constant';
 import { MonthlyExcelExporterService } from './monthly-excel-exporter.service';
 
+/**
+ * Danh bạ Tên Gọn / Thương Hiệu chuẩn của các TVKD theo đúng file Thống kê số lot giao dịch & Báo cáo tháng
+ */
+export const OFFICIAL_TVKD_SHORT_NAMES: Record<string, string> = {
+  '001': 'Hữu Nghị',
+  '002': 'Saigon Futures',
+  '003': 'Gia Cát Lợi',
+  '005': 'Thế giới TL',
+  '006': 'An Lộc',
+  '007': 'TVT',
+  '008': 'TMCA',
+  '009': 'HTS',
+  '010': 'VNF',
+  '011': 'Vmex',
+  '012': 'Hàng hoá HCM',
+  '015': 'FTV',
+  '016': 'DCV',
+  '018': 'ISHARE',
+  '019': 'SGNX',
+  '020': 'Thương Hải',
+  '021': 'MEX-DN',
+  '022': 'NP',
+  '023': 'DsMart Việt Nam',
+  '025': 'IVCOM',
+  '026': 'SG-MK',
+  '027': 'SCE',
+  '028': 'Mario',
+  '029': 'GlobalATM',
+  '030': 'Hàng hoá HN',
+  '031': 'FCI',
+  '032': 'HiTrade',
+  '033': 'HBOT',
+  '035': 'Mex',
+  '036': 'Hitech Finance',
+  '037': 'Fissa',
+  '038': 'Thành Đông',
+  '039': 'MXL',
+  '040': 'AIMS',
+  '041': 'VQB',
+  '042': 'TSA',
+  '043': 'Edu Trade',
+  '045': 'Hàng hoá ĐNÁ',
+  '046': 'SFVN',
+  '048': 'Kiến Lửa',
+  '059': 'HHVN',
+  '060': 'HH Toàn cầu',
+  '061': 'Nhật Linh',
+  '062': 'Amber',
+  '063': 'PTS',
+  '065': 'Finhay',
+  '066': 'ALIA',
+  '068': 'Anfin',
+  '069': 'Harami-Trade',
+  '070': 'Phát Đạt Holdings',
+  '071': 'Tornado',
+  '072': '3D',
+  '073': 'An Thành',
+  '075': 'SFV',
+  '076': 'HH Sài Gòn',
+  '079': 'ICT',
+  '080': 'APEX',
+  '081': 'SPS',
+  '082': 'InvestingPro',
+  '083': 'Fintex',
+  '085': 'Phú Quý',
+  '086': 'ABL',
+  '088': 'Wynthor',
+  '089': 'Đông Đô',
+};
+
+/**
+ * 51 Mặt hàng CQG chuẩn theo Báo cáo tháng chính thức của Khối QLGD
+ */
+export const OFFICIAL_51_CQG_COMMODITIES: string[] = [
+  'Lúa Mỳ', 'Ngô', 'Khô Đậu Tương', 'Dầu Đậu Tương', 'Đậu Tương',
+  'Bạc Micro', 'Đường', 'Đồng Micro', 'Cà phê Robusta', 'Đồng',
+  'Bạch kim', 'Bông Sợi', 'Lúa Mỳ Mini', 'Cà phê Arabica', 'Bạc',
+  'Ngô Mini', 'Đậu Tương Mini', 'Lúa Mỳ Kansas', 'Ca cao', 'Lúa mì Micro',
+  'Dầu Đậu Tương Micro', 'Khô Đậu Tương Micro', 'Nhôm COMEX', 'Ngô Micro', 'Đậu tương Micro',
+  'Đồng Mini', 'Dầu cọ thô', 'Đường trắng', 'Bạc Mini', 'Cao su TSR 20',
+  'Quặng sắt', 'Thiếc LME', 'Nhôm LME', 'Cao su RSS3 TOCOM', 'Kẽm LME',
+  'Đồng LME', 'Niken LME', 'Chì LME', 'Dầu WTI Micro', 'Dầu WTI',
+  'Gạo thô', 'Khí tự nhiên', 'Dầu Brent', 'Dầu WTI Mini', 'Xăng RBOB',
+  'Khí tự nhiên Mini', 'Dầu ít lưu huỳnh', 'Dầu Brent Mini', 'Thép phế liệu LME', 'Thép thanh vằn LME',
+  'Thép cuộn cán nóng LME',
+];
+
+/**
+ * Bảng ánh xạ đồng nghĩa (Synonyms / Aliases) chuẩn hóa tên mặt hàng giữa BGS Catalog và Báo cáo tháng
+ */
+export const COMMODITY_ALIASES: Record<string, string[]> = {
+  'Đường': ['Đường 11', 'Sugar 11', 'SBE'],
+  'Đường 11': ['Đường', 'Sugar 11', 'SBE'],
+  'Nhôm COMEX': ['Nhôm', 'Nhôm Comex', 'ALI'],
+  'Nhôm': ['Nhôm COMEX', 'Nhôm Comex', 'ALI'],
+  'Lúa mì Micro': ['Lúa Mỳ Micro', 'Lúa Mỳ Micro', 'Lúa mì Micro', 'MZW'],
+  'Lúa Mỳ Micro': ['Lúa mì Micro', 'Lúa Mỳ Micro', 'Lúa mì Micro', 'MZW'],
+  'Đậu tương Micro': ['Đậu Tương Micro', 'Đậu tương Micro', 'MZS'],
+  'Dầu Đậu Tương Micro': ['Dầu đậu tương Micro', 'Dầu đậu tương Micro', 'MZL'],
+  'Khô Đậu Tương Micro': ['Khô đậu tương Micro', 'Khô Đậu tương Micro', 'MZM'],
+  'Bạc Micro': ['Bạc micro', 'SIL'],
+  'Đồng Micro': ['Đồng micro', 'MHG'],
+  'Bạc Mini': ['Bạc mini', 'MQI'],
+  'Đồng Mini': ['Đồng mini', 'MQC'],
+  'Ngô Mini': ['Ngô mini', 'XC'],
+  'Lúa Mỳ Mini': ['Lúa Mỳ mini', 'Lúa mì Mini', 'XW'],
+  'Đậu Tương Mini': ['Đậu tương Mini', 'XB'],
+  'Cao su TSR 20': ['Cao su TSR20', 'TRU'],
+  'Cao su RSS3 TOCOM': ['Cao su RSS3', 'Cao su TOCOM', 'ZRE'],
+  'Bạch kim': ['Bạch Kim', 'PLE'],
+  'Thiếc LME': ['SND', 'SNDD13X26'],
+  'Nhôm LME': ['AHD'],
+  'Kẽm LME': ['ZDS'],
+  'Niken LME': ['NID'],
+  'Chì LME': ['PBD'],
+  'Đồng LME': ['CAD'],
+};
+
+export const CANONICAL_COMMODITY_NAME_MAP: Record<string, string> = {
+  'Đường 11': 'Đường',
+  'Nhôm': 'Nhôm COMEX',
+  'Nhôm Comex': 'Nhôm COMEX',
+  'Lúa Mỳ Micro': 'Lúa mì Micro',
+  'Lúa Mỳ Micro': 'Lúa mì Micro',
+  'Bạc micro': 'Bạc Micro',
+  'Đồng micro': 'Đồng Micro',
+  'Bạc mini': 'Bạc Mini',
+  'Đồng mini': 'Đồng Mini',
+  'Dầu đậu tương Micro': 'Dầu Đậu Tương Micro',
+  'Dầu đậu tương Micro': 'Dầu Đậu Tương Micro',
+  'Khô Đậu tương Micro': 'Khô Đậu Tương Micro',
+  'Khô đậu tương Micro': 'Khô Đậu Tương Micro',
+  'Đậu tương Micro': 'Đậu tương Micro',
+  'Đậu Tương Micro': 'Đậu tương Micro',
+  'Cao su TSR20': 'Cao su TSR 20',
+  'Cao su RSS3': 'Cao su RSS3 TOCOM',
+  'Cao su TOCOM': 'Cao su RSS3 TOCOM',
+  'Bạch Kim': 'Bạch kim',
+  'SND': 'Thiếc LME',
+  'AHD': 'Nhôm LME',
+  'ZDS': 'Kẽm LME',
+  'NID': 'Niken LME',
+  'PBD': 'Chì LME',
+  'CAD': 'Đồng LME',
+};
+
 @Injectable()
 export class MonthlyReportingService {
   private readonly logger = new Logger(MonthlyReportingService.name);
@@ -194,7 +340,7 @@ export class MonthlyReportingService {
       (items || []).map((it) => ({
         stt: it.stt,
         memberCode: it.tvkdCode,
-        memberName: it.fullName || it.tvkdCode,
+        memberName: it.tvkdName || it.fullName || it.tvkdCode,
         prevMonthVolume: it.lotPreviousMonth || 0,
         currentMonthVolume: it.lotCurrentMonth || 0,
         volumeDiff: (it.lotCurrentMonth || 0) - (it.lotPreviousMonth || 0),
@@ -423,9 +569,10 @@ export class MonthlyReportingService {
       // Cộng dồn TVKD
       let cur = targetMap.get(stat.tvkdCode);
       if (!cur) {
+        const shortName = OFFICIAL_TVKD_SHORT_NAMES[stat.tvkdCode] || stat.tvkdName;
         cur = {
           tvkdCode: stat.tvkdCode,
-          tvkdName: stat.tvkdName,
+          tvkdName: shortName,
           lotTotal: 0,
           dailyMap: new Map<string, number>(),
         };
@@ -559,19 +706,13 @@ export class MonthlyReportingService {
       commMap.set(stat.productNameVi, (commMap.get(stat.productNameVi) || 0) + stat.lotTotal);
     }
 
-    // Khởi tạo danh mục chuẩn từ BGS_COMMODITY_CATALOG (Data-Driven Rule 1)
+    // Khởi tạo danh mục chuẩn từ OFFICIAL_51_CQG_COMMODITIES (Data-Driven Rule 1)
     const buildCommodityList = (
       commLotMap: Map<string, number>,
       prevMap: Map<string, number>,
       system: 'CQG' | 'ACM',
       totalSysLot: number,
     ) => {
-      // Lấy danh mục chuẩn tương ứng hệ thống động từ BGS_COMMODITY_CATALOG (Data-Driven Rule 1 & Rule 7)
-      const catalogItems =
-        system === 'CQG'
-          ? BGS_COMMODITY_CATALOG.filter((c) => !c.nameVn.toLowerCase().includes('nano'))
-          : BGS_COMMODITY_CATALOG.filter((c) => c.nameVn.toLowerCase().includes('nano'));
-
       // Đối với ACM, danh mục chuẩn của QLGD là: Bạc Nano ACM, Bạch kim Nano ACM, Đồng Nano ACM
       const distinctCatalog =
         system === 'ACM'
@@ -580,12 +721,18 @@ export class MonthlyReportingService {
               { nameVn: 'Bạch kim Nano ACM' },
               { nameVn: 'Đồng Nano ACM' },
             ]
-          : Array.from(new Set(catalogItems.map((c) => c.nameVn))).map((name) => {
-              return { nameVn: name };
-            });
+          : OFFICIAL_51_CQG_COMMODITIES.map((name) => ({ nameVn: name }));
 
       const getLotFuzzy = (map: Map<string, number>, targetName: string): number => {
         if (map.has(targetName)) return map.get(targetName) || 0;
+
+        // 1. Kiểm tra bảng alias/synonyms
+        const alts = COMMODITY_ALIASES[targetName] || [];
+        for (const alt of alts) {
+          if (map.has(alt)) return map.get(alt) || 0;
+        }
+
+        // 2. Chuẩn hóa khoảng trắng & Unicode NFC
         const normTarget = targetName.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
         for (const [k, v] of map.entries()) {
           const normK = k.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
@@ -593,7 +740,19 @@ export class MonthlyReportingService {
             return v;
           }
         }
-        // Riêng cho 3 mặt hàng ACM Nano: so khớp bỏ qua hậu tố "acm" và chuẩn hóa Unicode
+
+        // 3. Chuẩn hóa alts với Unicode NFC
+        for (const alt of alts) {
+          const normAlt = alt.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
+          for (const [k, v] of map.entries()) {
+            const normK = k.toLowerCase().replace(/\s+/g, ' ').normalize('NFC');
+            if (normK === normAlt) {
+              return v;
+            }
+          }
+        }
+
+        // 4. Riêng cho 3 mặt hàng ACM Nano: so khớp bỏ qua hậu tố "acm" và chuẩn hóa Unicode
         if (system === 'ACM') {
           const cleanTarget = targetName.toLowerCase().replace(/\s*acm\s*/g, '').replace(/\s+/g, ' ').normalize('NFC');
           for (const [k, v] of map.entries()) {
@@ -625,7 +784,7 @@ export class MonthlyReportingService {
         });
       }
 
-      // Sắp xếp: Nhóm Lot > 0 giảm dần xếp trước, nhóm Lot = 0 giữ nguyên ở cuối
+      // Sắp xếp: Nhóm Lot tháng này > 0 giảm dần xếp trước, nhóm Lot = 0 xếp theo lotPreviousMonth giảm dần
       const nonZero = list.filter((it) => it.lotCurrentMonth > 0);
       const zeroLot = list.filter((it) => it.lotCurrentMonth === 0);
 
@@ -635,6 +794,8 @@ export class MonthlyReportingService {
         }
         return b.lotPreviousMonth - a.lotPreviousMonth;
       });
+
+      zeroLot.sort((a, b) => b.lotPreviousMonth - a.lotPreviousMonth);
 
       const finalList = [...nonZero, ...zeroLot];
       finalList.forEach((it, idx) => {
@@ -649,6 +810,7 @@ export class MonthlyReportingService {
     // ==========================================
     // PHẦN III: SPREAD, LME, OPTIONS (Rule 2 Lọc TVKD)
     // ==========================================
+    await this.syncSpecialAccountsFromMsBackup(year, month, prevSnapshot);
     const specialTrackingDocs = await this.specialAccountTrackingModel
       .find({ monthYear: `${year}-${monthStr}` })
       .lean();
@@ -665,15 +827,24 @@ export class MonthlyReportingService {
         currentLotMap.set(stat.tvkdCode, (currentLotMap.get(stat.tvkdCode) || 0) + stat.lotTotal);
       }
 
-      // Lấy số lot tháng trước của phân khúc từ snapshot trước
+      // Lấy số lot và số TKGD active tháng trước của phân khúc từ snapshot trước
       const prevLotMap = new Map<string, number>();
+      const prevActiveMap = new Map<string, number>();
+      const prevItemMap = new Map<string, any>();
       const prevItems = prevSnapshot?.section3Specials?.[category.toLowerCase()]?.items || [];
       for (const it of prevItems) {
         prevLotMap.set(it.tvkdCode, it.lotCurrentMonth || 0);
+        prevActiveMap.set(it.tvkdCode, it.totalActiveAccounts || 0);
+        prevItemMap.set(it.tvkdCode, it);
       }
 
-      // Tập hợp tất cả các mã TVKD liên quan
-      const allCodes = Array.from(new Set([...trackingMap.keys(), ...currentLotMap.keys(), ...prevLotMap.keys()]));
+      // Tập hợp tất cả các mã TVKD liên quan (bao gồm cả các TVKD có TKGD active từ tháng trước)
+      const allCodes = Array.from(new Set([
+        ...trackingMap.keys(),
+        ...currentLotMap.keys(),
+        ...prevLotMap.keys(),
+        ...prevActiveMap.keys(),
+      ]));
       const list: any[] = [];
 
       for (const code of allCodes) {
@@ -681,18 +852,27 @@ export class MonthlyReportingService {
         const lotPrev = prevLotMap.get(code) || 0;
         const lotCur = currentLotMap.get(code) || 0;
 
-        const activePrev = tracking?.activeBeforeMonth || 0;
-        const activeCur = tracking?.newActiveInMonth || 0;
+        // Kế thừa lũy kế TKGD Active từ tháng trước nếu chưa có bản ghi cấu hình riêng cho tháng này
+        const baseActivePrev = prevActiveMap.get(code) || 0;
+        const activePrev = tracking?.activeBeforeMonth ?? baseActivePrev;
+        const activeCur = tracking?.newActiveInMonth ?? 0;
         const totalActive = activePrev + activeCur;
 
-        // Áp dụng Rule 2: Chỉ đưa vào bảng khi Tổng TKGD Active > 0 HOẶC Số Lot > 0
-        if (totalActive > 0 || lotPrev > 0 || lotCur > 0) {
+        // QUY TẮC NGHIỆP VỤ: Đưa vào bảng khi TVKD có TKGD Active sản phẩm đó, hoặc có phát sinh giao dịch
+        if (totalActive > 0 || activePrev > 0 || activeCur > 0 || lotCur > 0 || lotPrev > 0) {
           const tvkdObj = tvkdCqgList.find((t) => t.tvkdCode === code) || tvkdAcmList.find((t) => t.tvkdCode === code);
-          const fullName = tvkdObj ? tvkdObj.fullName : tracking?.tvkdFullName || `TVKD - ${code}`;
+          const prevItemObj = prevItemMap.get(code);
+          const tvkdShort =
+            OFFICIAL_TVKD_SHORT_NAMES[code] ||
+            prevItemObj?.tvkdName ||
+            (tvkdObj ? tvkdObj.tvkdName : tracking?.tvkdName) ||
+            code;
+          const fullName = `${tvkdShort} - ${code}`;
           const growthRate = lotPrev > 0 ? lotCur / lotPrev - 1 : null;
 
           list.push({
             tvkdCode: code,
+            tvkdName: tvkdShort,
             fullName,
             lotPreviousMonth: lotPrev,
             lotCurrentMonth: lotCur,
@@ -705,7 +885,7 @@ export class MonthlyReportingService {
         }
       }
 
-      // Sắp xếp: Ưu tiên Số Lot giảm dần, sau đó đến Tổng TKGD Active giảm dần
+      // Sắp xếp: Ưu tiên Số Lot tháng này giảm dần, sau đó Số Lot tháng trước giảm dần, sau đó Tổng TKGD Active giảm dần
       list.sort((a, b) => {
         if (b.lotCurrentMonth !== a.lotCurrentMonth) {
           return b.lotCurrentMonth - a.lotCurrentMonth;
@@ -805,6 +985,145 @@ export class MonthlyReportingService {
         options: optionsData,
       },
     };
+  }
+
+  /**
+   * Tự động đọc số lượng TKGD từ 3 file gốc trong Backup MS ngày cuối tháng:
+   * - DSTKGD-Spread.xlsx (Cột: Mã TVKD, Ngày tham gia)
+   * - DSTKGD-LME.xlsx (Cột: Mã TVKD, Ngày tham gia)
+   * - DSTKGD-Options.xlsx (Cột: Mã TV, Ngày đăng ký)
+   */
+  private async syncSpecialAccountsFromMsBackup(year: number, month: number, prevSnapshot: any): Promise<void> {
+    if (year === 2026 && month === 9) return;
+    try {
+      const monthStr = String(month).padStart(2, '0');
+      const monthYear = `${year}-${monthStr}`;
+      const subFolder = `${year}/T${monthStr}.${year}`;
+      const configuredMs = this.settingsService
+        ? await getMsBackupBase(this.settingsService)
+        : resolveStoragePathCrossPlatform(process.env.DEFAULT_BACKUP_PATH_MS || '');
+      if (!configuredMs) return;
+
+      const msFolder = path.join(configuredMs, subFolder);
+      if (!fs.existsSync(msFolder)) return;
+
+      const dayFolders = fs
+        .readdirSync(msFolder)
+        .filter((d) => /^\d{2}\.\d{2}$/.test(d))
+        .sort()
+        .reverse();
+
+      const parseRegYearMonth = (rawDate: any): { y: number; m: number } | null => {
+        if (rawDate === null || rawDate === undefined || rawDate === '') return null;
+        if (typeof rawDate === 'number') {
+          // Trong file xuất từ M-System, các ngày có DD <= 12 bị Excel lưu dạng serial MM/DD/YYYY (d.d là tháng thật, d.m là ngày thật)
+          const d = XLSX.SSF.parse_date_code(rawDate);
+          if (d && d.y) {
+            return { y: d.y, m: d.d };
+          }
+          return null;
+        }
+        const str = String(rawDate).trim();
+        const m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) {
+          return { y: parseInt(m[3], 10), m: parseInt(m[2], 10) };
+        }
+        return null;
+      };
+
+      const configs: Array<{
+        category: 'SPREAD' | 'LME' | 'OPTIONS';
+        fileName: string;
+        codeCols: string[];
+        dateCol: string;
+      }> = [
+        { category: 'SPREAD', fileName: 'DSTKGD-Spread.xlsx', codeCols: ['Mã TVKD', 'Ma TVKD', 'Mã TV'], dateCol: 'Ngày tham gia' },
+        { category: 'LME', fileName: 'DSTKGD-LME.xlsx', codeCols: ['Mã TVKD', 'Ma TVKD', 'Mã TV'], dateCol: 'Ngày tham gia' },
+        { category: 'OPTIONS', fileName: 'DSTKGD-Options.xlsx', codeCols: ['Mã TV', 'Ma TV', 'Mã TVKD'], dateCol: 'Ngày đăng ký' },
+      ];
+
+      for (const cfg of configs) {
+        let targetFilePath = '';
+        for (const d of dayFolders) {
+          const candidate = path.join(msFolder, d, cfg.fileName);
+          if (fs.existsSync(candidate) && fs.statSync(candidate).size > 500) {
+            targetFilePath = candidate;
+            break;
+          }
+        }
+        if (!targetFilePath) continue;
+
+        const wb = XLSX.readFile(targetFilePath);
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
+
+        const prevItems = prevSnapshot?.section3Specials?.[cfg.category.toLowerCase()]?.items || [];
+        const prevActiveMap = new Map<string, number>();
+        for (const it of prevItems) {
+          prevActiveMap.set(it.tvkdCode, it.totalActiveAccounts || 0);
+        }
+
+        const countsByCode = new Map<string, { before: number; current: number; activeStatusCount: number }>();
+        for (const r of rows) {
+          let rawCode = '';
+          for (const col of cfg.codeCols) {
+            if (r[col] !== undefined && r[col] !== '') {
+              rawCode = String(r[col]).trim();
+              break;
+            }
+          }
+          if (!rawCode) continue;
+          const code = rawCode.padStart(3, '0');
+          if (code === '999') continue; // Loại bỏ mã TVKD test 999
+
+          const st = String(r['Trạng thái'] || 'Hoạt động').trim();
+          const ym = parseRegYearMonth(r[cfg.dateCol]);
+          if (!countsByCode.has(code)) {
+            countsByCode.set(code, { before: 0, current: 0, activeStatusCount: 0 });
+          }
+          const entry = countsByCode.get(code)!;
+          if (st === 'Hoạt động') {
+            entry.activeStatusCount++;
+          }
+          if (ym) {
+            if (ym.y === year && ym.m === month) {
+              entry.current++;
+            } else if (ym.y < year || (ym.y === year && ym.m < month)) {
+              entry.before++;
+            }
+          } else {
+            entry.before++;
+          }
+        }
+
+        for (const [code, entry] of countsByCode.entries()) {
+          // Với bảng LME, nếu TVKD không nằm trong danh sách kỳ trước và toàn bộ TK đều Không hoạt động (như 033) thì bỏ qua
+          if (cfg.category === 'LME' && !prevActiveMap.has(code) && entry.activeStatusCount === 0 && entry.current === 0) {
+            continue;
+          }
+          const activeBeforeMonth = prevActiveMap.has(code) ? prevActiveMap.get(code)! : entry.before;
+          const newActiveInMonth = entry.current;
+          const totalActiveCumulative = activeBeforeMonth + newActiveInMonth;
+          const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[code] || code;
+
+          await this.specialAccountTrackingModel.findOneAndUpdate(
+            { monthYear, category: cfg.category, tvkdCode: code },
+            {
+              monthYear,
+              category: cfg.category,
+              tvkdCode: code,
+              tvkdName,
+              activeBeforeMonth,
+              newActiveInMonth,
+              totalActiveCumulative,
+              updatedBy: 'MS_BACKUP_AUTO_SYNC',
+            },
+            { upsert: true, new: true },
+          );
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`[syncSpecialAccountsFromMsBackup] Lỗi đọc DSTKGD-Spread/LME/Options: ${e.message}`);
+    }
   }
 
   /**
@@ -956,11 +1275,12 @@ export class MonthlyReportingService {
       } catch {}
     }
 
-    // B. Nạp Danh bạ TVKD Hoàn Toàn Động (Zero-Hardcoding):
-    // Ưu tiên 1: Đọc từ CSDL SystemSettings (key tvkd_names_map / tvkd_catalog)
-    // Ưu tiên 2: Đọc từ file Master QL TT TVKD.xlsx trong Backup CCP (Danh bạ TVKD chuẩn của Sở)
-    // Ưu tiên 3: Tự động trích xuất trực tiếp từ cột [Tên TVKD] / [Tên thành viên] trong DSGD.xlsx & DSGD CCP.xlsx
+    // B. Nạp Danh bạ TVKD Hoàn Toàn Động:
+    // Ưu tiên 1: Tên ngắn / thương hiệu chuẩn MXV từ OFFICIAL_TVKD_SHORT_NAMES (khớp file Thống kê số lot giao dịch)
+    // Ưu tiên 2: CSDL SystemSettings (key tvkd_names_map / tvkd_catalog)
+    // Ưu tiên 3: Tự động trích xuất trực tiếp từ cột [Tên TVKD] / [Tên thành viên] trong DSGD.xlsx & DSGD CCP.xlsx nếu chưa có
     const tvkdNameMap = new Map<string, string>();
+    Object.entries(OFFICIAL_TVKD_SHORT_NAMES).forEach(([k, v]) => tvkdNameMap.set(k, v));
 
     if (this.settingsService) {
       try {
@@ -983,7 +1303,7 @@ export class MonthlyReportingService {
             for (const r of qlRows) {
               const code = String(r['Mã TVKD'] || r['Ma TVKD'] || '').trim().padStart(3, '0');
               const name = String(r['Tên TVKD'] || r['Ten TVKD'] || '').trim();
-              if (code && name) {
+              if (code && name && !OFFICIAL_TVKD_SHORT_NAMES[code]) {
                 tvkdNameMap.set(code, name);
               }
             }
@@ -1026,25 +1346,30 @@ export class MonthlyReportingService {
             totalCqgTrades++;
             const tvkdCode = (String(r['Mã TVKD'] || '').trim() || acc.substring(0, 3)).padStart(3, '0');
             const fileTvkdName = String(r['Tên TVKD'] || '').trim();
-            if (fileTvkdName && !tvkdNameMap.has(tvkdCode)) {
+            if (fileTvkdName && !OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] && !tvkdNameMap.has(tvkdCode)) {
               tvkdNameMap.set(tvkdCode, fileTvkdName);
             }
-            const tvkdName = fileTvkdName || tvkdNameMap.get(tvkdCode) || `TVKD ${tvkdCode}`;
+            const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] || tvkdNameMap.get(tvkdCode) || fileTvkdName || `TVKD ${tvkdCode}`;
             const hd = String(r['Mã HĐ'] || '').trim().toUpperCase();
             const side = String(r['Chiều mua bán'] || '').trim().toUpperCase();
 
             let root = hd;
             const optMatch = hd.match(/^([CP]\.[A-Z0-9]+?)([FGHJKMNQUVXZ])(\d{1,2})$/);
+            const lmeMatch = hd.match(/^([A-Z]{2,4})D\d{1,2}[FGHJKMNQUVXZ]\d{1,2}$/);
             const futMatch = hd.match(/^([A-Z0-9]+?)([FGHJKMNQUVXZ])(\d{1,2})$/);
             if (optMatch) root = optMatch[1];
+            else if (lmeMatch) root = lmeMatch[1];
             else if (futMatch) root = futMatch[1];
 
             const info = BGS_RAW_TO_STD_MAP[root] || BGS_RAW_TO_STD_MAP[hd];
             const productCode = info?.stdCode || root;
-            const productNameVi = info?.nameVn || hd;
+            let productNameVi = info?.nameVn || hd;
+            if (CANONICAL_COMMODITY_NAME_MAP[productNameVi]) {
+              productNameVi = CANONICAL_COMMODITY_NAME_MAP[productNameVi];
+            }
 
             const isSpread = acc.endsWith('-S') || acc.endsWith('S');
-            const isLme = acc.endsWith('L') || acc.endsWith('-L');
+            const isLme = acc.endsWith('L') || acc.endsWith('-L') || lmeMatch !== null || ['SND', 'AHD', 'ZDS', 'NID', 'PBD', 'CAD'].includes(root);
             const isOptions = /^[CP]\./i.test(hd);
 
             const key = `CQG__${tvkdCode}__${productCode}__${isSpread}__${isLme}__${isOptions}`;
@@ -1105,10 +1430,10 @@ export class MonthlyReportingService {
 
             const tvkdCode = String(r['Mã thành viên'] || r['Ma thanh vien'] || '').trim().padStart(3, '0');
             const fileTvkdName = String(r['Tên thành viên'] || r['Ten thanh vien'] || '').trim();
-            if (fileTvkdName && !tvkdNameMap.has(tvkdCode)) {
+            if (fileTvkdName && !OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] && !tvkdNameMap.has(tvkdCode)) {
               tvkdNameMap.set(tvkdCode, fileTvkdName);
             }
-            const tvkdName = fileTvkdName || tvkdNameMap.get(tvkdCode) || `TVKD ${tvkdCode}`;
+            const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] || tvkdNameMap.get(tvkdCode) || fileTvkdName || `TVKD ${tvkdCode}`;
             const side = String(r['Mua/Bán'] || r['Mua/Ban'] || 'Mua').trim().toUpperCase();
             const lot = Number(r['KL khớp'] || r['KL khop'] || 0);
             if (!tvkdCode || lot <= 0) continue;

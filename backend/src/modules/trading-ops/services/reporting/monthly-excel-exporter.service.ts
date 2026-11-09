@@ -150,17 +150,18 @@ export class MonthlyExcelExporterService {
       views: [{ showGridLines: true }],
     });
 
-    // 1. Cấu hình độ rộng các cột (Col A -> I)
+    // 1. Cấu hình độ rộng các cột (Col A -> J: Tách riêng Mã TVKD và Tên TVKD)
     ws.columns = [
-      { key: 'A', width: 9.0 },
-      { key: 'B', width: 39.3 },
-      { key: 'C', width: 15.4 },
-      { key: 'D', width: 14.4 },
-      { key: 'E', width: 12.6 },
-      { key: 'F', width: 14.9 },
-      { key: 'G', width: 14.4 },
-      { key: 'H', width: 12.6 },
-      { key: 'I', width: 10.1 },
+      { key: 'A', width: 7.0 },   // STT
+      { key: 'B', width: 12.0 },  // MÃ TVKD
+      { key: 'C', width: 28.0 },  // TÊN THÀNH VIÊN
+      { key: 'D', width: 15.4 },  // Số Lot tháng trước
+      { key: 'E', width: 14.4 },  // Số Lot tháng này
+      { key: 'F', width: 12.6 },  // % Tăng/giảm
+      { key: 'G', width: 16.0 },  // Số Lot giao dịch nhiều nhất/ngày
+      { key: 'H', width: 14.4 },  // Ngày giao dịch
+      { key: 'I', width: 16.0 },  // Số Lot giao dịch ít nhất/ngày
+      { key: 'J', width: 12.0 },  // Ngày giao dịch
     ];
 
     const thinBorder: Partial<ExcelJS.Borders> = {
@@ -183,6 +184,7 @@ export class MonthlyExcelExporterService {
 
     const r3Headers = [
       'STT',
+      'MÃ TVKD',
       'TÊN THÀNH VIÊN',
       'Số Lot \r\ntháng trước',
       'Số Lot \r\ntháng này',
@@ -203,7 +205,7 @@ export class MonthlyExcelExporterService {
     });
 
     // Subheader CQG
-    ws.mergeCells('A4:I4');
+    ws.mergeCells('A4:J4');
     const cellA4 = ws.getCell('A4');
     cellA4.value = 'CQG';
     cellA4.font = { name: 'Arial', size: 11, bold: true };
@@ -217,32 +219,33 @@ export class MonthlyExcelExporterService {
       const r = ws.getRow(curRow);
       r.height = 15;
       r.getCell(1).value = item.stt;
-      r.getCell(2).value = item.fullName;
-      r.getCell(3).value = item.lotPreviousMonth;
-      r.getCell(4).value = item.lotCurrentMonth;
-      r.getCell(5).value = {
-        formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+      r.getCell(2).value = item.tvkdCode;
+      r.getCell(3).value = item.tvkdName || item.fullName;
+      r.getCell(4).value = item.lotPreviousMonth;
+      r.getCell(5).value = item.lotCurrentMonth;
+      r.getCell(6).value = {
+        formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
         result: item.growthRate === null ? ' ' : item.growthRate,
       };
-      r.getCell(6).value = item.maxLotDay;
-      r.getCell(7).value = toDateSerial(item.maxDate);
-      r.getCell(8).value = item.minLotDay;
-      r.getCell(9).value = toDateSerial(item.minDate);
+      r.getCell(7).value = item.maxLotDay;
+      r.getCell(8).value = toDateSerial(item.maxDate);
+      r.getCell(9).value = item.minLotDay;
+      r.getCell(10).value = toDateSerial(item.minDate);
 
-      [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach((col) => {
         const c = r.getCell(col);
         c.font = { name: 'Arial', size: 11 };
         c.border = thinBorder;
-        if (col === 1) c.alignment = { horizontal: 'center' };
-        if (col === 2) c.alignment = { horizontal: 'left' };
-        if ([3, 4, 6, 8].includes(col)) {
+        if (col === 1 || col === 2) c.alignment = { horizontal: 'center' };
+        if (col === 3) c.alignment = { horizontal: 'left' };
+        if ([4, 5, 7, 9].includes(col)) {
           c.numFmt = '#,##0';
           c.alignment = { horizontal: 'right' };
         }
-        if (col === 5) {
+        if (col === 6) {
           this.applyGrowthStyle(c, item.growthRate, false);
         }
-        if ([7, 9].includes(col)) {
+        if ([8, 10].includes(col)) {
           c.numFmt = 'dd/mm';
           c.alignment = { horizontal: 'center' };
         }
@@ -254,18 +257,18 @@ export class MonthlyExcelExporterService {
     // TỔNG CQG
     const rowTotCqg = ws.getRow(curRow);
     rowTotCqg.height = 16.5;
-    ws.mergeCells(`A${curRow}:B${curRow}`);
+    ws.mergeCells(`A${curRow}:C${curRow}`);
     rowTotCqg.getCell(1).value = 'TỔNG CQG';
-    rowTotCqg.getCell(3).value = {
-      formula: `SUM(C${cqgStart}:C${cqgEnd})`,
-      result: data.section1Tvkd.cqg.summary.lotPreviousMonth,
-    };
     rowTotCqg.getCell(4).value = {
       formula: `SUM(D${cqgStart}:D${cqgEnd})`,
-      result: data.section1Tvkd.cqg.summary.lotCurrentMonth,
+      result: data.section1Tvkd.cqg.summary.lotPreviousMonth,
     };
     rowTotCqg.getCell(5).value = {
-      formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+      formula: `SUM(E${cqgStart}:E${cqgEnd})`,
+      result: data.section1Tvkd.cqg.summary.lotCurrentMonth,
+    };
+    rowTotCqg.getCell(6).value = {
+      formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
       result:
         data.section1Tvkd.cqg.summary.lotPreviousMonth > 0
           ? data.section1Tvkd.cqg.summary.lotCurrentMonth /
@@ -273,12 +276,12 @@ export class MonthlyExcelExporterService {
             1
           : ' ',
     };
-    rowTotCqg.getCell(6).value = data.section1Tvkd.cqg.summary.marketPeakLot;
-    rowTotCqg.getCell(7).value = toDateSerial(data.section1Tvkd.cqg.summary.marketPeakDate);
-    rowTotCqg.getCell(8).value = data.section1Tvkd.cqg.summary.marketTroughLot;
-    rowTotCqg.getCell(9).value = toDateSerial(data.section1Tvkd.cqg.summary.marketTroughDate);
+    rowTotCqg.getCell(7).value = data.section1Tvkd.cqg.summary.marketPeakLot;
+    rowTotCqg.getCell(8).value = toDateSerial(data.section1Tvkd.cqg.summary.marketPeakDate);
+    rowTotCqg.getCell(9).value = data.section1Tvkd.cqg.summary.marketTroughLot;
+    rowTotCqg.getCell(10).value = toDateSerial(data.section1Tvkd.cqg.summary.marketTroughDate);
 
-    [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach((col) => {
       const c = rowTotCqg.getCell(col);
       c.font = { name: 'Arial', size: 11, bold: true };
       c.border = {
@@ -287,8 +290,8 @@ export class MonthlyExcelExporterService {
         left: { style: 'thin' },
         right: { style: 'thin' },
       };
-      if ([3, 4, 6, 8].includes(col)) c.numFmt = '#,##0';
-      if (col === 5) {
+      if ([4, 5, 7, 9].includes(col)) c.numFmt = '#,##0';
+      if (col === 6) {
         const totRate =
           data.section1Tvkd.cqg.summary.lotPreviousMonth > 0
             ? data.section1Tvkd.cqg.summary.lotCurrentMonth /
@@ -297,20 +300,20 @@ export class MonthlyExcelExporterService {
             : null;
         this.applyGrowthStyle(c, totRate, true);
       }
-      if ([7, 9].includes(col)) {
+      if ([8, 10].includes(col)) {
         c.numFmt = 'dd/mm';
         c.alignment = { horizontal: 'center' };
       }
     });
 
     ws.addConditionalFormatting({
-      ref: `E${cqgStart}:E${curRow}`,
-      rules: this.getGrowthCfRules(`E${cqgStart}`),
+      ref: `F${cqgStart}:F${curRow}`,
+      rules: this.getGrowthCfRules(`F${cqgStart}`),
     });
     curRow++;
 
     // Subheader ACM
-    ws.mergeCells(`A${curRow}:I${curRow}`);
+    ws.mergeCells(`A${curRow}:J${curRow}`);
     const cellAcm = ws.getCell(`A${curRow}`);
     cellAcm.value = 'ACM';
     cellAcm.font = { name: 'Arial', size: 11, bold: true };
@@ -323,32 +326,33 @@ export class MonthlyExcelExporterService {
       const r = ws.getRow(curRow);
       r.height = 15;
       r.getCell(1).value = item.stt;
-      r.getCell(2).value = item.fullName;
-      r.getCell(3).value = item.lotPreviousMonth;
-      r.getCell(4).value = item.lotCurrentMonth;
-      r.getCell(5).value = {
-        formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+      r.getCell(2).value = item.tvkdCode;
+      r.getCell(3).value = item.tvkdName || item.fullName;
+      r.getCell(4).value = item.lotPreviousMonth;
+      r.getCell(5).value = item.lotCurrentMonth;
+      r.getCell(6).value = {
+        formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
         result: item.growthRate === null ? ' ' : item.growthRate,
       };
-      r.getCell(6).value = item.maxLotDay;
-      r.getCell(7).value = toDateSerial(item.maxDate);
-      r.getCell(8).value = item.minLotDay;
-      r.getCell(9).value = toDateSerial(item.minDate);
+      r.getCell(7).value = item.maxLotDay;
+      r.getCell(8).value = toDateSerial(item.maxDate);
+      r.getCell(9).value = item.minLotDay;
+      r.getCell(10).value = toDateSerial(item.minDate);
 
-      [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach((col) => {
         const c = r.getCell(col);
         c.font = { name: 'Arial', size: 11 };
         c.border = thinBorder;
-        if (col === 1) c.alignment = { horizontal: 'center' };
-        if (col === 2) c.alignment = { horizontal: 'left' };
-        if ([3, 4, 6, 8].includes(col)) {
+        if (col === 1 || col === 2) c.alignment = { horizontal: 'center' };
+        if (col === 3) c.alignment = { horizontal: 'left' };
+        if ([4, 5, 7, 9].includes(col)) {
           c.numFmt = '#,##0';
           c.alignment = { horizontal: 'right' };
         }
-        if (col === 5) {
+        if (col === 6) {
           this.applyGrowthStyle(c, item.growthRate, false);
         }
-        if ([7, 9].includes(col)) {
+        if ([8, 10].includes(col)) {
           c.numFmt = 'dd/mm';
           c.alignment = { horizontal: 'center' };
         }
@@ -360,18 +364,18 @@ export class MonthlyExcelExporterService {
     // TỔNG ACM
     const rowTotAcm = ws.getRow(curRow);
     rowTotAcm.height = 16.5;
-    ws.mergeCells(`A${curRow}:B${curRow}`);
+    ws.mergeCells(`A${curRow}:C${curRow}`);
     rowTotAcm.getCell(1).value = 'TỔNG ACM';
-    rowTotAcm.getCell(3).value = {
-      formula: `SUM(C${acmStart}:C${acmEnd})`,
-      result: data.section1Tvkd.acm.summary.lotPreviousMonth,
-    };
     rowTotAcm.getCell(4).value = {
       formula: `SUM(D${acmStart}:D${acmEnd})`,
-      result: data.section1Tvkd.acm.summary.lotCurrentMonth,
+      result: data.section1Tvkd.acm.summary.lotPreviousMonth,
     };
     rowTotAcm.getCell(5).value = {
-      formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+      formula: `SUM(E${acmStart}:E${acmEnd})`,
+      result: data.section1Tvkd.acm.summary.lotCurrentMonth,
+    };
+    rowTotAcm.getCell(6).value = {
+      formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
       result:
         data.section1Tvkd.acm.summary.lotPreviousMonth > 0
           ? data.section1Tvkd.acm.summary.lotCurrentMonth /
@@ -379,12 +383,12 @@ export class MonthlyExcelExporterService {
             1
           : ' ',
     };
-    rowTotAcm.getCell(6).value = data.section1Tvkd.acm.summary.marketPeakLot;
-    rowTotAcm.getCell(7).value = toDateSerial(data.section1Tvkd.acm.summary.marketPeakDate);
-    rowTotAcm.getCell(8).value = data.section1Tvkd.acm.summary.marketTroughLot;
-    rowTotAcm.getCell(9).value = toDateSerial(data.section1Tvkd.acm.summary.marketTroughDate);
+    rowTotAcm.getCell(7).value = data.section1Tvkd.acm.summary.marketPeakLot;
+    rowTotAcm.getCell(8).value = toDateSerial(data.section1Tvkd.acm.summary.marketPeakDate);
+    rowTotAcm.getCell(9).value = data.section1Tvkd.acm.summary.marketTroughLot;
+    rowTotAcm.getCell(10).value = toDateSerial(data.section1Tvkd.acm.summary.marketTroughDate);
 
-    [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].forEach((col) => {
       const c = rowTotAcm.getCell(col);
       c.font = { name: 'Arial', size: 11, bold: true };
       c.border = {
@@ -393,8 +397,8 @@ export class MonthlyExcelExporterService {
         left: { style: 'thin' },
         right: { style: 'thin' },
       };
-      if ([3, 4, 6, 8].includes(col)) c.numFmt = '#,##0';
-      if (col === 5) {
+      if ([4, 5, 7, 9].includes(col)) c.numFmt = '#,##0';
+      if (col === 6) {
         const totRate =
           data.section1Tvkd.acm.summary.lotPreviousMonth > 0
             ? data.section1Tvkd.acm.summary.lotCurrentMonth /
@@ -403,15 +407,15 @@ export class MonthlyExcelExporterService {
             : null;
         this.applyGrowthStyle(c, totRate, true);
       }
-      if ([7, 9].includes(col)) {
+      if ([8, 10].includes(col)) {
         c.numFmt = 'dd/mm';
         c.alignment = { horizontal: 'center' };
       }
     });
 
     ws.addConditionalFormatting({
-      ref: `E${acmStart}:E${curRow}`,
-      rules: this.getGrowthCfRules(`E${acmStart}`),
+      ref: `F${acmStart}:F${curRow}`,
+      rules: this.getGrowthCfRules(`F${acmStart}`),
     });
     curRow += 3;
 
@@ -673,24 +677,26 @@ export class MonthlyExcelExporterService {
       ws.mergeCells(`A${hRow1}:A${hRow2}`);
       ws.getCell(`A${hRow1}`).value = 'STT';
       ws.mergeCells(`B${hRow1}:B${hRow2}`);
-      ws.getCell(`B${hRow1}`).value = 'TVKD';
+      ws.getCell(`B${hRow1}`).value = 'Mã TVKD';
+      ws.mergeCells(`C${hRow1}:C${hRow2}`);
+      ws.getCell(`C${hRow1}`).value = 'Tên TVKD';
 
-      ws.mergeCells(`C${hRow1}:E${hRow1}`);
-      ws.getCell(`C${hRow1}`).value = 'Số Lot giao dịch';
+      ws.mergeCells(`D${hRow1}:F${hRow1}`);
+      ws.getCell(`D${hRow1}`).value = 'Số Lot giao dịch';
 
-      ws.mergeCells(`F${hRow1}:H${hRow1}`);
-      ws.getCell(`F${hRow1}`).value = 'Số lượng TKGD Active';
+      ws.mergeCells(`G${hRow1}:I${hRow1}`);
+      ws.getCell(`G${hRow1}`).value = 'Số lượng TKGD Active';
 
-      ws.getCell(`C${hRow2}`).value = 'Tháng trước';
-      ws.getCell(`D${hRow2}`).value = 'Tháng này';
-      ws.getCell(`E${hRow2}`).value = '% Tăng/giảm';
-      ws.getCell(`F${hRow2}`).value = 'Hết tháng trước';
-      ws.getCell(`G${hRow2}`).value = 'Tháng này';
-      ws.getCell(`H${hRow2}`).value = 'Tổng';
+      ws.getCell(`D${hRow2}`).value = 'Tháng trước';
+      ws.getCell(`E${hRow2}`).value = 'Tháng này';
+      ws.getCell(`F${hRow2}`).value = '% Tăng/giảm';
+      ws.getCell(`G${hRow2}`).value = 'Hết tháng trước';
+      ws.getCell(`H${hRow2}`).value = 'Tháng này';
+      ws.getCell(`I${hRow2}`).value = 'Tổng';
 
       [hRow1, hRow2].forEach((rIdx) => {
         const r = ws.getRow(rIdx);
-        [1, 2, 3, 4, 5, 6, 7, 8].forEach((cIdx) => {
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((cIdx) => {
           const c = r.getCell(cIdx);
           c.font = { name: 'Arial', size: 11, bold: true };
           c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
@@ -704,34 +710,35 @@ export class MonthlyExcelExporterService {
         const r = ws.getRow(curRow);
         r.height = 15;
         r.getCell(1).value = item.stt;
-        r.getCell(2).value = item.fullName;
-        r.getCell(3).value = item.lotPreviousMonth;
-        r.getCell(4).value = item.lotCurrentMonth;
-        r.getCell(5).value = {
-          formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+        r.getCell(2).value = item.tvkdCode;
+        r.getCell(3).value = item.tvkdName || item.fullName;
+        r.getCell(4).value = item.lotPreviousMonth;
+        r.getCell(5).value = item.lotCurrentMonth;
+        r.getCell(6).value = {
+          formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
           result:
             item.lotPreviousMonth > 0
               ? item.lotCurrentMonth / item.lotPreviousMonth - 1
               : ' ',
         };
-        r.getCell(6).value = item.activeAccountsPreviousMonth;
-        r.getCell(7).value = item.activeAccountsCurrentMonth;
-        r.getCell(8).value = {
-          formula: `SUM(F${curRow}:G${curRow})`,
+        r.getCell(7).value = item.activeAccountsPreviousMonth;
+        r.getCell(8).value = item.activeAccountsCurrentMonth;
+        r.getCell(9).value = {
+          formula: `SUM(G${curRow}:H${curRow})`,
           result: item.totalActiveAccounts,
         };
 
-        [1, 2, 3, 4, 5, 6, 7, 8].forEach((col) => {
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
           const c = r.getCell(col);
           c.font = { name: 'Arial', size: 11 };
           c.border = thinBorder;
-          if (col === 1) c.alignment = { horizontal: 'center' };
-          if (col === 2) c.alignment = { horizontal: 'left' };
-          if ([3, 4, 6, 7, 8].includes(col)) {
+          if (col === 1 || col === 2) c.alignment = { horizontal: 'center' };
+          if (col === 3) c.alignment = { horizontal: 'left' };
+          if ([4, 5, 7, 8, 9].includes(col)) {
             c.numFmt = '#,##0';
             c.alignment = { horizontal: 'right' };
           }
-          if (col === 5) {
+          if (col === 6) {
             const rate =
               item.lotPreviousMonth > 0
                 ? item.lotCurrentMonth / item.lotPreviousMonth - 1
@@ -745,37 +752,37 @@ export class MonthlyExcelExporterService {
 
       const rTot = ws.getRow(curRow);
       rTot.height = 16.5;
-      ws.mergeCells(`A${curRow}:B${curRow}`);
+      ws.mergeCells(`A${curRow}:C${curRow}`);
       rTot.getCell(1).value = 'Tổng';
-      rTot.getCell(3).value = {
-        formula: `SUM(C${tStart}:C${tEnd})`,
+      rTot.getCell(4).value = {
+        formula: tEnd >= tStart ? `SUM(D${tStart}:D${tEnd})` : '0',
         result: summary.lotPreviousMonth,
       };
-      rTot.getCell(4).value = {
-        formula: `SUM(D${tStart}:D${tEnd})`,
+      rTot.getCell(5).value = {
+        formula: tEnd >= tStart ? `SUM(E${tStart}:E${tEnd})` : '0',
         result: summary.lotCurrentMonth,
       };
-      rTot.getCell(5).value = {
-        formula: `IFERROR(D${curRow}/C${curRow}-1," ")`,
+      rTot.getCell(6).value = {
+        formula: `IFERROR(E${curRow}/D${curRow}-1," ")`,
         result:
           summary.lotPreviousMonth > 0
             ? summary.lotCurrentMonth / summary.lotPreviousMonth - 1
             : ' ',
       };
-      rTot.getCell(6).value = {
-        formula: `SUM(F${tStart}:F${tEnd})`,
+      rTot.getCell(7).value = {
+        formula: tEnd >= tStart ? `SUM(G${tStart}:G${tEnd})` : '0',
         result: summary.activeAccountsPreviousMonth,
       };
-      rTot.getCell(7).value = {
-        formula: `SUM(G${tStart}:G${tEnd})`,
+      rTot.getCell(8).value = {
+        formula: tEnd >= tStart ? `SUM(H${tStart}:H${tEnd})` : '0',
         result: summary.activeAccountsCurrentMonth,
       };
-      rTot.getCell(8).value = {
-        formula: `SUM(H${tStart}:H${tEnd})`,
+      rTot.getCell(9).value = {
+        formula: tEnd >= tStart ? `SUM(I${tStart}:I${tEnd})` : '0',
         result: summary.totalActiveAccounts,
       };
 
-      [1, 2, 3, 4, 5, 6, 7, 8].forEach((col) => {
+      [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((col) => {
         const c = rTot.getCell(col);
         c.font = { name: 'Arial', size: 11, bold: true };
         c.border = {
@@ -784,8 +791,8 @@ export class MonthlyExcelExporterService {
           left: { style: 'thin' },
           right: { style: 'thin' },
         };
-        if ([3, 4, 6, 7, 8].includes(col)) c.numFmt = '#,##0';
-        if (col === 5) {
+        if ([4, 5, 7, 8, 9].includes(col)) c.numFmt = '#,##0';
+        if (col === 6) {
           const totRate =
             summary.lotPreviousMonth > 0
               ? summary.lotCurrentMonth / summary.lotPreviousMonth - 1
@@ -794,10 +801,12 @@ export class MonthlyExcelExporterService {
         }
       });
 
-      ws.addConditionalFormatting({
-        ref: `E${tStart}:E${curRow}`,
-        rules: this.getGrowthCfRules(`E${tStart}`),
-      });
+      if (tEnd >= tStart) {
+        ws.addConditionalFormatting({
+          ref: `F${tStart}:F${curRow}`,
+          rules: this.getGrowthCfRules(`F${tStart}`),
+        });
+      }
       curRow += 2;
     };
 

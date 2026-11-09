@@ -23,3 +23,4 @@ for r in range(1, 60):
     if c1 or c2 or c3:
         print(f"R{r}: c1={c1} | c2={c2} | c3={c3} | c4={c4}")
 
+

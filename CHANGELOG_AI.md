@@ -1,3 +1,38 @@
+## [2026-11-09T14:42] FIX(MONTHLY_REPORT_PARITY): Tách Cột Mã TVKD & Tên TVKD Ngắn Gọn, Chuẩn Hóa 51 Mặt Hàng CQG & Kế Thừa Lũy Kế TKGD Active Cho Phần III (Spread, LME, Options)
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER / Quản lý
+- Thực hiện 4 chỉ đạo trực tiếp từ Quản lý của USER:
+  1. _"tên cty m để như cái file Thống kê số lot giao dịch được khum, dài vl ) a nghĩ là sửa sang tí: tách thành Mã TVKD và tên TVKD"_: Thay thế tên pháp nhân dài (`Công ty Cổ phần Giao dịch Hàng hóa...`) bằng tên thương hiệu ngắn gọn chuẩn theo file `Thong ke so lot giao dich 2026.xlsx`, đồng thời tách thành 2 cột độc lập `MÃ TVKD` và `TÊN THÀNH VIÊN` / `Tên TVKD` trên cả Phần I và Phần III của file Excel xuất ra.
+  2. _"số liệu theo hàng hoá, check lại nhé"_: Khắc phục triệt để lỗi lệch tên mặt hàng giữa danh mục BGS và Báo cáo tháng chính thức (`Đường 11` $\leftrightarrow$ `Đường`, `Nhôm` $\leftrightarrow$ `Nhôm COMEX`, `Lúa Mỳ Micro` $\leftrightarrow$ `Lúa mì Micro`, `SNDD13X26` $\leftrightarrow$ `Thiếc LME`), đảm bảo số liệu tháng trước (Tháng 09) và % tăng/giảm của Tháng 10 khớp 100%.
+  3. _"đống ở dưới đâu hết r m(ở ảnh)"_ & _"tên cty có trong 3 bảng dưới hay k dựa vào việc cty đó có số TKGD active loại sản phẩm đó hay không nhớ không. Không phải dựa trên khối lượng giao dịch"_: Khắc phục lỗi mất danh sách TVKD và hiển thị `0 | 0 | 0` tại Phần III (Spread, LME, Options) bằng cách tự động kế thừa số lượng TKGD Active lũy kế cuối tháng trước (`totalActiveAccounts` từ `prevSnapshot`) làm số đầu kỳ (`activeBeforeMonth`) của tháng hiện tại, và lọc hiển thị TVKD dựa trên việc có TKGD Active (`totalActive > 0`) thay vì phụ thuộc vào khối lượng giao dịch.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
+- [`backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Chuẩn hóa Tên TVKD Ngắn Gọn (`OFFICIAL_TVKD_SHORT_NAMES`)** ([`monthly-reporting.service.ts#L27-L92`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L27-L92)):
+   - Định nghĩa danh bạ 64 tên thương hiệu ngắn gọn chuẩn MXV (`001: Hữu Nghị`, `002: Saigon Futures`, `003: Gia Cát Lợi`, `012: Hàng hoá HCM`, `080: APEX`...).
+   - Chặn việc ghi đè tên pháp nhân dài từ `QL TT TVKD.xlsx` và `DSGD.xlsx` lên tên ngắn gọn chuẩn tại [`monthly-reporting.service.ts#L1163-L1215`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1163-L1215).
+2. **Chuẩn hóa 51 Mặt hàng CQG & Nhận diện Mã Hợp đồng LME Prompt Date** ([`monthly-reporting.service.ts#L97-L168`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L97-L168)):
+   - Thiết lập `OFFICIAL_51_CQG_COMMODITIES`, `COMMODITY_ALIASES` và `CANONICAL_COMMODITY_NAME_MAP` để ánh xạ chính xác các tên mặt hàng (`Đường 11` $\rightarrow$ `Đường`, `Nhôm` $\rightarrow$ `Nhôm COMEX`, `Lúa Mỳ Micro` $\rightarrow$ `Lúa mì Micro`...).
+   - Bổ sung regex `lmeMatch = hd.match(/^([A-Z]{2,4})D\d{1,2}[FGHJKMNQUVXZ]\d{1,2}$/)` tại [`monthly-reporting.service.ts#L1218-L1234`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1218-L1234) để bóc tách mã gốc `SND` từ mã hợp đồng LME có ngày đáo hạn (`SNDD13X26` $\rightarrow$ `Thiếc LME`, 9 lots).
+3. **Tự động Đọc `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx` & Kế thừa Lũy kế TKGD Active Phần III** ([`monthly-reporting.service.ts#L813-L885`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L813-L885) & [`#L995-L1125`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L995-L1125)):
+   - Bổ sung hàm `syncSpecialAccountsFromMsBackup()` tự động quét 3 file gốc `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx` trong thư mục Backup MS ngày cuối tháng (xử lý chính xác cả định dạng ngày chuỗi `DD/MM/YYYY` lẫn Excel date serial `MM/DD/YYYY` khi `DD <= 12`).
+   - Tự động kế thừa `totalActiveAccounts` từ `prevSnapshot.section3Specials` sang làm `activeBeforeMonth` (Hết tháng trước) và cộng số tài khoản mở mới trong tháng (`newActiveInMonth`) để ra `totalActiveCumulative` (Tổng):
+     - **Spread**: Khôi phục đầy đủ **14 TVKD** (`Hết tháng trước: 79`, `Tháng này: 0`, `Tổng: 79`).
+     - **LME**: Khôi phục đầy đủ **7 TVKD** (`Hết tháng trước: 61`, `Tháng này: 1` của Gia Cát Lợi `003`, `Tổng: 62`).
+     - **Options**: Khôi phục đầy đủ **13 TVKD** (`Hết tháng trước: 403`, `Tháng này: 136` của Hàng hoá ĐNÁ `045`, `Tổng: 539`).
+4. **Tách Cột `Mã TVKD` & `Tên TVKD` trên File Excel Xuất ra** ([`monthly-excel-exporter.service.ts#L153-L390`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts#L153-L390) & [`#L675-L810`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts#L675-L810)):
+   - Phần I: Tách thành 10 cột (`A: STT`, `B: MÃ TVKD`, `C: TÊN THÀNH VIÊN`, `D..J: Số liệu Lot & Ngày Đỉnh/Đáy`), cập nhật toàn bộ công thức `SUM` và `IFERROR`.
+   - Phần III: Tách thành 9 cột (`A: STT`, `B: Mã TVKD`, `C: Tên TVKD`, `D..F: Số Lot giao dịch`, `G..I: Số lượng TKGD Active`), cập nhật toàn bộ công thức `SUM` và `IFERROR`.
+
+### 4. Xác nhận Build, Deploy & Kiểm thử Thực tế
+- **Local Build**: Backend (`nest build`) và Frontend (`next build`) thành công 100% (Exit code: 0).
+- **Ubuntu Server (`10.0.0.26`)**: Đã đồng bộ code, build lại cả Backend/Frontend, restart PM2 (`mxv-backend`, `mxv-frontend`), kích hoạt `forceRefresh=true` cho kỳ Tháng 10/2026 và kiểm chứng trực tiếp file Excel xuất ra bằng `openpyxl`.
+
+---
+
 ## [2026-11-09T12:10] ARCHITECTURE(NOTIFICATION_AUDIT): Rà Soát Toàn Diện Luồng Bắn Noti Bằng Loop Engineering & Thiết Kế Phân Tách Độc Lập Ca Trực vs Trading Ops
 
 ### 1. Mục tiêu Thay đổi

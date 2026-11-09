@@ -24,15 +24,11 @@ conn.on('ready', () => {
         '/opt/mxv-checklist/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts'
       );
       await put(
-        path.resolve('backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts'),
-        '/opt/mxv-checklist/backend/src/modules/trading-ops/controllers/monthly-reporting.controller.ts'
-      );
-      await put(
-        path.resolve('frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx'),
-        '/opt/mxv-checklist/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx'
+        path.resolve('backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts'),
+        '/opt/mxv-checklist/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts'
       );
 
-      console.log('All files uploaded. Building backend and frontend on Ubuntu...');
+      console.log('All files uploaded. Building backend on Ubuntu...');
 
       const cmd = `
         set -e
@@ -40,13 +36,11 @@ conn.on('ready', () => {
         cd /opt/mxv-checklist/backend
         npm run build
 
-        echo "=== 2. BUILD FRONTEND ==="
-        cd /opt/mxv-checklist/frontend
-        npm run build
-
-        echo "=== 3. PM2 RESTART ==="
-        pm2 restart mxv-backend mxv-frontend
-        pm2 status
+        echo "=== 2. PM2 RESTART BACKEND ==="
+        pm2 restart mxv-backend
+        sleep 4
+        echo "=== 3. FORCE REFRESH MONTH 10 SNAPSHOT ==="
+        curl -s "http://127.0.0.1:3001/api/v1/trading-ops/monthly-report/2026/10?forceRefresh=true" | node -e 'let d=""; process.stdin.on("data", c=>d+=c); process.stdin.on("end", ()=>{ const j=JSON.parse(d); console.log("Spread summary:", j.data?.section3Specials?.spread?.summary); console.log("LME summary:", j.data?.section3Specials?.lme?.summary); console.log("Options summary:", j.data?.section3Specials?.options?.summary); });'
         echo "=== ALL DONE ==="
       `;
 
