@@ -1,3 +1,33 @@
+## [2026-11-09T14:58] FIX(CORECCP_API_401_AUTO_RECOVERY): Khắc Phục Triệt Để Lỗi 401 "Invalid access token" & Bổ Sung Cơ Chế Tự Động Refresh Session Cho CoreCCP API
+
+### 1. Mục tiêu thay đổi & Phản ánh từ USER
+- **Hiện tượng**: Job tải báo cáo CoreCCP (DSGD, ORDERBOOK...) báo lỗi liên tục: `Search API ORDERBOOK thất bại (401): "Invalid access token"`, trong khi người dùng test đăng nhập trên giao diện Web thì báo thành công.
+- **Yêu cầu từ USER**: "tại sao login được mà lại báo lỗi", "xem lý do lỗi gì mà không tải được qua api".
+
+### 2. Nguyên nhân gốc (Root Cause)
+1. **Lệch pha giữa Web Login (Playwright) và Direct REST API**:
+   - Khi USER bấm nút "Test kết nối CCP" trên giao diện Admin, hệ thống gọi `omsWatcherService.testConnection('ccp')` dùng trình duyệt Playwright mở form web `/login` để kiểm tra đăng nhập. Vì thông tin tài khoản đúng nên web báo thành công.
+   - Tuy nhiên, khi tài khoản được đăng nhập trên Web, máy chủ SSO/OAuth2 của CoreCCP (`coreccp.vnclear.vn`) thu hồi (revoke) các Access Token cũ đã cấp cho REST API.
+2. **Kẹt token chết trong file cache do thiếu cơ chế bẫy HTTP 401**:
+   - `CoreCcpApiAdapter` lưu cache phiên vào file `/opt/mxv-checklist/backend/temp/coreccp_session.json` với hạn dùng trên giấy là 3 tiếng (`expiresAt`).
+   - Dù token trên máy chủ CoreCCP đã bị thu hồi, `getValidSession()` vẫn thấy hạn dùng trên giấy còn hơn 1 tiếng nên tiếp tục tái sử dụng token chết này.
+   - Khi API trả về `401 "Invalid access token"`, adapter không có cơ chế bắt lỗi để xóa cache, dẫn đến cả 3 lần retry (Attempt 1, 2, 3) đều bốc lại đúng token chết đó.
+3. **Lỗi định dạng Cookie Header**:
+   - Tại dòng 757, code ghép `Cookie: \`SESSION=\${session.sessionCookie}\``, trong khi `session.sessionCookie` đã chứa sẵn tiền tố `SESSION=`, làm header bị nhân đôi thành `SESSION=SESSION=...`.
+
+### 3. Chi tiết chỉnh sửa
+- **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
+  - Bổ sung method `clearSessionCache()`: Xóa sạch cache trong bộ nhớ và xóa file `temp/coreccp_session.json` trên ổ đĩa.
+  - Bổ sung tham số `forceFresh` cho `getValidSession(forceFresh = false)` để ép đăng nhập mới lấy token tươi từ CoreCCP.
+  - Thêm cơ chế **Auto-Recovery trên HTTP 401** trong `makeJsonPost`, `createExportJob`, và `downloadReportBinary`: Bắt lỗi 401 / `Invalid access token`, tự động xóa cache, gọi `getValidSession(true)` lấy token mới và retry request tự động 1 lần trước khi báo lỗi.
+  - Chuẩn hóa `cookieHeader`: Kiểm tra tiền tố để bảo đảm không bị nhân đôi `SESSION=`.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Backend Build**: `nest build` thành công 100% (exit code 0).
+- **Kiểm thử thực tế trên server Ubuntu**: Xóa cache cũ và chạy thử `searchFullJson('ORDERBOOK')` với token tươi $\\rightarrow$ **Thành công 100%, tải được toàn bộ 1,718 bản ghi**.
+
+---
+
 ## [2026-11-03T23:37] DEPLOY(PROD_UBUNTU_10.0.0.26): Triển Khai Toàn Diện Code Mới Lên Server Ubuntu Production (Build Backend, Frontend, Schema Migration & PM2 Restart)
 
 ### 1. Mục tiêu triển khai & Chỉ đạo từ USER
