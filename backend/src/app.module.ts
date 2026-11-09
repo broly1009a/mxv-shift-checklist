@@ -21,7 +21,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { MarginChangeRequestsModule } from './modules/margin-change-requests/margin-change-requests.module';
 import { MarginCheckerModule } from './modules/margin-checker/margin-checker.module';
-import { TradingReportModule } from './modules/trading-report/trading-report.module';
+// import { TradingReportModule } from './modules/trading-report/trading-report.module'; (Deprecated V1)
 import { IngressModule } from './modules/ingress/ingress.module';
 import { TradingOpsModule } from './modules/trading-ops/trading-ops.module';
 import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module';
@@ -47,7 +47,7 @@ import { ChecklistHubModule } from './modules/checklist-hub/checklist-hub.module
     IncidentsModule,
     MarginChangeRequestsModule,
     MarginCheckerModule,
-    TradingReportModule,
+    // TradingReportModule: Legacy V1 report module (Đã chuyển toàn bộ sang MonthlyReportingController trong TradingOpsModule)
     // Modular Monolith V2 Modules (Strangler Fig Integration)
     IngressModule,
     TradingOpsModule,

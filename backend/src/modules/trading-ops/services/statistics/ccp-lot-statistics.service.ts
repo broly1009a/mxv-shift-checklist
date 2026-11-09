@@ -710,7 +710,7 @@ export class CcpLotStatisticsService {
       'bot_backup_path_ccp',
       '',
     );
-    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
+    const defaultOut = await this.settingsService.getSetting('bot_ccp_stats_output', process.env.DEFAULT_CCP_STATS_OUTPUT || '');
     try {
       const p = JSON.parse(raw);
       return {

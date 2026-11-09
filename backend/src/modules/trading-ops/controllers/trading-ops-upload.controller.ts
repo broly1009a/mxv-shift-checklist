@@ -25,7 +25,7 @@ import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
 import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform } from '../../../shared';
+import { resolveStoragePathCrossPlatform, getMsBackupBase, getCqgBackupBase } from '../../../shared';
 import { KlgdReconService } from '../services/recon/klgd-recon.service';
 import { MsEodReconService } from '../services/recon/ms-eod-recon.service';
 import { CqgMergerService } from '../services/merger/cqg-merger.service';
@@ -614,137 +614,15 @@ export class TradingOpsUploadController {
   /**
    * Manual test upload endpoint for testing reconciliation rules with user uploaded files.
    */
+  /**
+   * @deprecated Manual test upload endpoint cũ.
+   */
   @Post('test-upload')
   @Permissions('ACCESS_AUTO_SHIFT')
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'dsgd', maxCount: 1 },
-      { name: 'fr1', maxCount: 1 },
-      { name: 'fr2', maxCount: 1 },
-      { name: 'nano', maxCount: 1 },
-      { name: 'ttm', maxCount: 1 },
-      { name: 'op1', maxCount: 1 },
-      { name: 'op2', maxCount: 1 },
-      { name: 'qltkgd', maxCount: 1 },
-      { name: 'eod', maxCount: 1 },
-      { name: 'tttt', maxCount: 1 },
-      { name: 'accountsBalances', maxCount: 1 },
-      { name: 'dsgdCcp', maxCount: 1 },
-      { name: 'ttmCcp', maxCount: 1 },
-      { name: 'ttttCcp', maxCount: 1 },
-      { name: 'ccpDsgd', maxCount: 1 },
-      { name: 'ccpTtm', maxCount: 1 },
-      { name: 'ccpTttt', maxCount: 1 },
-    ]),
-  )
-  async testUploadAndReconcile(
-    @UploadedFiles()
-    files: {
-      dsgd?: any[];
-      fr1?: any[];
-      fr2?: any[];
-      nano?: any[];
-      ttm?: any[];
-      op1?: any[];
-      op2?: any[];
-      qltkgd?: any[];
-      eod?: any[];
-      tttt?: any[];
-      accountsBalances?: any[];
-      dsgdCcp?: any[];
-      ttmCcp?: any[];
-      ttttCcp?: any[];
-      ccpDsgd?: any[];
-      ccpTtm?: any[];
-      ccpTttt?: any[];
-    },
-    @Body('usdRate') usdRateRaw?: number,
-    @Body('sessionStart') sessionStartStr?: string,
-  ) {
-    const usdRate = usdRateRaw ? Number(usdRateRaw) : await this.reconConsoleSummaryService.getCurrentUsdRate();
-    const results: Record<string, any> = {};
-    const errors: Record<string, string> = {};
-
-    // 1. KLGD Check
-    if (files.dsgd && files.dsgd[0]) {
-      try {
-        const fileBuffers = {
-          dsgd: files.dsgd[0].buffer,
-          fr1: files.fr1?.[0]?.buffer,
-          fr2: files.fr2?.[0]?.buffer,
-          nano: files.nano?.[0]?.buffer,
-          ttm: files.ttm?.[0]?.buffer,
-          op1: files.op1?.[0]?.buffer,
-          op2: files.op2?.[0]?.buffer,
-          tttt: files.tttt?.[0]?.buffer,
-          dsgdCcp: files.dsgdCcp?.[0]?.buffer || files.ccpDsgd?.[0]?.buffer,
-          ttmCcp: files.ttmCcp?.[0]?.buffer || files.ccpTtm?.[0]?.buffer,
-          ttttCcp: files.ttttCcp?.[0]?.buffer || files.ccpTttt?.[0]?.buffer,
-        };
-        results.klgd = await this.klgdReconService.checkKLGD(
-          fileBuffers,
-          new Date(),
-          [],
-          sessionStartStr,
-        );
-      } catch (err: any) {
-        errors.klgd = err.message;
-      }
-    }
-
-    // 2. EOD M-System vs CCP Check
-    if (files.qltkgd && files.qltkgd[0]) {
-      try {
-        results.eod = await this.msEodReconService.checkEOD({
-          qltkgd: files.qltkgd[0].buffer,
-          eod: files.eod?.[0]?.buffer,
-          tttt: files.tttt?.[0]?.buffer,
-          qltkgdCcp: files.dsgdCcp?.[0]?.buffer || files.ccpDsgd?.[0]?.buffer,
-          eodCcp: files.ttmCcp?.[0]?.buffer || files.ccpTtm?.[0]?.buffer,
-          ttttCcp: files.ttttCcp?.[0]?.buffer || files.ccpTttt?.[0]?.buffer,
-        });
-      } catch (err: any) {
-        errors.eod = err.message;
-      }
-    }
-
-    // 3. CQG Balance Check
-    if (
-      files.qltkgd &&
-      files.qltkgd[0] &&
-      files.accountsBalances &&
-      files.accountsBalances[0]
-    ) {
-      try {
-        results.cqg = await this.cqgMergerService.checkEODCQG(
-          {
-            qltkgd: files.qltkgd[0].buffer,
-            accountsBalances: files.accountsBalances[0].buffer,
-            qltkgdName: files.qltkgd[0].originalname,
-            accountsBalancesName: files.accountsBalances[0].originalname,
-          },
-          usdRate,
-        );
-      } catch (err: any) {
-        errors.cqg = err.message;
-      }
-    }
-
-    return {
-      success: Object.keys(errors).length === 0,
-      usdRate,
-      results,
-      errors,
-    };
+  async testUploadAndReconcile() {
+    throw new BadRequestException('Endpoint test-upload đã ngừng hoạt động. Vui lòng upload trực tiếp tại phân hệ Trading Manager.');
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 5. UPLOAD FILE BACKUP THỦ CÔNG VÀO Ổ ĐĨA M:\ HOẶC LOCAL
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Upload file sao lưu thủ công vào thư mục lưu trữ Backup CQG/MS.
-   */
   @Post('upload-backup')
   @Permissions('ACCESS_AUTO_SHIFT')
   @UseInterceptors(FilesInterceptor('files'))
@@ -767,14 +645,8 @@ export class TradingOpsUploadController {
     const day = String(targetDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    const cqgBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_cqg',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-    ));
-    const msBase = resolveStoragePathCrossPlatform(await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      '',
-    ));
+    const cqgBase = await getCqgBackupBase(this.settingsService);
+    const msBase = await getMsBackupBase(this.settingsService);
 
     const savedFiles: { filename: string; path: string; category: string }[] = [];
 

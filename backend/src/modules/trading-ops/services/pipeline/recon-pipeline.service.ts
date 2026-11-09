@@ -101,11 +101,13 @@ export class ReconPipelineService implements IReconPipelinePort {
     }
 
     const jobStartTime = job?.createdAt ? new Date(job.createdAt) : new Date();
+    const activeJobId = job?._id ? String(job._id) : (job?.jobId ? String(job.jobId) : undefined);
     const options = {
       checkKlgd: payload.options?.checkKlgd ?? true,
       checkTtm: payload.options?.checkTtm ?? true,
       checkTttt: payload.options?.checkTttt ?? true,
       jobStartTime,
+      jobId: activeJobId,
     };
 
     // ── BƯỚC 1: KÍCH HOẠT LUỒNG INGRESS TẢI DỮ LIỆU TƯƠI 4 NGUỒN ─────────────
@@ -117,6 +119,7 @@ export class ReconPipelineService implements IReconPipelinePort {
       day,
       subFolder,
       options,
+      jobId: activeJobId,
       log,
     });
 
@@ -174,6 +177,20 @@ export class ReconPipelineService implements IReconPipelinePort {
           }
         }
         log('CQG Hoàn tất kiểm tra và ghép file thô CQG.');
+
+        // [USER_DIRECTIVE - 2026-11-06]: Không cần lưu file theo giờ phiên cũ (runs/{jobId}), comment lại để tối ưu tài nguyên
+        /*
+        if (activeJobId) {
+          try {
+            const cqgRunDir = path.join(cqgDailyPath, 'runs', activeJobId);
+            if (!fs.existsSync(cqgRunDir)) fs.mkdirSync(cqgRunDir, { recursive: true });
+            for (const fname of ['FR.xlsx', 'OP.xlsx', 'PS.xlsx', 'Od.xlsx', 'FR1.xlsx', 'FR2.xlsx']) {
+              const src = path.join(cqgDailyPath, fname);
+              if (fs.existsSync(src)) fs.copyFileSync(src, path.join(cqgRunDir, fname));
+            }
+          } catch {}
+        }
+        */
       } catch (mergeErr: any) {
         log(`CQG Merge Cảnh báo: ${mergeErr.message}`);
       }
@@ -196,7 +213,7 @@ export class ReconPipelineService implements IReconPipelinePort {
         const endStr = new Date(result.checkTime).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
         });
-        log(`Khoảng thời gian lọc (chuẩn C# HH:mm:00): từ ${startStr} đến ${endStr}`);
+        log(`Khoảng thời gian lọc (HH:mm:00): từ ${startStr} đến ${endStr}`);
       }
       if (result.pendingSyncTrades && result.pendingSyncTrades.length > 0) {
         log(

@@ -1,0 +1,3022 @@
+[
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/helpers/browser-launcher.helper.ts",
+    "line": 15,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/helpers/browser-launcher.helper.ts",
+    "line": 16,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/helpers/browser-launcher.helper.ts",
+    "line": 17,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/helpers/browser-launcher.helper.ts",
+    "line": 18,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/helpers/browser-launcher.helper.ts",
+    "line": 36,
+    "codeSnippet": "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\it-tool-src\\\\operate-transaction-app\\\\Chrome\\\\chrome-win\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\it-tool-src\\\\operate-transaction-app\\\\Chrome\\\\chrome-win\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts",
+    "line": 678,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts",
+    "line": 679,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts",
+    "line": 680,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/ccp-ce-scraper.service.ts",
+    "line": 681,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/rpa-scraper.service.ts",
+    "line": 45,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/rpa-scraper.service.ts",
+    "line": 46,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/rpa-scraper.service.ts",
+    "line": 47,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/rpa-scraper.service.ts",
+    "line": 48,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/ingress/scrapers/rpa-scraper.service.ts",
+    "line": 66,
+    "codeSnippet": "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\it-tool-src\\\\operate-transaction-app\\\\Chrome\\\\chrome-win\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\it-tool-src\\\\operate-transaction-app\\\\Chrome\\\\chrome-win\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/trading-ops/services/recon/gtt-checker.service.ts",
+    "line": 144,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/trading-ops/services/recon/gtt-checker.service.ts",
+    "line": 145,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/trading-ops/services/recon/gtt-checker.service.ts",
+    "line": 146,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/modules/trading-ops/services/recon/gtt-checker.service.ts",
+    "line": 147,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/analyze_breakdown.js",
+    "line": 77,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_1721_logs.js",
+    "line": 12,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_544_logs.js",
+    "line": 12,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_bot_settings.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ccp_cred.js",
+    "line": 24,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_ccp_order.js",
+    "line": 8,
+    "codeSnippet": "ccp_path = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/CCP/Futures/2026/T10.2026/22.10/DSGD CCP.xlsx\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/CCP/Futures/2026/T10.2026/22.10/DSGD CCP.xlsx\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ccp_order.js",
+    "line": 32,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_dashboard_runs.js",
+    "line": 34,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_dsgd_order.js",
+    "line": 9,
+    "codeSnippet": "dsgd_path = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/22.10/DSGD.xlsx\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/22.10/DSGD.xlsx\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_dsgd_order.js",
+    "line": 35,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_eod_mismatch_job.js",
+    "line": 32,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_eod_val.js",
+    "line": 10,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_eod_val.js",
+    "line": 41,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_exact_settings.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_fr1_fr2.js",
+    "line": 9,
+    "codeSnippet": "path = f\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/22.10/{fname}\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/22.10/{fname}\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_fr1_fr2.js",
+    "line": 26,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ip_requests.js",
+    "line": 29,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_job.js",
+    "line": 25,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_job_detail.js",
+    "line": 33,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_job_logs.js",
+    "line": 24,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_latest_klgd_jobs.js",
+    "line": 18,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_nginx_logs.js",
+    "line": 29,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_opt_file.js",
+    "line": 37,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_pending_jobs.js",
+    "line": 19,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_pending_trades.js",
+    "line": 26,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_preserved.js",
+    "line": 26,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_prev_log.js",
+    "line": 30,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_processes.js",
+    "line": 31,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_recon_enabled.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_sbeh27.js",
+    "line": 8,
+    "codeSnippet": "dsgd_path = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/22.10/DSGD.xlsx\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/22.10/DSGD.xlsx\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_sbeh27.js",
+    "line": 35,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_setting_logs.js",
+    "line": 12,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ubuntu_all_latest_jobs.js",
+    "line": 19,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_ubuntu_backup_files.js",
+    "line": 11,
+    "codeSnippet": "'find \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS\" -maxdepth 2 -type d 2>/dev/null | tail -n 15',",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_ubuntu_backup_files.js",
+    "line": 12,
+    "codeSnippet": "'find \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG\" -maxdepth 2 -type d 2>/dev/null | tail -n 15',",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_ubuntu_backup_files.js",
+    "line": 14,
+    "codeSnippet": "'ls -la \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich\" 2>/dev/null || true',",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/check_ubuntu_backup_files.js",
+    "line": 15,
+    "codeSnippet": "'ls -la \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Bao cao - Thong ke\" 2>/dev/null || true',",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Bao cao - Thong ke\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ubuntu_backup_files.js",
+    "line": 33,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ubuntu_cqg_klgd_timing.js",
+    "line": 96,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ubuntu_ingress.js",
+    "line": 21,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/check_ubuntu_status.js",
+    "line": 36,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/compare_2_jobs.js",
+    "line": 36,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/compare_cqg_timing_history.js",
+    "line": 71,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/compare_jobs.js",
+    "line": 35,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "3. SPECULATIVE_PATH_REGEX_REPLACE",
+    "description": "Regex thay thế chuỗi phỏng đoán trên đường dẫn Backup",
+    "file": "backend/src/scripts/debug-find-files.js",
+    "line": 44,
+    "codeSnippet": "const acmBackupBase = msBackupBase.replace(/Backup MS\\\\Futures/i, 'Backup MS\\\\ACM');",
+    "matches": [
+      ".replace(/Backup MS"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/debug_calculation.js",
+    "line": 9,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/debug_calculation.js",
+    "line": 83,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/debug_job.js",
+    "line": 30,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/debug_step.js",
+    "line": 10,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/debug_step.js",
+    "line": 90,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/decrypt_ccp_cred.js",
+    "line": 23,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/deploy_bundle.js",
+    "line": 5,
+    "codeSnippet": "Client = require('c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2').Client;",
+    "matches": [
+      "'c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/deploy_bundle.js",
+    "line": 191,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/deploy_to_ubuntu.js",
+    "line": 310,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/diagnose_klgd_realtime.js",
+    "line": 366,
+    "codeSnippet": "Client = require('c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2').Client;",
+    "matches": [
+      "'c:/Users/hiepth/OneDrive - MERCANTILE EXCHANGE OF VIETNAM/Documents/Github/mxv-shift-checklist/backend/node_modules/ssh2'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/diagnose_klgd_realtime.js",
+    "line": 155,
+    "codeSnippet": "const msDir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/' + TARGET_YEAR + '/T' + TARGET_MONTH + '.' + TARGET_YEAR + '/' + TARGET_DAY + '.' + TARGET_MONTH;",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/Futures/'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/diagnose_klgd_realtime.js",
+    "line": 156,
+    "codeSnippet": "const cqgDir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/' + TARGET_YEAR + '/T' + TARGET_MONTH + '.' + TARGET_YEAR + '/' + TARGET_DAY + '.' + TARGET_MONTH;",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CQG/Futures/'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/diagnose_klgd_realtime.js",
+    "line": 157,
+    "codeSnippet": "const acmDir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/ACM/' + TARGET_YEAR + '/T' + TARGET_MONTH + '.' + TARGET_YEAR + '/' + TARGET_DAY + '.' + TARGET_MONTH;",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup MS/ACM/'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/diagnose_klgd_realtime.js",
+    "line": 399,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/dump_full_job.js",
+    "line": 22,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/dump_job_result.js",
+    "line": 25,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/find_28_files.js",
+    "line": 41,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/find_all_qltkgd.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/find_bash_files.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/find_dsgd.js",
+    "line": 13,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/find_exact_balance.js",
+    "line": 10,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/find_exact_balance.js",
+    "line": 42,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/get_cqg_pm2_logs.js",
+    "line": 15,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_3_trades.js",
+    "line": 14,
+    "codeSnippet": "base_dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck'",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_3_trades.js",
+    "line": 79,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_eod_accounts.js",
+    "line": 10,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_eod_accounts.js",
+    "line": 101,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_latest_klgd_detailed_logs.js",
+    "line": 47,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_ms_exact_trades.js",
+    "line": 10,
+    "codeSnippet": "ms_files = glob.glob('/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/**/16.10/DSGD.xlsx', recursive=True)",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/**/16.10/DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_ms_exact_trades.js",
+    "line": 41,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_pnl_record.js",
+    "line": 158,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_real_tttt_data.js",
+    "line": 32,
+    "codeSnippet": "'/mnt/qlgd-it',",
+    "matches": [
+      "'/mnt/qlgd-it'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_real_tttt_data.js",
+    "line": 231,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_single_klgd_job.js",
+    "line": 26,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_ubuntu_dsgd.js",
+    "line": 9,
+    "codeSnippet": "const path = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/DSGD T09.2026.xlsx';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/DSGD T09.2026.xlsx'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_ubuntu_dsgd.js",
+    "line": 34,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/inspect_ubuntu_thongke.js",
+    "line": 7,
+    "codeSnippet": "const path = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich 2026.xlsx';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Thong ke so lot giao dich/Thong ke so lot giao dich 2026.xlsx'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/inspect_ubuntu_thongke.js",
+    "line": 28,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/print_logs_raw.js",
+    "line": 35,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/query_yesterday_jobs.js",
+    "line": 49,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/read_truoc_4h20.js",
+    "line": 9,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/read_truoc_4h20.js",
+    "line": 37,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/read_tttt.js",
+    "line": 9,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/read_tttt.js",
+    "line": 39,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/remote_exec.js",
+    "line": 24,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/reproduce_check.js",
+    "line": 12,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/reproduce_check.js",
+    "line": 62,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/reproduce_remote.js",
+    "line": 5,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/search_6993.js",
+    "line": 9,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/search_6993.js",
+    "line": 38,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/search_order.js",
+    "line": 9,
+    "codeSnippet": "fr_path = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/22.10/FR.xlsx\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/22.10/FR.xlsx\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/search_order.js",
+    "line": 10,
+    "codeSnippet": "dsgd_path = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/MS/2026/T10.2026/22.10/DSGD.xlsx\"",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/MS/2026/T10.2026/22.10/DSGD.xlsx\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/search_order.js",
+    "line": 56,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/search_tttt_no_a.js",
+    "line": 9,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/search_tttt_no_a.js",
+    "line": 37,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/sniff_ms_ordercreating.js",
+    "line": 45,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/sniff_ms_ordercreating.js",
+    "line": 46,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/sniff_ms_ordercreating.js",
+    "line": 47,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/sniff_ms_ordercreating.js",
+    "line": 48,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/test_bidirectional_cutoff_real_files.js",
+    "line": 15,
+    "codeSnippet": "const msFile = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/16.10/DSGD.xlsx\";",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/2026/T10.2026/16.10/DSGD.xlsx\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/test_bidirectional_cutoff_real_files.js",
+    "line": 16,
+    "codeSnippet": "const cqgDir = \"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/16.10\";",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/Futures/CQG/2026/T10.2026/16.10\""
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/test_bidirectional_cutoff_real_files.js",
+    "line": 20,
+    "codeSnippet": "const acmFile = path.join(\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/ACM/2026/T10.2026/16.10\", \"Straits.csv\");",
+    "matches": [
+      "\"/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/TradingCheck/ACM/2026/T10.2026/16.10\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_bidirectional_cutoff_real_files.js",
+    "line": 128,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ce_headless_download.js",
+    "line": 65,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ce_headless_download.js",
+    "line": 66,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ce_headless_download.js",
+    "line": 67,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ce_headless_download.js",
+    "line": 68,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_dsgd_before_eod_m_drive.js",
+    "line": 44,
+    "codeSnippet": "return 'M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup ACM\\\\Futures';",
+    "matches": [
+      "'M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup ACM\\\\Futures'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 76,
+    "codeSnippet": "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Pictures\\\\Dữ liệu chuẩn ngày 25\\\\25.09 CE\\\\25.09\\\\GTT ACM.xlsx',",
+    "matches": [
+      "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Pictures\\\\Dữ liệu chuẩn ngày 25\\\\25.09 CE\\\\25.09\\\\GTT ACM.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 77,
+    "codeSnippet": "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CE\\\\Futures\\\\GTT ACM.xlsx',",
+    "matches": [
+      "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CE\\\\Futures\\\\GTT ACM.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 84,
+    "codeSnippet": "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Pictures\\\\Dữ liệu chuẩn ngày 25\\\\25.09 CE\\\\25.09\\\\HH ACM.xlsx',",
+    "matches": [
+      "'C:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Pictures\\\\Dữ liệu chuẩn ngày 25\\\\25.09 CE\\\\25.09\\\\HH ACM.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 85,
+    "codeSnippet": "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CE\\\\Futures\\\\HH ACM.xlsx',",
+    "matches": [
+      "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CE\\\\Futures\\\\HH ACM.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 93,
+    "codeSnippet": "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\GTT CCP.xlsx',",
+    "matches": [
+      "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\GTT CCP.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 100,
+    "codeSnippet": "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\HH.xlsx',",
+    "matches": [
+      "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\HH.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_gtt_ce_ccp.js",
+    "line": 107,
+    "codeSnippet": "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\TTM CCP.xlsx',",
+    "matches": [
+      "'C:\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CCP\\\\Futures\\\\TTM CCP.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_klgd_playwright.js",
+    "line": 91,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_klgd_playwright.js",
+    "line": 92,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_klgd_playwright.js",
+    "line": 93,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_check_klgd_playwright.js",
+    "line": 94,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_current_download_logic.js",
+    "line": 65,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_current_download_logic.js",
+    "line": 66,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_current_download_logic.js",
+    "line": 68,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_current_download_logic.js",
+    "line": 69,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_download_visual_compare.ts",
+    "line": 265,
+    "codeSnippet": "destDir = path.join('M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CQG\\\\Futures', subFolder);",
+    "matches": [
+      "'M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Backup CQG\\\\Futures'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_cqg_download_visual_compare.ts",
+    "line": 117,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_flag_speed_comparison.js",
+    "line": 15,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_flag_speed_comparison.js",
+    "line": 16,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_cqg_pure.ts",
+    "line": 165,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_tab_downloads_fast.js",
+    "line": 567,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_tab_downloads_fast.js",
+    "line": 568,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_cqg_tab_downloads_fast.js",
+    "line": 569,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_live_check_klgd.js",
+    "line": 53,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_live_check_klgd.js",
+    "line": 54,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_live_check_klgd.js",
+    "line": 56,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_live_check_klgd.js",
+    "line": 57,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_live_eod_check.js",
+    "line": 41,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_live_server_stability.js",
+    "line": 74,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_klgd_memory_footprint.js",
+    "line": 98,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_klgd_memory_footprint.js",
+    "line": 99,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_cqg_process.js",
+    "line": 59,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_cqg_process.js",
+    "line": 60,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_cqg_process.js",
+    "line": 61,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_cqg_process.js",
+    "line": 62,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_cqg_process.js",
+    "line": 385,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_cqg_process.js",
+    "line": 386,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_cqg_process.js",
+    "line": 387,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_optimized_cqg_process.js",
+    "line": 368,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_optimized_cqg_process.js",
+    "line": 369,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_measure_real_parallel_optimized_cqg_process.js",
+    "line": 370,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ms_headless_download.js",
+    "line": 46,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ms_headless_download.js",
+    "line": 47,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ms_headless_download.js",
+    "line": 48,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_ms_headless_download.js",
+    "line": 49,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/test_oms_on_ubuntu.js",
+    "line": 341,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_verify_playwright_selectors.js",
+    "line": 27,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_verify_playwright_selectors.js",
+    "line": 28,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_verify_playwright_selectors.js",
+    "line": 29,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/test_verify_playwright_selectors.js",
+    "line": 30,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "backend/src/scripts/trace_calc.js",
+    "line": 10,
+    "codeSnippet": "const dir = '/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10';",
+    "matches": [
+      "'/mnt/qlgd-it/Quanlygiaodich/Tai lieu hoat dong/Backup CCP/Futures/2026/T10.2026/28.10'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/trace_calc.js",
+    "line": 128,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 5,
+    "codeSnippet": "pathNormalLot: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 6,
+    "codeSnippet": "pathAcmLot: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 7,
+    "codeSnippet": "pathLmeLot: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 8,
+    "codeSnippet": "pathSpreadLot: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 9,
+    "codeSnippet": "pathOptionsLot: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 12,
+    "codeSnippet": "pathGtgdNormal: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 13,
+    "codeSnippet": "pathAcmGtgd: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 14,
+    "codeSnippet": "pathGtgdLme: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich LME ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich LME ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 15,
+    "codeSnippet": "pathGtgdSpread: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich Spread ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich Spread ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 16,
+    "codeSnippet": "pathGtgdOptions: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich Options ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich Options ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 19,
+    "codeSnippet": "pathDsgdCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\DSGD T${MM}.${YYYY} CCP.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\DSGD T${MM}.${YYYY} CCP.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 25,
+    "codeSnippet": "pathAcmCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 26,
+    "codeSnippet": "pathGtgdAcm: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 27,
+    "codeSnippet": "pathNormalCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 28,
+    "codeSnippet": "pathSpreadCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 29,
+    "codeSnippet": "pathLmeCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich LME ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 30,
+    "codeSnippet": "pathOptionsCumulative: \"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx\",",
+    "matches": [
+      "\"M:\\\\Tailieuchung\\\\QLGD-IT\\\\Quanlygiaodich\\\\Tai lieu hoat dong\\\\Thong ke ccp\\\\Thong ke so lot giao dich Options ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/update_full_ccp_config.js",
+    "line": 47,
+    "codeSnippet": "}).connect({ host: '10.0.0.26', port: 22, username: 'mxvadmin', password: 'MxV!,#2o26' });",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "5. HARDCODED_IP_ADDRESS",
+    "description": "IP máy chủ 10.0.0.26 hardcode thay vì dùng biến môi trường hoặc cấu hình",
+    "file": "backend/src/scripts/verify_last_job.js",
+    "line": 27,
+    "codeSnippet": "host: '10.0.0.26',",
+    "matches": [
+      "'10.0.0.26'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/warmup_cqg_cache.js",
+    "line": 42,
+    "codeSnippet": "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/warmup_cqg_cache.js",
+    "line": 43,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/warmup_cqg_cache.js",
+    "line": 45,
+    "codeSnippet": "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/scripts/warmup_cqg_cache.js",
+    "line": 46,
+    "codeSnippet": "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe',",
+    "matches": [
+      "'C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 79,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 88,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 97,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich Spread ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 106,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich LME ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich LME ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 115,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich Options ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich Options ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 125,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 134,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ACM ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ACM ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 143,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich Spread ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich Spread ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 152,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich LME ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich LME ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 161,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich Options ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich Options ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 171,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\DSGD_${MM}_${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\DSGD_${MM}_${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 240,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Thong ke so lot giao dich ACM ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/shared/constants/bot-task-registry.ts",
+    "line": 249,
+    "codeSnippet": "defaultPattern: 'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ACM ${YYYY}.xlsx',",
+    "matches": [
+      "'M:\\\\Trading\\\\Trading\\\\\\\\Bao cao so lieu GD \\\\Gia tri giao dich ACM ${YYYY}.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_calc_values.ts",
+    "line": 11,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_dsgd_lme_search.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_fr.ts",
+    "line": 12,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_fr_product.ts",
+    "line": 13,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_fr_tru.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_lme_parity.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich 2026 2 root.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich 2026 2 root.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_lme_root.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich LME 2026 root.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich LME 2026 root.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_lme_search.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_lme_symbols.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_lme_trades.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_ms_details.ts",
+    "line": 11,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_ps_lme.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup CQG\\\\16.07'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_root_values.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich 2026 2 root.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich 2026 2 root.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_tttt.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_tttt_lme_search.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_tttt_suffixes.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/debugs/debug_tttt_vqb.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\TTTT.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect-tvkd-sheet.ts",
+    "line": 6,
+    "codeSnippet": "const filePath = \"c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Thong ke gia tri giao dich theo TVKD\\\\Thong ke gia tri giao dich 2026 theo TVKD.xlsx\";",
+    "matches": [
+      "\"c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Thong ke gia tri giao dich theo TVKD\\\\Thong ke gia tri giao dich 2026 theo TVKD.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_acm_trades.ts",
+    "line": 11,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_all_generated.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dates_tmp.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_columns.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\14.07\\\\DSGD.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\14.07\\\\DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_cumulative.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_dates.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_lme.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_lme_rows.ts",
+    "line": 9,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_dsgd_structure.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\Backup MS\\\\16.07\\\\DSGD.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_excel.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich LME 2026 root.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\Thong ke so lot giao dich LME 2026 root.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_exchange_rates.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_generated_normal.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_gtt.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\GTT.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\GTT.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_headers.ts",
+    "line": 6,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_headers2.ts",
+    "line": 4,
+    "codeSnippet": "const folder = `c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot`;",
+    "matches": [
+      "`c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot`"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_lookup_tables.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_macro_layout.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_macro_value_sheets.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_other_templates.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_root_dsgd.ts",
+    "line": 7,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\DSGD T07.2026 root.xlsx';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot\\\\root\\\\DSGD T07.2026 root.xlsx'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/inspects/inspect_sheet1_formulas.ts",
+    "line": 5,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\marco\\\\Thong ke gia tri giao dich có ACM\\\\Macro thong ke gia tri giao dich có ACM.xlsm'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/test_append_dsgd.ts",
+    "line": 8,
+    "codeSnippet": "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot';",
+    "matches": [
+      "'c:\\\\Users\\\\hiepth\\\\OneDrive - MERCANTILE EXCHANGE OF VIETNAM\\\\Documents\\\\Github\\\\mxv-shift-checklist\\\\Marco thong ke lot'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "backend/src/tests/test_ccp_provisioner.ts",
+    "line": 13,
+    "codeSnippet": "const mDriveDir = 'M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Bao cao - Thong ke';",
+    "matches": [
+      "'M:/Tailieuchung/QLGD-IT/Quanlygiaodich/Tai lieu hoat dong/Bao cao - Thong ke'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/BackupAuditor.tsx",
+    "line": 627,
+    "codeSnippet": "placeholder=\"C:\\...\\Macro thong ke so lot giao dich có ACM.xlsm\"",
+    "matches": [
+      "\"C:\\...\\Macro thong ke so lot giao dich có ACM.xlsm\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/BackupAuditor.tsx",
+    "line": 638,
+    "codeSnippet": "placeholder=\"C:\\POC\\scripts\\run_lot_macro.py\"",
+    "matches": [
+      "\"C:\\POC\\scripts\\run_lot_macro.py\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/BackupAuditor.tsx",
+    "line": 674,
+    "codeSnippet": "placeholder=\"C:\\...\\Macro thong ke gia tri giao dich.xlsm\"",
+    "matches": [
+      "\"C:\\...\\Macro thong ke gia tri giao dich.xlsm\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/BackupAuditor.tsx",
+    "line": 685,
+    "codeSnippet": "placeholder=\"C:\\POC\\scripts\\run_value_macro.py\"",
+    "matches": [
+      "\"C:\\POC\\scripts\\run_value_macro.py\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 701,
+    "codeSnippet": "placeholder=\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\"",
+    "matches": [
+      "\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 718,
+    "codeSnippet": "placeholder=\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\"",
+    "matches": [
+      "\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 788,
+    "codeSnippet": "placeholder=\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\\2026\\T07.2026\\16.07\"",
+    "matches": [
+      "\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup MS\\Futures\\2026\\T07.2026\\16.07\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 801,
+    "codeSnippet": "placeholder=\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\\2026\\T07.2026\\16.07\"",
+    "matches": [
+      "\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures\\2026\\T07.2026\\16.07\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 821,
+    "codeSnippet": "placeholder=\"M:\\...\\Backup MS\\Futures\\2026\\DSGD T07.2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Backup MS\\Futures\\2026\\DSGD T07.2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 832,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke so lot giao dich 2026 2.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke so lot giao dich 2026 2.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 843,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke so lot giao dich ACM 2026 2.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke so lot giao dich ACM 2026 2.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 854,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke so lot giao dich LME 2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke so lot giao dich LME 2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 865,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke so lot giao dich Options 2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke so lot giao dich Options 2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/LotStatisticsPanel.tsx",
+    "line": 876,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke so lot giao dich Spread 2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke so lot giao dich Spread 2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx",
+    "line": 402,
+    "codeSnippet": "placeholder=\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Marco thong ke gia tri\"",
+    "matches": [
+      "\"M:\\Quanlygiaodich\\Tai lieu hoat dong\\Marco thong ke gia tri\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/bot-config/components/ValueStatisticsPanel.tsx",
+    "line": 482,
+    "codeSnippet": "placeholder=\"M:\\...\\Backup MS\\16.07\\DSGD.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Backup MS\\16.07\\DSGD.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/admin/templates/page.tsx",
+    "line": 2103,
+    "codeSnippet": "? '{\"subject\": \"Job Snapshot\", \"sender\": \"anhdao@mxv.vn\", \"downloadDir\": \"C:\\\\\\\\Downloads\"}'",
+    "matches": [
+      "\"C:\\\\\\\\Downloads\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/checklist/mockChecklistData.ts",
+    "line": 42,
+    "codeSnippet": "fileLocationSnapshot: 'C:\\\\Trading\\\\Logs\\\\HealthCheck',",
+    "matches": [
+      "'C:\\\\Trading\\\\Logs\\\\HealthCheck'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx",
+    "line": 700,
+    "codeSnippet": "{auditCeResult?.backupPath || 'M:\\\\...\\\\Backup CE\\\\Futures\\\\<Năm>\\\\T<Tháng>.<Năm>\\\\<Ngày>.<Tháng>'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup CE\\\\Futures\\\\<Năm>\\\\T<Tháng>.<Năm>\\\\<Ngày>.<Tháng>'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/ce-acm/CeAcmBackupSection.tsx",
+    "line": 1028,
+    "codeSnippet": "{auditAcmResult?.backupPath || 'M:\\\\...\\\\Backup ACM\\\\Futures\\\\<Năm>\\\\T<Tháng>.<Năm>\\\\<Ngày>.<Tháng>'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup ACM\\\\Futures\\\\<Năm>\\\\T<Tháng>.<Năm>\\\\<Ngày>.<Tháng>'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx",
+    "line": 836,
+    "codeSnippet": "placeholder=\"M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures\"",
+    "matches": [
+      "\"M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx",
+    "line": 847,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ACM 2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ACM 2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/ce-acm/CeLotStatisticsSection.tsx",
+    "line": 858,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ACM 2026.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ACM 2026.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx",
+    "line": 735,
+    "codeSnippet": "{auditCcpResult?.backupPath || 'M:\\\\...\\\\Backup CCP\\\\Futures\\\\...'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup CCP\\\\Futures\\\\...'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx",
+    "line": 836,
+    "codeSnippet": "{auditCeResult?.backupPath || 'M:\\\\...\\\\Backup CE\\\\Futures\\\\...'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup CE\\\\Futures\\\\...'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpCeBackupThongKeSection.tsx",
+    "line": 939,
+    "codeSnippet": "{auditAcmResult?.backupPath || 'M:\\\\...\\\\Backup ACM\\\\Futures\\\\...'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup ACM\\\\Futures\\\\...'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2714,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2721,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ACM ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2733,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2740,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich Spread ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2747,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich LME ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich LME ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2754,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich Options ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke so lot giao dich Options ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2766,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2773,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich Spread ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich Spread ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2780,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich LME ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich LME ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2787,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich Options ${YYYY}.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\Thong ke gia tri giao dich Options ${YYYY}.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/core-ccp/CcpLotStatisticsSection.tsx",
+    "line": 2799,
+    "codeSnippet": "placeholder=\"M:\\...\\Thong ke ccp\\output\\DSGD T${MM}.${YYYY} CCP.xlsx\"",
+    "matches": [
+      "\"M:\\...\\Thong ke ccp\\output\\DSGD T${MM}.${YYYY} CCP.xlsx\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/legacy-ms-cqg/LegacyBackupThongKeSection.tsx",
+    "line": 1617,
+    "codeSnippet": "{auditAcmResult?.backupPath || 'M:\\\\...\\\\Backup ACM\\\\Futures\\\\...'}",
+    "matches": [
+      "'M:\\\\...\\\\Backup ACM\\\\Futures\\\\...'"
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/app/trading-manager/components/shared/TradingManagerConfigSection.tsx",
+    "line": 1910,
+    "codeSnippet": "placeholder=\"M:\\...\"",
+    "matches": [
+      "\"M:\\...\""
+    ]
+  },
+  {
+    "category": "1. HARDCODED_ABSOLUTE_WINDOWS_PATH",
+    "description": "Đường dẫn ổ đĩa tuyệt đối Windows (C:\\, M:\\...) trong code",
+    "file": "frontend/src/config/storage-path.config.ts",
+    "line": 27,
+    "codeSnippet": "'M:\\\\Tailieuchung\\\\QLGD-IT',",
+    "matches": [
+      "'M:\\\\Tailieuchung\\\\QLGD-IT'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "frontend/src/config/storage-path.config.ts",
+    "line": 30,
+    "codeSnippet": "'/mnt/qlgd-it',",
+    "matches": [
+      "'/mnt/qlgd-it'"
+    ]
+  },
+  {
+    "category": "2. HARDCODED_LINUX_MOUNT_PATH",
+    "description": "Đường dẫn mount tĩnh Linux (/mnt/qlgd-it) không qua SystemSettings / process.env",
+    "file": "frontend/src/config/storage-path.config.ts",
+    "line": 32,
+    "codeSnippet": "knownLinuxMounts: ['/mnt/qlgd-it', '/mnt/oc-uat', '/mnt/share'],",
+    "matches": [
+      "'/mnt/qlgd-it'"
+    ]
+  }
+]

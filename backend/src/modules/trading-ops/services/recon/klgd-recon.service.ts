@@ -224,8 +224,9 @@ export class KlgdReconService {
       return tradeTime <= checkTime;
     });
 
-    // Chuẩn C# TransactionCheckingService.cs#L167 (timeMatched > time => continue):
-    // Lọc nanoData theo mốc chặn trên cố định theo phút checkTime (HH:mm:00.000)
+    // Lọc nanoData theo phiên giao dịch:
+    // Với Trade Date chuẩn từ parser, tradeTime của lệnh xuyên đêm mang ngày hôm sau (ví dụ: 2026-11-04 04:47 > 2026-11-03 06:00),
+    // do đó lọc đồng thời sessionStart (chặn lệnh cũ của phiên trước) và mốc chặn trên checkTime.
     const nanoData = rawNanoData.filter((gd) => {
       if (!gd.ngayGio) return true;
       const tradeTime = parseTradeDateTime(gd.ngayGio, tradingDate);
@@ -494,7 +495,8 @@ export class KlgdReconService {
         ccpDsgdRecords = parsed.records || [];
         ccpStatus = 'COMPLETED';
       } catch (err: any) {
-        this.logger.warn(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+        this.logger.error(`[Recon] Lỗi parse DSGD CoreCCP: ${err.message}`);
+        ccpStatus = 'FAILED';
       }
     }
     if (files.ttmCcp) {
@@ -645,25 +647,17 @@ export class KlgdReconService {
     const day = String(tradingDate.getDate()).padStart(2, '0');
     const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath)
-    const tradingCheckBase = resolveStoragePathCrossPlatform(
+    // Thư mục dữ liệu kiểm tra giao dịch trong phiên (TradingCheckPath) đọc từ CSDL cấu hình
+    const rawTradingCheck =
+      (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
       (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
-    );
-    const msTradingDailyPath = options?.customDataDir || path.join(tradingCheckBase, subFolder);
-    const cqgTradingDailyPath = options?.customDataDir || path.join(
-      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
-      subFolder,
-    );
-    const acmTradingDailyPath = options?.customDataDir || path.join(
-      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
-      subFolder,
-    );
+      '';
+    const tradingCheckBase = rawTradingCheck ? resolveStoragePathCrossPlatform(rawTradingCheck) : '';
+    const msTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, subFolder) : '');
+    const cqgTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'CQG', subFolder) : '');
+    const acmTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'ACM', subFolder) : '');
     const rawCcpBase = await getCcpBackupBasePath(this.settingsService);
-    const ccpTradingDailyPath = options?.customDataDir || path.join(
-      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const ccpTradingDailyPath = options?.customDataDir || (tradingCheckBase ? path.join(tradingCheckBase, 'CCP', subFolder) : '');
 
     const msDailyPath = path.join(msBackupBase, subFolder);
     const cqgDailyPath = path.join(cqgBackupBase, subFolder);
@@ -681,11 +675,23 @@ export class KlgdReconService {
     const ttttPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTTT.xlsx');
     const ttmPath = resolvePriorityPath(msTradingDailyPath, msDailyPath, 'TTM.xlsx');
 
-    const acmTradesPath =
-      findLatestFile(acmTradingDailyPath, /Nano|Fill/i) ||
-      findLatestFile(acmDailyPath, /Nano|Fill/i) ||
-      findLatestFile(acmTradingDailyPath, /Straits/i) ||
-      findLatestFile(acmDailyPath, /Straits/i);
+    const resolveAcmFile = () => {
+      const candidates = [
+        findLatestFile(acmTradingDailyPath, /Nano|Fill/i),
+        findLatestFile(acmDailyPath, /Nano|Fill/i),
+        findLatestFile(acmTradingDailyPath, /Straits/i),
+        findLatestFile(acmDailyPath, /Straits/i),
+      ].filter((p): p is string => !!p && fs.existsSync(p));
+      const validCandidate = candidates.find((p) => {
+        try {
+          return fs.statSync(p).size > 5000;
+        } catch {
+          return false;
+        }
+      });
+      return validCandidate || candidates[0] || null;
+    };
+    const acmTradesPath = resolveAcmFile();
 
     const cqgFrPath =
       resolveCqgFile(cqgTradingDailyPath, 'FR', this.logger) ||

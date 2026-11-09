@@ -107,13 +107,17 @@ export function parseNano(buffer: Buffer): any[] {
 
     if (!maLenh || !maTKGD || !maHD) continue;
 
+    // Chuẩn đối soát liên phiên: Cột "Trade Date" mang ngày thực tế của lệnh (kể cả lệnh xuyên đêm sau 24:00)
+    // Cột "Trading Day" chỉ mang ngày phiên kế toán của sàn. Khi có Trade Date, ưu tiên dùng Trade Date.
+    const effectiveDate = tradeDateVal || ngay;
+
     result.push({
       maLenh,
       maTKGD,
       maHD,
       klGiaoDich,
       giaKhop,
-      ngayGio: `${ngay} ${gio}`,
+      ngayGio: `${effectiveDate} ${gio}`,
       tradeDateStr: tradeDateVal ? `${tradeDateVal} ${gio}` : undefined,
       maGD,
       combinedKey: `${maTKGD}${maGD}${klGiaoDich}`,

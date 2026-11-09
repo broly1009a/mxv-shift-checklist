@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
-import { resolveStoragePathCrossPlatform, resolveDynamicPath } from '../../../../shared';
+import { resolveStoragePathCrossPlatform, resolveDynamicPath, getCeBackupBase, getMsBackupBase, getCqgBackupBase, getCcpBackupBase } from '../../../../shared';
 import {
   resolveCcpAccumulatorFilePath,
   checkDateExistsInAccumulator,
@@ -56,21 +56,16 @@ export class TradingOpsPreflightService {
     const subFolderFull = `${day}.${month}.${year}`; // VD: "22.10.2026"
     const subFolderDash = `${year}-${month}-${day}`; // VD: "2026-10-22"
 
-    let baseSettingKey = 'backup_path_ccp';
-    let defaultMount = 'M:\\Trading\\Trading\\2026\\Backup hang ngay';
-
+    let configuredRoot = '';
     if (category === 'CE') {
-      baseSettingKey = 'ce_backup_path';
-      defaultMount = 'M:\\Trading\\Trading\\2026\\Backup hang ngay ACM';
+      configuredRoot = await getCeBackupBase(this.settingsService);
     } else if (category === 'MS') {
-      baseSettingKey = 'ms_backup_path';
-      defaultMount = 'M:\\Trading\\Trading\\2026\\Backup M-System';
+      configuredRoot = await getMsBackupBase(this.settingsService);
     } else if (category === 'CQG') {
-      baseSettingKey = 'cqg_backup_path';
-      defaultMount = 'M:\\Trading\\Trading\\2026\\Backup CQG';
+      configuredRoot = await getCqgBackupBase(this.settingsService);
+    } else {
+      configuredRoot = await getCcpBackupBase(this.settingsService);
     }
-
-    const configuredRoot = await this.settingsService.getSetting(baseSettingKey, defaultMount);
     const dynamicRoot = resolveDynamicPath(configuredRoot, dateStr);
     const resolvedRoot = resolveStoragePathCrossPlatform(dynamicRoot);
 

@@ -732,7 +732,7 @@ export class IngressConfigController {
   /**
    * Performs an instant trial login and download to verify CQG CAST configuration.
    */
-  @Post('test-connection-cast')
+  // [DEPRECATED/OFF] @Post('test-connection-cast')
   async testConnectionCast() {
     const tempDir = path.join(process.cwd(), 'temp', 'test-connection-cast');
     if (!fs.existsSync(tempDir)) {

@@ -160,22 +160,23 @@ export class NewsGtgdExportService {
     const myrRate = rates.myrGain;
 
     // 2. Tìm và nạp file DSGD từ M-System & CoreCCP
-    const rawMsBase = await this.settingsService.getSetting(
-      'bot_backup_path_ms',
-      '',
-    );
+    const rawMsBase = await this.settingsService.getSetting('bot_backup_path_ms', '');
     const rawCcpBase = await this.settingsService.getSetting('bot_backup_path_ccp', '');
-
-    const msTradingDailyPath = path.join(
-      resolveStoragePathCrossPlatform(rawMsBase).replace(/Backup MS\\Futures/i, 'TradingCheck\\Futures'),
-      subFolder,
+    const rawCheckBase = await this.settingsService.getSetting(
+      'recon_folder_check_path',
+      await this.settingsService.getSetting('bot_trading_check_path', ''),
     );
-    const msDailyPath = path.join(resolveStoragePathCrossPlatform(rawMsBase), subFolder);
 
-    const ccpTradingDailyPath = path.join(
-      resolveStoragePathCrossPlatform(rawCcpBase).replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const msTradingDailyPath = rawCheckBase
+      ? path.join(resolveStoragePathCrossPlatform(rawCheckBase), 'Futures', subFolder)
+      : '';
+    const msDailyPath = rawMsBase
+      ? path.join(resolveStoragePathCrossPlatform(rawMsBase), subFolder)
+      : '';
+
+    const ccpTradingDailyPath = rawCheckBase
+      ? path.join(resolveStoragePathCrossPlatform(rawCheckBase), 'CCP', subFolder)
+      : '';
     const ccpDailyPath = resolveCcpDailyPath(subFolder, rawCcpBase);
 
     const resolvePriorityFile = (primaryDir: string, fallbackDir: string, pattern: RegExp): string => {

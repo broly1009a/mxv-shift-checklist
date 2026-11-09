@@ -10,6 +10,8 @@ import {
   resolveStoragePathCrossPlatform,
   resolveTradingSessionDate,
   resolveDailySubfolder,
+  getCcpBackupBase,
+  getCeBackupBase,
 } from '../../../shared/helpers/file-path.helper';
 
 /**
@@ -57,13 +59,19 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
     let baseDir: string = payload.outputDir;
     if (!baseDir) {
-      const backupSettingKey = isCcp ? 'bot_backup_path_ccp' : 'bot_backup_path_ce';
-      const defaultSettingPath = isCcp
-        ? path.join(process.cwd(), 'data', 'backup', 'CCP')
-        : path.join(process.cwd(), 'data', 'backup', 'CoreExchange');
-      baseDir = await this.settingsService.getSetting(backupSettingKey, defaultSettingPath);
       if (isTradingCheck) {
-        baseDir = baseDir.replace(/Backup CCP/i, 'TradingCheck/CCP').replace(/Backup CE/i, 'TradingCheck/CE');
+        const tradingCheckBase = await this.settingsService.getSetting(
+          'recon_folder_check_path',
+          await this.settingsService.getSetting('bot_trading_check_path', ''),
+        );
+        if (tradingCheckBase) {
+          baseDir = path.join(tradingCheckBase, isCcp ? 'CCP' : 'CE');
+        }
+      }
+      if (!baseDir) {
+        baseDir = isCcp
+          ? await getCcpBackupBase(this.settingsService)
+          : await getCeBackupBase(this.settingsService);
       }
     }
 

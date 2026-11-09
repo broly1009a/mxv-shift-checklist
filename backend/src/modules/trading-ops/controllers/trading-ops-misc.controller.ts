@@ -29,6 +29,7 @@ import { ReconConsoleSummaryService } from '../services/console/recon-console-su
 import { QlgdDashboardService } from '../services/console/qlgd-dashboard.service';
 import { QlgdExcelExportService } from '../services/console/qlgd-excel-export.service';
 import { NewsGtgdExportService } from '../services/console/news-gtgd-export.service';
+import { SessionRawFilesExportService } from '../services/console/session-raw-files-export.service';
 import { TradingOpsPreflightService } from '../services/console/trading-ops-preflight.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -44,6 +45,7 @@ export class TradingOpsMiscController {
     private readonly qlgdDashboardService: QlgdDashboardService,
     private readonly qlgdExcelExportService: QlgdExcelExportService,
     private readonly newsGtgdExportService: NewsGtgdExportService,
+    private readonly sessionRawFilesExportService: SessionRawFilesExportService,
     private readonly preflightService: TradingOpsPreflightService,
   ) {}
 
@@ -140,72 +142,15 @@ export class TradingOpsMiscController {
   /**
    * Liệt kê các thư mục ngày mẫu từ BackupMS.
    */
+  /**
+   * @deprecated Liệt kê các thư mục ngày mẫu từ BackupMS cũ.
+   */
   @Get('sample-dates')
   @Permissions('ACCESS_AUTO_SHIFT')
   async listSampleDates() {
-    const baseBackupDir = path.join(
-      process.cwd(),
-      '..',
-      'it-tool-src',
-      'operate-transaction-app',
-      'bin',
-      'Debug',
-      'Download',
-      'BackupMS',
-    );
-
-    const dates: {
-      label: string;
-      samplePath: string;
-      year: string;
-      month: string;
-      day: string;
-    }[] = [];
-
-    if (!fs.existsSync(baseBackupDir)) {
-      return {
-        success: false,
-        message: 'Thư mục BackupMS không tồn tại',
-        dates: [],
-      };
-    }
-
-    try {
-      const years = fs
-        .readdirSync(baseBackupDir)
-        .filter((y) => /^\d{4}$/.test(y));
-      for (const year of years) {
-        const yearPath = path.join(baseBackupDir, year);
-        const months = fs
-          .readdirSync(yearPath)
-          .filter((m) => /^T\d{2}/.test(m));
-        for (const month of months) {
-          const monthPath = path.join(yearPath, month);
-          const days = fs
-            .readdirSync(monthPath)
-            .filter((d) => /^\d{2}\.\d{2}$/.test(d));
-          for (const day of days) {
-            const dayPath = path.join(monthPath, day);
-            const [dd, mm] = day.split('.');
-            const label = `${dd}/${mm}/${year}`;
-            dates.push({ label, samplePath: dayPath, year, month, day });
-          }
-        }
-      }
-      dates.sort((a, b) => {
-        const da = `${a.year}-${a.day.split('.')[1]}-${a.day.split('.')[0]}`;
-        const db = `${b.year}-${b.day.split('.')[1]}-${b.day.split('.')[0]}`;
-        return db.localeCompare(da);
-      });
-      return { success: true, dates };
-    } catch (err: any) {
-      return { success: false, message: err.message, dates: [] };
-    }
+    return [];
   }
 
-  /**
-   * Lấy tin nhắn cảnh báo đáo hạn hợp đồng thủ công từ ca trực.
-   */
   @Get('maturity-manual-messages')
   @Permissions('ACCESS_AUTO_SHIFT')
   async getMaturityManualMessages(@Query('shiftLogId') shiftLogId: string) {
@@ -425,6 +370,55 @@ export class TradingOpsMiscController {
       return res.end(buffer);
     } catch (err: any) {
       throw new BadRequestException(`Không thể xuất báo cáo GTGD Ban Tin Tức: ${err.message}`);
+    }
+  }
+
+  /**
+   * Lấy gói JSON Base64 chứa trọn bộ 6 file báo cáo phiên phục vụ File System Access API (showDirectoryPicker)
+   * Tương thích 100% cơ chế chọn thư mục lưu của toolbc08.
+   */
+  @Get('export-session-raw-files-bundle')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async getSessionRawFilesBundle(
+    @Query('date') dateStr?: string,
+    @Query('jobId') jobId?: string,
+    @Query('refresh') refresh?: string,
+  ) {
+    const shouldRefresh = refresh !== 'false' && refresh !== '0';
+    try {
+      return await this.sessionRawFilesExportService.getSessionRawFilesBundle(dateStr, jobId, shouldRefresh);
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể kết xuất gói 6 file phiên: ${err.message}`);
+    }
+  }
+
+  /**
+   * Tải về file ZIP nén chứa trọn bộ 6 file báo cáo phiên (phục vụ fallback khi trình duyệt không hỗ trợ showDirectoryPicker)
+   */
+  @Get('export-session-raw-files-zip')
+  @Permissions('ACCESS_AUTO_SHIFT')
+  async downloadSessionRawFilesZip(
+    @Query('date') dateStr?: string,
+    @Query('jobId') jobId?: string,
+    @Query('refresh') refresh?: string,
+    @Res() res?: any,
+  ) {
+    const shouldRefresh = refresh !== 'false' && refresh !== '0';
+    try {
+      const { files } = await this.sessionRawFilesExportService.resolveSessionRawFiles(dateStr, jobId, shouldRefresh);
+      if (files.length === 0) {
+        throw new BadRequestException('Không tìm thấy file báo cáo nào của phiên giao dịch được chọn.');
+      }
+      const zipBuffer = this.sessionRawFilesExportService.createZipArchive(files);
+      const cleanDate = (dateStr || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `6_Files_Phien_${cleanDate}${jobId ? '_' + jobId.slice(-6) : ''}.zip`;
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', zipBuffer.length);
+      return res.end(zipBuffer);
+    } catch (err: any) {
+      throw new BadRequestException(`Không thể tạo file ZIP 6 file phiên: ${err.message}`);
     }
   }
 }

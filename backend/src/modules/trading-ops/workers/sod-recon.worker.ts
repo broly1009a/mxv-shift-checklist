@@ -8,6 +8,8 @@ import {
   TaskExecutionContext,
   TaskExecutionResult,
   resolveStoragePathCrossPlatform,
+  getMsBackupBase,
+  getCqgBackupBase,
   findLatestFile,
 } from '../../../shared';
 import { CqgMergerService } from '../services/merger/cqg-merger.service';
@@ -55,18 +57,8 @@ export class SodReconWorker implements IBotWorker {
       const dateStr = `${year}-${month}-${day}`;
       const subFolder = path.join(year, `T${month}.${year}`, `${day}.${month}`);
 
-      const msBackupBase = resolveStoragePathCrossPlatform(
-        await this.settingsService.getSetting(
-          'bot_backup_path_ms',
-          '',
-        ),
-      );
-      const cqgBackupBase = resolveStoragePathCrossPlatform(
-        await this.settingsService.getSetting(
-          'bot_backup_path_cqg',
-          'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CQG\\Futures',
-        ),
-      );
+      const msBackupBase = await getMsBackupBase(this.settingsService);
+      const cqgBackupBase = await getCqgBackupBase(this.settingsService);
 
       const msDailyPath = path.join(msBackupBase, subFolder);
       const cqgDailyPath = path.join(cqgBackupBase, subFolder);

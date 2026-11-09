@@ -25,6 +25,7 @@ import {
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
   resolveBotTargetDate,
+  getCeBackupBase as resolveCeBackupBase,
 } from '../../../../shared';
 import {
   getMaHHFromCcpMaHD,
@@ -990,13 +991,8 @@ export class CeLotStatisticsService {
   // ──────────────────────────────────────────────────────────────────────────
 
   private async getCeBackupBase(): Promise<string> {
-    if (!this.settingsService) {
-      return 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures';
-    }
-    return this.settingsService.getSetting(
-      'bot_backup_path_ce',
-      'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Backup CE\\Futures',
-    );
+    if (!this.settingsService) return '';
+    return resolveCeBackupBase(this.settingsService);
   }
 
   private async getUsdExchangeRate(): Promise<number> {

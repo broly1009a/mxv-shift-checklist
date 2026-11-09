@@ -109,7 +109,7 @@ export class CcpAdHocStatisticsService {
       }
     } catch {}
 
-    const defaultOut = 'M:\\Tailieuchung\\QLGD-IT\\Quanlygiaodich\\Tai lieu hoat dong\\Thong ke ccp\\output';
+    const defaultOut = await this.settingsService.getSetting('bot_ccp_stats_output', process.env.DEFAULT_CCP_STATS_OUTPUT || '');
     const candidateDirs = [
       configuredOut,
       defaultOut,

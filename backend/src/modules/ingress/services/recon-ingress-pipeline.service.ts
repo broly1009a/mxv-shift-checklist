@@ -18,7 +18,9 @@ export interface ReconIngressPipelineOptions {
     checkKlgd?: boolean;
     checkTtm?: boolean;
     checkTttt?: boolean;
+    jobId?: string;
   };
+  jobId?: string;
   log?: (msg: string) => void;
 }
 
@@ -96,24 +98,18 @@ export class ReconIngressPipelineService {
       defaultCcpPath,
     );
 
-    const tradingCheckBase = resolveStoragePathCrossPlatform(
+    const rawTradingCheck =
+      (await this.settingsService.getSetting('recon_folder_check_path', '')) ||
       (await this.settingsService.getSetting('bot_trading_check_path', '')) ||
-        msBackupBase.replace(/Backup MS[\\/]Futures/i, 'TradingCheck/Futures').replace(/Backup MS/i, 'TradingCheck'),
-    );
+      '';
+    const tradingCheckBase = rawTradingCheck
+      ? resolveStoragePathCrossPlatform(rawTradingCheck)
+      : resolveStoragePathCrossPlatform(path.join(path.dirname(msBackupBase), 'TradingCheck'));
 
     const msDailyPath = path.join(tradingCheckBase, subFolder);
-    const cqgDailyPath = path.join(
-      cqgBackupBase.replace(/Backup CQG[\\/]Futures/i, 'TradingCheck/Futures/CQG').replace(/Backup CQG/i, 'TradingCheck/CQG'),
-      subFolder,
-    );
-    const acmDailyPath = path.join(
-      acmBackupBase.replace(/Backup MS[\\/]ACM/i, 'TradingCheck/ACM').replace(/Backup ACM/i, 'TradingCheck/ACM'),
-      subFolder,
-    );
-    const ccpDailyPath = path.join(
-      ccpBackupBase.replace(/Backup CCP/i, 'TradingCheck/CCP'),
-      subFolder,
-    );
+    const cqgDailyPath = path.join(tradingCheckBase, 'CQG', subFolder);
+    const acmDailyPath = path.join(tradingCheckBase, 'ACM', subFolder);
+    const ccpDailyPath = path.join(tradingCheckBase, 'CCP', subFolder);
 
     for (const dir of [msDailyPath, cqgDailyPath, acmDailyPath, ccpDailyPath]) {
       try {
@@ -992,6 +988,38 @@ export class ReconIngressPipelineService {
         };
       }
     }
+
+    // [USER_DIRECTIVE - 2026-11-06]: Không cần lưu file theo giờ phiên cũ (runs/{jobId}), comment lại để tối ưu dung lượng đĩa
+    /*
+    const activeJobId = params.jobId || params.options?.jobId;
+    if (activeJobId) {
+      try {
+        const msRunDir = path.join(msDailyPath, 'runs', activeJobId);
+        const ccpRunDir = path.join(ccpDailyPath, 'runs', activeJobId);
+        if (!fs.existsSync(msRunDir)) fs.mkdirSync(msRunDir, { recursive: true });
+        if (!fs.existsSync(ccpRunDir)) fs.mkdirSync(ccpRunDir, { recursive: true });
+
+        // Bảo lưu file M-System (DSGD, TTM, TTTT)
+        for (const fname of ['DSGD.xlsx', 'TTM.xlsx', 'TTTT.xlsx']) {
+          const src = path.join(msDailyPath, fname);
+          if (fs.existsSync(src)) {
+            fs.copyFileSync(src, path.join(msRunDir, fname));
+          }
+        }
+
+        // Bảo lưu file CoreCCP (DSGD CCP, TTM CCP, TTTT)
+        for (const fname of ['DSGD CCP.xlsx', 'TTM CCP.xlsx', 'TTTT.xlsx', 'TTM truoc 4h20.xlsx']) {
+          const src = path.join(ccpDailyPath, fname);
+          if (fs.existsSync(src)) {
+            fs.copyFileSync(src, path.join(ccpRunDir, fname));
+          }
+        }
+        log(`[ReconIngressPipeline] Đã lưu snapshot 6 file phiên vào thư mục runs/${activeJobId}/`);
+      } catch (snapErr: any) {
+        this.logger.warn(`Không thể tạo snapshot runs/${activeJobId}: ${snapErr.message}`);
+      }
+    }
+    */
 
     log(' Hoàn tất quy trình tải dữ liệu đồng bộ tươi từ các nguồn.');
     return {

@@ -33,6 +33,7 @@ import {
   Search,
   Loader2,
   Newspaper,
+  FolderDown,
 } from 'lucide-react';
 
 import {
@@ -193,6 +194,7 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'Nông sản' | 'Nguyên liệu công nghiệp' | 'Kim loại'>('ALL');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isExportingNews, setIsExportingNews] = useState<boolean>(false);
+  const [isSavingSessionFiles, setIsSavingSessionFiles] = useState<boolean>(false);
 
   // Cache Key Helper cho cơ chế Stale-While-Revalidate
   const getDashboardCacheKey = useCallback(
@@ -1163,6 +1165,96 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
     }
   };
 
+  // Fallback tải file ZIP nếu trình duyệt không hỗ trợ showDirectoryPicker hoặc không phải HTTPS
+  const handleDownloadSessionFilesZip = async () => {
+    setIsSavingSessionFiles(true);
+    const toastId = toast.loading('Đang tải realtime và đóng gói 6 file báo cáo dạng ZIP...', { id: 'save-session-files' });
+    try {
+      const blob = await tradingOpsApi.downloadSessionRawFilesZip(
+        { date: sessionDate, refresh: true },
+        token,
+      );
+      const cleanDate = (sessionDate || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+      const filename = `6_Files_Phien_${cleanDate}.zip`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Đã tải thành công tệp nén ZIP chứa 6 file báo cáo phiên!', { id: 'save-session-files' });
+    } catch (err: any) {
+      toast.error(`Lỗi tải file ZIP: ${err.message}`, { id: 'save-session-files' });
+    } finally {
+      setIsSavingSessionFiles(false);
+    }
+  };
+
+  // Xử lý lưu trọn bộ 6 file báo cáo phiên giao dịch vào thư mục máy tính (tương thích 100% toolbc08)
+  const handleSaveSessionFiles = async () => {
+    // 1. Kiểm tra File System Access API (Yêu cầu Secure Context HTTPS hoặc localhost)
+    if (typeof window === 'undefined' || !(window as any).showDirectoryPicker) {
+      toast('Trình duyệt không hỗ trợ chọn thư mục trực tiếp (yêu cầu Chrome/Edge trên HTTPS). Hệ thống chuyển sang tải file ZIP...', { duration: 4500 });
+      return handleDownloadSessionFilesZip();
+    }
+
+    let dirHandle: any = null;
+    try {
+      dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return; // Người dùng chủ động hủy hộp thoại chọn thư mục
+      }
+      toast.error('Không thể mở hộp thoại chọn thư mục: ' + err.message);
+      return;
+    }
+
+    setIsSavingSessionFiles(true);
+    const toastId = toast.loading('Đang kích hoạt tải realtime từ API và lưu 6 file báo cáo...', { id: 'save-session-files' });
+
+    try {
+      const res = await tradingOpsApi.getSessionRawFilesBundle(
+        { date: sessionDate, refresh: true },
+        token,
+      );
+
+      if (!res.success || !res.files || res.files.length === 0) {
+        throw new Error(res.message || 'Không tìm thấy file báo cáo nào của phiên được chọn.');
+      }
+
+      let savedCount = 0;
+      for (const item of res.files) {
+        try {
+          const binaryStr = window.atob(item.base64);
+          const len = binaryStr.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const fileHandle = await dirHandle.getFileHandle(item.filename, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(bytes.buffer);
+          await writable.close();
+          savedCount++;
+        } catch (wErr: any) {
+          console.error(`Lỗi ghi file ${item.filename}:`, wErr);
+        }
+      }
+
+      if (savedCount > 0) {
+        toast.success(`Đã lưu thành công ${savedCount}/${res.files.length} file Excel vào thư mục đã chọn!`, { id: 'save-session-files' });
+      } else {
+        throw new Error('Không thể ghi file vào thư mục máy tính.');
+      }
+    } catch (err: any) {
+      toast.error(`Lỗi lưu file: ${err.message}`, { id: 'save-session-files' });
+    } finally {
+      setIsSavingSessionFiles(false);
+    }
+  };
+
   /**
    * Component Skeleton Loader hiển thị hiệu ứng chuyển cảnh mượt mà khi dữ liệu chưa kịp tải
    */
@@ -1755,6 +1847,32 @@ export const QlgdExecutiveDashboard: React.FC<QlgdExecutiveDashboardProps> = ({
           >
             <Newspaper size={15} />
             <span>{isExportingNews ? 'Đang xuất...' : 'Xuất GTGD Tin Tức'}</span>
+          </button>
+
+          {/* Save 6 Raw Excel Files Button (tương thích showDirectoryPicker chuẩn toolbc08) */}
+          <button
+            type="button"
+            disabled={isSavingSessionFiles}
+            onClick={handleSaveSessionFiles}
+            className="btn btn-primary"
+            style={{
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              backgroundColor: '#0284c7',
+              color: '#ffffff',
+              border: 'none',
+              cursor: isSavingSessionFiles ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title="Mở thư mục trên máy tính và lưu trọn bộ 6 file báo cáo gốc của phiên (3 file MS + 3 file CCP)"
+          >
+            <FolderDown size={15} />
+            <span>{isSavingSessionFiles ? 'Đang lưu file...' : 'Lưu File Excel'}</span>
           </button>
         </div>
       </div>
