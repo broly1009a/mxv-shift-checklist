@@ -717,5 +717,146 @@ export class MsApiAdapter implements IIngressPort {
       lastSynced: new Date().toISOString(),
     };
   }
+
+  /**
+   * Lấy Danh mục Mặt hàng (Commodities) trực tiếp từ M-System API:
+   * - subType=F: Hàng hóa Futures CQG (42 mặt hàng)
+   * - subType=L: Hàng hóa LME CQG (9 mặt hàng)
+   * - subType=A: Hàng hóa ACM Nano (3 mặt hàng)
+   */
+  public async fetchMarketCommodities(
+    subTypes: Array<'F' | 'L' | 'A'> = ['F', 'L', 'A'],
+  ): Promise<{
+    cqgFutures: any[];
+    cqgLme: any[];
+    acmNano: any[];
+    all: any[];
+  }> {
+    let { token, baseUrl, adminUrl } = await this.getValidToken(false);
+
+    const fetchBySubType = async (subType: 'F' | 'L' | 'A'): Promise<any[]> => {
+      const endpoint = `/market/commodity?limit=200&offset=0&subType=${subType}&sort_by=asc(commodityCode)`;
+      let res = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+          origin: adminUrl,
+          referer: `${adminUrl}/`,
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (res.status === 401) {
+        const refreshed = await this.getValidToken(true);
+        token = refreshed.token;
+        baseUrl = refreshed.baseUrl;
+        adminUrl = refreshed.adminUrl;
+        res = await fetch(`${baseUrl}${endpoint}`, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${token}`,
+            origin: adminUrl,
+            referer: `${adminUrl}/`,
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          signal: AbortSignal.timeout(20000),
+        });
+      }
+
+      if (!res.ok) {
+        throw new Error(`Gọi API ${baseUrl}${endpoint} thất bại: HTTP ${res.status}`);
+      }
+      const json = (await res.json()) as any;
+      return Array.isArray(json?.data) ? json.data : [];
+    };
+
+    const cqgFutures = subTypes.includes('F') ? await fetchBySubType('F') : [];
+    const cqgLme = subTypes.includes('L') ? await fetchBySubType('L') : [];
+    const acmNano = subTypes.includes('A') ? await fetchBySubType('A') : [];
+
+    return {
+      cqgFutures,
+      cqgLme,
+      acmNano,
+      all: [...cqgFutures, ...cqgLme, ...acmNano],
+    };
+  }
+
+  /**
+   * Lấy Danh sách Thành viên Kinh doanh (TVKD / Members) trực tiếp từ M-System API:
+   * GET /am/admin/members?limit=200&offset=0&sort_by=desc(createdDate)
+   */
+  public async fetchAdminMembers(): Promise<{
+    members: Array<{
+      code: string;
+      name: string;
+      status: string;
+      note?: string;
+      createdDate?: number;
+    }>;
+    activeMembers: Array<{
+      code: string;
+      name: string;
+      status: string;
+      note?: string;
+      createdDate?: number;
+    }>;
+  }> {
+    let { token, baseUrl, adminUrl } = await this.getValidToken(false);
+    const endpoint = `/am/admin/members?limit=200&offset=0&sort_by=desc(createdDate)`;
+
+    let res = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${token}`,
+        origin: adminUrl,
+        referer: `${adminUrl}/`,
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (res.status === 401) {
+      const refreshed = await this.getValidToken(true);
+      token = refreshed.token;
+      baseUrl = refreshed.baseUrl;
+      adminUrl = refreshed.adminUrl;
+      res = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${token}`,
+          origin: adminUrl,
+          referer: `${adminUrl}/`,
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(20000),
+      });
+    }
+
+    if (!res.ok) {
+      throw new Error(`Gọi API ${baseUrl}${endpoint} thất bại: HTTP ${res.status}`);
+    }
+    const json = (await res.json()) as any;
+    const rawMembers = Array.isArray(json?.data?.members) ? json.data.members : [];
+    const members = rawMembers.map((m: any) => ({
+      code: String(m.code || '').trim().padStart(3, '0'),
+      name: String(m.name || '').trim(),
+      status: String(m.status || '').trim().toUpperCase(),
+      note: String(m.note || '').trim(),
+      createdDate: m.createdDate,
+    }));
+    const activeMembers = members.filter((m: any) => m.status === 'ACTIVE');
+
+    return { members, activeMembers };
+  }
 }
 

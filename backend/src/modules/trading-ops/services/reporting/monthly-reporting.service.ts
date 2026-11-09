@@ -20,6 +20,7 @@ import {
   BGS_RAW_TO_STD_MAP,
 } from '../../constants/bgs-commodity-catalog.constant';
 import { MonthlyExcelExporterService } from './monthly-excel-exporter.service';
+import { MsApiAdapter } from '../../../ingress/adapters/ms-api.adapter';
 
 /**
  * Danh bạ Tên Gọn / Thương Hiệu chuẩn của các TVKD theo đúng file Thống kê số lot giao dịch & Báo cáo tháng
@@ -145,26 +146,49 @@ export const CANONICAL_COMMODITY_NAME_MAP: Record<string, string> = {
   'Nhôm Comex': 'Nhôm COMEX',
   'Lúa Mỳ Micro': 'Lúa mì Micro',
   'Lúa Mỳ Micro': 'Lúa mì Micro',
+  'Lúa mỳ micro': 'Lúa mì Micro',
+  'Lúa mỳ Kansas': 'Lúa Mỳ Kansas',
+  'Bông sợi': 'Bông Sợi',
+  'Ngô micro': 'Ngô Micro',
   'Bạc micro': 'Bạc Micro',
   'Đồng micro': 'Đồng Micro',
   'Bạc mini': 'Bạc Mini',
   'Đồng mini': 'Đồng Mini',
+  'Dầu WTI micro': 'Dầu WTI Micro',
+  'Dầu Brent mini': 'Dầu Brent Mini',
+  'Khí tự nhiên mini': 'Khí tự nhiên Mini',
   'Dầu đậu tương Micro': 'Dầu Đậu Tương Micro',
   'Dầu đậu tương Micro': 'Dầu Đậu Tương Micro',
+  'Dầu đậu tương micro': 'Dầu Đậu Tương Micro',
   'Khô Đậu tương Micro': 'Khô Đậu Tương Micro',
   'Khô đậu tương Micro': 'Khô Đậu Tương Micro',
+  'Khô đậu tương micro': 'Khô Đậu Tương Micro',
   'Đậu tương Micro': 'Đậu tương Micro',
   'Đậu Tương Micro': 'Đậu tương Micro',
+  'Đậu tương micro': 'Đậu tương Micro',
   'Cao su TSR20': 'Cao su TSR 20',
   'Cao su RSS3': 'Cao su RSS3 TOCOM',
   'Cao su TOCOM': 'Cao su RSS3 TOCOM',
   'Bạch Kim': 'Bạch kim',
+  'Nickel LME': 'Niken LME',
+  'Thép cuộn cán nóng FOB Trung Quốc': 'Thép cuộn cán nóng LME',
+  'Thép phế liệu CFR Thổ Nhĩ Kỳ': 'Thép phế liệu LME',
+  'Thép thanh vằn FOB Thổ Nhĩ Kỳ': 'Thép thanh vằn LME',
   'SND': 'Thiếc LME',
   'AHD': 'Nhôm LME',
   'ZDS': 'Kẽm LME',
   'NID': 'Niken LME',
   'PBD': 'Chì LME',
   'CAD': 'Đồng LME',
+  'LTIZ': 'Thiếc LME',
+  'LALZ': 'Nhôm LME',
+  'LZHZ': 'Kẽm LME',
+  'LNIZ': 'Niken LME',
+  'LEDZ': 'Chì LME',
+  'LDKZ': 'Đồng LME',
+  'LHC': 'Thép cuộn cán nóng LME',
+  'SSC': 'Thép phế liệu LME',
+  'SSR': 'Thép thanh vằn LME',
 };
 
 @Injectable()
@@ -183,7 +207,205 @@ export class MonthlyReportingService {
     private readonly excelExporterService: MonthlyExcelExporterService,
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly msApiAdapter?: MsApiAdapter,
   ) {}
+
+  /**
+   * Đồng bộ Danh mục Mặt hàng (subType=F, L, A) và Danh mục TVKD (Members) trực tiếp từ M-System API
+   * - Tự động cập nhật cache vào SystemSettings
+   * - Đối với TVKD mới (chưa có trong OFFICIAL_TVKD_SHORT_NAMES), giữ nguyên tên gốc từ API (VD: 090 - Công ty Cổ phần Giao dịch hàng hóa Wikex)
+   */
+  private async resolveDynamicCatalogs(year?: number, month?: number): Promise<{
+    cqgCommodityNames: string[];
+    acmCommodityNames: string[];
+    dynamicCommodityCodeMap: Map<string, { stdCode: string; nameVn: string; subType: string }>;
+    activeMembersMap: Map<string, string>;
+    allMembersNameMap: Map<string, string>;
+  }> {
+    const cqgNamesSet = new Set<string>(OFFICIAL_51_CQG_COMMODITIES);
+    const acmNamesSet = new Set<string>(['Bạc Nano ACM', 'Bạch kim Nano ACM', 'Đồng Nano ACM']);
+    const dynamicCommodityCodeMap = new Map<string, { stdCode: string; nameVn: string; subType: string }>();
+    const activeMembersMap = new Map<string, string>();
+    const allMembersNameMap = new Map<string, string>();
+
+    // Khởi tạo từ bảng tên rút gọn chuẩn
+    Object.entries(OFFICIAL_TVKD_SHORT_NAMES).forEach(([k, v]) => allMembersNameMap.set(k, v));
+
+    // Đọc custom override từ SystemSettings nếu có
+    if (this.settingsService) {
+      try {
+        const rawTvkdMap = await this.settingsService.getSetting('tvkd_names_map', '');
+        if (rawTvkdMap) {
+          const parsed = JSON.parse(rawTvkdMap);
+          Object.entries(parsed).forEach(([k, v]) => allMembersNameMap.set(k.padStart(3, '0'), String(v)));
+        }
+      } catch {}
+    }
+
+    // 1. Đồng bộ Danh mục Mặt hàng từ M-System API (/market/commodity?subType=F, L, A)
+    let rawCommodities: { cqgFutures: any[]; cqgLme: any[]; acmNano: any[]; all: any[] } | null = null;
+    if (this.msApiAdapter) {
+      try {
+        rawCommodities = await this.msApiAdapter.fetchMarketCommodities(['F', 'L', 'A']);
+        if (this.settingsService && rawCommodities.all.length > 0) {
+          await this.settingsService.setSetting(
+            'ms_commodities_catalog_cache',
+            JSON.stringify(rawCommodities),
+          );
+        }
+      } catch (e: any) {
+        this.logger.warn(`[resolveDynamicCatalogs] Không gọi được M-System /market/commodity (${e.message}), dùng cache/fallback.`);
+      }
+    }
+    if (!rawCommodities && this.settingsService) {
+      try {
+        const cached = await this.settingsService.getSetting('ms_commodities_catalog_cache', '');
+        if (cached) rawCommodities = JSON.parse(cached);
+      } catch {}
+    }
+
+    if (rawCommodities) {
+      for (const it of [...(rawCommodities.cqgFutures || []), ...(rawCommodities.cqgLme || [])]) {
+        if (String(it.commodityStatus || 'active').toLowerCase() !== 'active') continue;
+        const rawFullName = String(it.fullName || '').trim();
+        if (!rawFullName) continue;
+        const canonicalName = CANONICAL_COMMODITY_NAME_MAP[rawFullName] || rawFullName;
+        cqgNamesSet.add(canonicalName);
+        const code = String(it.commodityCode || '').trim().toUpperCase();
+        const shortCode = String(it.shortName || '').trim().toUpperCase();
+        const subType = String(it.subType || 'F').trim().toUpperCase();
+        if (code) dynamicCommodityCodeMap.set(code, { stdCode: code, nameVn: canonicalName, subType });
+        if (shortCode) dynamicCommodityCodeMap.set(shortCode, { stdCode: code || shortCode, nameVn: canonicalName, subType });
+      }
+      for (const it of rawCommodities.acmNano || []) {
+        if (String(it.commodityStatus || 'active').toLowerCase() !== 'active') continue;
+        const rawFullName = String(it.fullName || '').trim();
+        if (!rawFullName) continue;
+        const canonicalName = CANONICAL_COMMODITY_NAME_MAP[rawFullName] || rawFullName;
+        acmNamesSet.add(canonicalName);
+        const code = String(it.commodityCode || '').trim().toUpperCase();
+        const shortCode = String(it.shortName || '').trim().toUpperCase();
+        if (code) dynamicCommodityCodeMap.set(code, { stdCode: code, nameVn: canonicalName, subType: 'A' });
+        if (shortCode) dynamicCommodityCodeMap.set(shortCode, { stdCode: code || shortCode, nameVn: canonicalName, subType: 'A' });
+      }
+    }
+
+    // 2. Đồng bộ Danh sách TVKD từ M-System API (/am/admin/members)
+    let rawMembers: { members: any[]; activeMembers: any[] } | null = null;
+    if (this.msApiAdapter) {
+      try {
+        rawMembers = await this.msApiAdapter.fetchAdminMembers();
+        if (this.settingsService && rawMembers.members.length > 0) {
+          await this.settingsService.setSetting(
+            'ms_members_catalog_cache',
+            JSON.stringify(rawMembers),
+          );
+        }
+      } catch (e: any) {
+        this.logger.warn(`[resolveDynamicCatalogs] Không gọi được M-System /am/admin/members (${e.message}), dùng cache/fallback.`);
+      }
+    }
+    if (!rawMembers && this.settingsService) {
+      try {
+        const cached = await this.settingsService.getSetting('ms_members_catalog_cache', '');
+        if (cached) rawMembers = JSON.parse(cached);
+      } catch {}
+    }
+
+    // Mốc cuối tháng báo cáo (nếu có truyền year, month) để lọc TVKD mở trước hoặc trong tháng đó
+    const endOfMonthEpoch =
+      year && month ? Date.UTC(year, month, 0, 23, 59, 59, 999) : Number.MAX_SAFE_INTEGER;
+
+    if (rawMembers?.members) {
+      for (const m of rawMembers.members) {
+        const code = String(m.code || '').trim().padStart(3, '0');
+        if (!code || code === '999') continue;
+        const apiName = String(m.name || '').trim();
+        // Nếu mã TVKD đã có trong danh mục tên rút gọn thì dùng tên rút gọn, nếu là TVKD mới (như 090) thì giữ nguyên tên gốc từ API
+        const displayName = allMembersNameMap.get(code) || apiName || code;
+        if (!allMembersNameMap.has(code) && apiName) {
+          allMembersNameMap.set(code, apiName);
+        }
+        if (String(m.status || '').toUpperCase() === 'ACTIVE') {
+          const created = typeof m.createdDate === 'number' ? m.createdDate : 0;
+          if (created <= endOfMonthEpoch) {
+            activeMembersMap.set(code, displayName);
+          }
+        }
+      }
+    }
+
+    // 3. Đối chiếu với file DSTKGD-Futures.xlsx trong Backup MS (nếu có) để chỉ lấy các TVKD Active có TKGD Futures hoạt động
+    if (year && month && !(year === 2026 && month === 9)) {
+      try {
+        const monthStr = String(month).padStart(2, '0');
+        const subFolder = `${year}/T${monthStr}.${year}`;
+        const configuredMs = this.settingsService
+          ? await getMsBackupBase(this.settingsService)
+          : resolveStoragePathCrossPlatform(process.env.DEFAULT_BACKUP_PATH_MS || '');
+        if (configuredMs) {
+          const msFolder = path.join(configuredMs, subFolder);
+          if (fs.existsSync(msFolder)) {
+            const dayFolders = fs
+              .readdirSync(msFolder)
+              .filter((d) => /^\d{2}\.\d{2}$/.test(d))
+              .sort()
+              .reverse();
+            let futuresFile = '';
+            for (const d of dayFolders) {
+              const candidate = path.join(msFolder, d, 'DSTKGD-Futures.xlsx');
+              if (fs.existsSync(candidate) && fs.statSync(candidate).size > 500) {
+                futuresFile = candidate;
+                break;
+              }
+            }
+            if (futuresFile) {
+              const wb = XLSX.readFile(futuresFile);
+              const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]) as any[];
+              const futuresActiveCodes = new Set<string>();
+              for (const r of rows) {
+                const code = String(r['Mã TVKD'] || r['Ma TVKD'] || r['Mã TV'] || '').trim().padStart(3, '0');
+                if (!code || code === '000' || code === '999') continue;
+                const rawName = String(r['Tên TVKD'] || '').trim();
+                if (rawName && !allMembersNameMap.has(code)) {
+                  allMembersNameMap.set(code, rawName);
+                }
+                const st = String(r['Trạng thái'] || 'Hoạt động').trim();
+                if (st === 'Hoạt động') {
+                  futuresActiveCodes.add(code);
+                }
+              }
+              if (futuresActiveCodes.size > 0) {
+                if (activeMembersMap.size > 0) {
+                  // Giao (Intersect) giữa TVKD đang ACTIVE trên hệ thống và TVKD có TKGD hoạt động trong DSTKGD-Futures.xlsx
+                  for (const code of Array.from(activeMembersMap.keys())) {
+                    if (!futuresActiveCodes.has(code)) {
+                      activeMembersMap.delete(code);
+                    }
+                  }
+                } else {
+                  for (const code of futuresActiveCodes) {
+                    activeMembersMap.set(code, allMembersNameMap.get(code) || code);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e: any) {
+        this.logger.warn(`[resolveDynamicCatalogs] Không đọc được DSTKGD-Futures.xlsx: ${e.message}`);
+      }
+    }
+
+    return {
+      cqgCommodityNames: Array.from(cqgNamesSet),
+      acmCommodityNames: Array.from(acmNamesSet),
+      dynamicCommodityCodeMap,
+      activeMembersMap,
+      allMembersNameMap,
+    };
+  }
 
   /**
    * Lấy dữ liệu Báo Cáo Tháng (Ưu tiên đọc snapshot, tự động rollup hoặc cold-start nếu cần)
@@ -523,17 +745,23 @@ export class MonthlyReportingService {
         .lean();
     }
 
+    // Đồng bộ danh mục động (TVKD & Mặt hàng) từ M-System API (có cache SystemSettings)
+    const dynCatalogs = await this.resolveDynamicCatalogs(year, month);
+
     // Mapping số liệu tháng trước từ prevSnapshot (nếu có)
     const prevCqgTvkdMap = new Map<string, number>();
     const prevAcmTvkdMap = new Map<string, number>();
+    const prevTvkdNameMap = new Map<string, string>();
     if (prevSnapshot?.section1Tvkd?.cqg?.items) {
       for (const it of prevSnapshot.section1Tvkd.cqg.items) {
         prevCqgTvkdMap.set(it.tvkdCode, it.lotCurrentMonth || 0);
+        if (it.tvkdName) prevTvkdNameMap.set(it.tvkdCode, it.tvkdName);
       }
     }
     if (prevSnapshot?.section1Tvkd?.acm?.items) {
       for (const it of prevSnapshot.section1Tvkd.acm.items) {
         prevAcmTvkdMap.set(it.tvkdCode, it.lotCurrentMonth || 0);
+        if (it.tvkdName) prevTvkdNameMap.set(it.tvkdCode, it.tvkdName);
       }
     }
 
@@ -569,7 +797,10 @@ export class MonthlyReportingService {
       // Cộng dồn TVKD
       let cur = targetMap.get(stat.tvkdCode);
       if (!cur) {
-        const shortName = OFFICIAL_TVKD_SHORT_NAMES[stat.tvkdCode] || stat.tvkdName;
+        const shortName =
+          OFFICIAL_TVKD_SHORT_NAMES[stat.tvkdCode] ||
+          dynCatalogs.allMembersNameMap.get(stat.tvkdCode) ||
+          stat.tvkdName;
         cur = {
           tvkdCode: stat.tvkdCode,
           tvkdName: shortName,
@@ -582,43 +813,69 @@ export class MonthlyReportingService {
       cur.dailyMap.set(stat.date, (cur.dailyMap.get(stat.date) || 0) + stat.lotTotal);
     }
 
-    // Xử lý tính Max/Min Day cho TVKD
+    // Xử lý tính Max/Min Day cho TVKD (bao gồm cả TVKD có giao dịch tháng trước hoặc TVKD đang ACTIVE trên M-System)
     const processTvkdList = (
       memberMap: Map<string, any>,
       prevMap: Map<string, number>,
+      includeActiveCatalogMembers: boolean,
     ) => {
+      const codeSet = new Set<string>([...memberMap.keys()]);
+      for (const [code, prevLot] of prevMap.entries()) {
+        if (prevLot > 0) {
+          codeSet.add(code);
+        }
+      }
+      if (includeActiveCatalogMembers) {
+        for (const code of dynCatalogs.activeMembersMap.keys()) {
+          codeSet.add(code);
+        }
+      }
+
       const list: any[] = [];
-      for (const [code, val] of memberMap.entries()) {
+      for (const code of codeSet) {
+        const val = memberMap.get(code);
         const lotPrev = prevMap.get(code) || 0;
-        const lotCur = val.lotTotal;
+        const lotCur = val ? val.lotTotal : 0;
+        const resolvedName =
+          OFFICIAL_TVKD_SHORT_NAMES[code] ||
+          dynCatalogs.allMembersNameMap.get(code) ||
+          prevTvkdNameMap.get(code) ||
+          val?.tvkdName ||
+          code;
 
-        // Tính Max Day
+        // Tính Max Day & Min Day
         let maxLot = 0;
-        let maxDate = '';
-        for (const [dStr, dLot] of val.dailyMap.entries()) {
-          if (dLot > maxLot) {
-            maxLot = dLot;
-            const parts = dStr.split('-');
-            maxDate = `${parts[2]}/${parts[1]}`;
-          }
-        }
+        let maxDate = `01/${monthStr}`;
+        let minLot = 0;
+        let minDate = `01/${monthStr}`;
 
-        // Tính Min Day (Áp dụng Rule A2: Loại trừ ngày nghỉ CME)
-        let minLot = Infinity;
-        let minDate = '';
-        for (const [dStr, dLot] of val.dailyMap.entries()) {
-          if (cmeHolidaySet.size > 0 && cmeHolidaySet.has(dStr)) {
-            continue; // Bỏ qua ngày nghỉ CME
+        if (val && val.dailyMap.size > 0) {
+          maxDate = '';
+          for (const [dStr, dLot] of val.dailyMap.entries()) {
+            if (dLot > maxLot) {
+              maxLot = dLot;
+              const parts = dStr.split('-');
+              maxDate = `${parts[2]}/${parts[1]}`;
+            }
           }
-          if (dLot < minLot) {
-            minLot = dLot;
-            const parts = dStr.split('-');
-            minDate = `${parts[2]}/${parts[1]}`;
-          }
-        }
-        if (minLot === Infinity) {
-          minLot = 0;
+
+          // Tính Min Day (Áp dụng Rule A2: Loại trừ ngày nghỉ CME)
+          minLot = Infinity;
           minDate = '';
+          for (const [dStr, dLot] of val.dailyMap.entries()) {
+            if (cmeHolidaySet.size > 0 && cmeHolidaySet.has(dStr)) {
+              continue; // Bỏ qua ngày nghỉ CME
+            }
+            if (dLot < minLot) {
+              minLot = dLot;
+              const parts = dStr.split('-');
+              minDate = `${parts[2]}/${parts[1]}`;
+            }
+          }
+          if (minLot === Infinity) {
+            minLot = 0;
+            minDate = `01/${monthStr}`;
+          }
         }
 
         const growthRate = lotPrev > 0 ? lotCur / lotPrev - 1 : null;
@@ -626,8 +883,8 @@ export class MonthlyReportingService {
 
         list.push({
           tvkdCode: code,
-          tvkdName: val.tvkdName,
-          fullName: `${val.tvkdName} - ${code}`,
+          tvkdName: resolvedName,
+          fullName: `${resolvedName} - ${code}`,
           lotPreviousMonth: lotPrev,
           lotCurrentMonth: lotCur,
           growthRate,
@@ -636,7 +893,7 @@ export class MonthlyReportingService {
           maxDate,
           minLotDay: minLot,
           minDate,
-          tradingDaysCount: val.dailyMap.size,
+          tradingDaysCount: val ? val.dailyMap.size : 0,
         });
       }
 
@@ -655,8 +912,8 @@ export class MonthlyReportingService {
       return list;
     };
 
-    const tvkdCqgList = processTvkdList(cqgTvkdMap, prevCqgTvkdMap);
-    const tvkdAcmList = processTvkdList(acmTvkdMap, prevAcmTvkdMap);
+    const tvkdCqgList = processTvkdList(cqgTvkdMap, prevCqgTvkdMap, true);
+    const tvkdAcmList = processTvkdList(acmTvkdMap, prevAcmTvkdMap, false);
 
     // Tính Đỉnh / Đáy Toàn thị trường cho dòng TỔNG (Rule 4.4 & Rule A2)
     const resolveMarketPeakTrough = (marketDaily: Map<string, number>, defaultDate: string) => {
@@ -713,15 +970,11 @@ export class MonthlyReportingService {
       system: 'CQG' | 'ACM',
       totalSysLot: number,
     ) => {
-      // Đối với ACM, danh mục chuẩn của QLGD là: Bạc Nano ACM, Bạch kim Nano ACM, Đồng Nano ACM
+      // Lấy danh mục động từ M-System API (/market/commodity?subType=F, L, A) kết hợp chuẩn QLGD
       const distinctCatalog =
         system === 'ACM'
-          ? [
-              { nameVn: 'Bạc Nano ACM' },
-              { nameVn: 'Bạch kim Nano ACM' },
-              { nameVn: 'Đồng Nano ACM' },
-            ]
-          : OFFICIAL_51_CQG_COMMODITIES.map((name) => ({ nameVn: name }));
+          ? dynCatalogs.acmCommodityNames.map((name) => ({ nameVn: name }))
+          : dynCatalogs.cqgCommodityNames.map((name) => ({ nameVn: name }));
 
       const getLotFuzzy = (map: Map<string, number>, targetName: string): number => {
         if (map.has(targetName)) return map.get(targetName) || 0;
@@ -1062,7 +1315,7 @@ export class MonthlyReportingService {
           prevActiveMap.set(it.tvkdCode, it.totalActiveAccounts || 0);
         }
 
-        const countsByCode = new Map<string, { before: number; current: number; activeStatusCount: number }>();
+        const countsByCode = new Map<string, { before: number; current: number; activeStatusCount: number; rawName: string }>();
         for (const r of rows) {
           let rawCode = '';
           for (const col of cfg.codeCols) {
@@ -1076,11 +1329,15 @@ export class MonthlyReportingService {
           if (code === '999') continue; // Loại bỏ mã TVKD test 999
 
           const st = String(r['Trạng thái'] || 'Hoạt động').trim();
+          const rawName = String(r['Tên TVKD'] || '').trim();
           const ym = parseRegYearMonth(r[cfg.dateCol]);
           if (!countsByCode.has(code)) {
-            countsByCode.set(code, { before: 0, current: 0, activeStatusCount: 0 });
+            countsByCode.set(code, { before: 0, current: 0, activeStatusCount: 0, rawName });
           }
           const entry = countsByCode.get(code)!;
+          if (!entry.rawName && rawName) {
+            entry.rawName = rawName;
+          }
           if (st === 'Hoạt động') {
             entry.activeStatusCount++;
           }
@@ -1103,7 +1360,7 @@ export class MonthlyReportingService {
           const activeBeforeMonth = prevActiveMap.has(code) ? prevActiveMap.get(code)! : entry.before;
           const newActiveInMonth = entry.current;
           const totalActiveCumulative = activeBeforeMonth + newActiveInMonth;
-          const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[code] || code;
+          const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[code] || entry.rawName || code;
 
           await this.specialAccountTrackingModel.findOneAndUpdate(
             { monthYear, category: cfg.category, tvkdCode: code },
@@ -1275,22 +1532,9 @@ export class MonthlyReportingService {
       } catch {}
     }
 
-    // B. Nạp Danh bạ TVKD Hoàn Toàn Động:
-    // Ưu tiên 1: Tên ngắn / thương hiệu chuẩn MXV từ OFFICIAL_TVKD_SHORT_NAMES (khớp file Thống kê số lot giao dịch)
-    // Ưu tiên 2: CSDL SystemSettings (key tvkd_names_map / tvkd_catalog)
-    // Ưu tiên 3: Tự động trích xuất trực tiếp từ cột [Tên TVKD] / [Tên thành viên] trong DSGD.xlsx & DSGD CCP.xlsx nếu chưa có
-    const tvkdNameMap = new Map<string, string>();
-    Object.entries(OFFICIAL_TVKD_SHORT_NAMES).forEach(([k, v]) => tvkdNameMap.set(k, v));
-
-    if (this.settingsService) {
-      try {
-        const rawTvkdMap = await this.settingsService.getSetting('tvkd_names_map', '');
-        if (rawTvkdMap) {
-          const parsed = JSON.parse(rawTvkdMap);
-          Object.entries(parsed).forEach(([k, v]) => tvkdNameMap.set(k.padStart(3, '0'), String(v)));
-        }
-      } catch {}
-    }
+    // B. Nạp Danh bạ TVKD & Mặt hàng Động từ M-System API (/am/admin/members & /market/commodity):
+    const dynCatalogs = await this.resolveDynamicCatalogs(year, month);
+    const tvkdNameMap = new Map<string, string>(dynCatalogs.allMembersNameMap);
 
     if (fs.existsSync(ccpFolder)) {
       const ccpDays = fs.readdirSync(ccpFolder).filter((d) => /^\d{2}\.\d{2}$/.test(d));
@@ -1303,12 +1547,12 @@ export class MonthlyReportingService {
             for (const r of qlRows) {
               const code = String(r['Mã TVKD'] || r['Ma TVKD'] || '').trim().padStart(3, '0');
               const name = String(r['Tên TVKD'] || r['Ten TVKD'] || '').trim();
-              if (code && name && !OFFICIAL_TVKD_SHORT_NAMES[code]) {
+              if (code && name && !OFFICIAL_TVKD_SHORT_NAMES[code] && !tvkdNameMap.has(code)) {
                 tvkdNameMap.set(code, name);
               }
             }
             if (tvkdNameMap.size > 0) {
-              this.logger.log(`[syncFromBackupFolders] Đã nạp động ${tvkdNameMap.size} TVKD chuẩn từ master QL TT TVKD ngày ${d}`);
+              this.logger.log(`[syncFromBackupFolders] Đã nạp động ${tvkdNameMap.size} TVKD chuẩn (M-System API + QL TT TVKD ngày ${d})`);
               break;
             }
           } catch {}
@@ -1361,7 +1605,12 @@ export class MonthlyReportingService {
             else if (lmeMatch) root = lmeMatch[1];
             else if (futMatch) root = futMatch[1];
 
-            const info = BGS_RAW_TO_STD_MAP[root] || BGS_RAW_TO_STD_MAP[hd];
+            const baseWithoutOpt = root.replace(/^[CP]\./i, '');
+            const dynComm =
+              dynCatalogs.dynamicCommodityCodeMap.get(baseWithoutOpt) ||
+              dynCatalogs.dynamicCommodityCodeMap.get(root) ||
+              dynCatalogs.dynamicCommodityCodeMap.get(hd);
+            const info = BGS_RAW_TO_STD_MAP[root] || BGS_RAW_TO_STD_MAP[hd] || dynComm;
             const productCode = info?.stdCode || root;
             let productNameVi = info?.nameVn || hd;
             if (CANONICAL_COMMODITY_NAME_MAP[productNameVi]) {
@@ -1369,7 +1618,12 @@ export class MonthlyReportingService {
             }
 
             const isSpread = acc.endsWith('-S') || acc.endsWith('S');
-            const isLme = acc.endsWith('L') || acc.endsWith('-L') || lmeMatch !== null || ['SND', 'AHD', 'ZDS', 'NID', 'PBD', 'CAD'].includes(root);
+            const isLme =
+              acc.endsWith('L') ||
+              acc.endsWith('-L') ||
+              lmeMatch !== null ||
+              ['SND', 'AHD', 'ZDS', 'NID', 'PBD', 'CAD'].includes(root) ||
+              dynComm?.subType === 'L';
             const isOptions = /^[CP]\./i.test(hd);
 
             const key = `CQG__${tvkdCode}__${productCode}__${isSpread}__${isLme}__${isOptions}`;
