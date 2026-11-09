@@ -1,3 +1,34 @@
+## [2026-11-09T16:26] FEAT(MONTHLY_REPORT_DYNAMIC_CATALOG_AND_DSTKGD): Tích Hợp API Danh Mục M-System (`/market/commodity` & `/am/admin/members`) Và Đồng Bộ 5 File `DSTKGD-*.xlsx` Từ Backup MS
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+- Thực hiện chỉ đạo từ USER:
+  1. _"trong này (`phân tích.md`) bao gồm các api bạn có thể call api để lấy response file tài liệu phân tích và xem có tích hợp vào phần luồng báo cáo này không"_: Loại bỏ phụ thuộc cứng vào danh sách mặt hàng/thành viên tĩnh bằng cách tích hợp trực tiếp API danh mục M-System (`/market/commodity?subType=F,L,A` và `/am/admin/members`).
+  2. _"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T10.2026\30.10 DSTKGD-Futures.xlsx DSTKGD-LME.xlsx DSTKGD-Options.xlsx DSTKGD-Spread.xlsx DSTKGD-ACM.xlsx trong này rồi lọc ra các mã tvkd được giao dịch để thống kê thay vì lấy tất trong cả tvkd"_ & _"còn hàng hóa sẽ lấy theo api vì trong thư mục backup không có lưu backup file hàng hóa"_:
+     - **Hàng hóa (Mục II)**: Đồng bộ động từ API `/market/commodity?subType=F,L,A` (42 mặt hàng Futures + 9 mặt hàng LME = 51 mặt hàng CQG; 3 mặt hàng ACM Nano).
+     - **Thành viên (Mục I.1 CQG)**: Kết hợp danh sách TVKD đang `ACTIVE` từ API `/am/admin/members` giao với các mã TVKD có tài khoản `Hoạt động` trong file `DSTKGD-Futures.xlsx` tại thư mục Backup MS ngày cuối tháng (giữ nguyên tên gốc từ API/file đối với TVKD mới như `090 - Công ty Cổ phần Giao dịch hàng hóa Wikex`).
+     - **Tài khoản Đặc thù (Mục III Spread, LME, Options)**: Tự động đọc trực tiếp từ 3 file `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx` trong thư mục Backup MS ngày cuối tháng.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/ingress/adapters/ms-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)
+- [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
+- [`backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Bổ sung `fetchMarketCommodities()` và `fetchAdminMembers()` vào `MsApiAdapter`** ([`ms-api.adapter.ts#L720-L855`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts#L720-L855)):
+   - Tự động đăng nhập lấy Bearer Token và gọi `GET /market/commodity?subType=F,L,A` và `GET /am/admin/members` từ `https://msapi.mxv.com.vn`.
+2. **Bổ sung `resolveDynamicCatalogs(year, month)` trong `MonthlyReportingService`** ([`monthly-reporting.service.ts#L214-L405`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L214-L405)):
+   - Đồng bộ danh mục mặt hàng từ `/market/commodity` (`F`, `L`, `A`) và lưu cache vào `SystemSettings` (`ms_commodities_catalog_cache`).
+   - Đồng bộ danh sách TVKD từ `/am/admin/members` (`ms_members_catalog_cache`) kết hợp lọc giao (intersect) với các mã TVKD có tài khoản `Hoạt động` trong `DSTKGD-Futures.xlsx`.
+   - Đối với TVKD mới phát sinh chưa có trong bảng tên rút gọn (như `090`), giữ nguyên tên gốc từ API/Excel (`Công ty Cổ phần Giao dịch hàng hóa Wikex`).
+3. **Đồng bộ Tự động `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx`** ([`monthly-reporting.service.ts#L1240-L1380`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1240-L1380)):
+   - Bóc tách chính xác cả ngày dạng chuỗi `DD/MM/YYYY` và Excel numeric serial date để tính `activeBeforeMonth`, `newActiveInMonth` và `totalActiveCumulative`.
+
+### 4. Xác nhận Build & Deploy
+- **Local Build**: `cd backend && npm.cmd run build` thành công (Exit code: 0).
+- **Ubuntu Server (`10.0.0.26`)**: Đã đồng bộ code, build lại Backend, restart `mxv-backend` và chạy `forceRefresh=true` cập nhật Snapshot Báo cáo Tháng 10/2026.
+
+---
+
 ## [2026-11-09T14:42] FIX(MONTHLY_REPORT_PARITY): Tách Cột Mã TVKD & Tên TVKD Ngắn Gọn, Chuẩn Hóa 51 Mặt Hàng CQG & Kế Thừa Lũy Kế TKGD Active Cho Phần III (Spread, LME, Options)
 
 ### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER / Quản lý
