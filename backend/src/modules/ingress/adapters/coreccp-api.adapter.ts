@@ -124,6 +124,17 @@ export class CoreCcpApiAdapter implements IIngressPort {
     }
   }
 
+  public clearSessionCache(): void {
+    this.cachedSession = null;
+    try {
+      if (fs.existsSync(this.sessionCachePath)) {
+        fs.unlinkSync(this.sessionCachePath);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Không thể xóa file cache session CoreCCP: ${err.message}`);
+    }
+  }
+
   private decodeJwt(token: string): any {
     try {
       const parts = token.split('.');
@@ -139,7 +150,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
   /**
    * Đăng nhập CoreCCP qua OAuth2 Authorization Code Grant 4 bước và lấy Bearer Token
    */
-  public async getValidSession(): Promise<ICcpSession> {
+  public async getValidSession(forceFresh = false): Promise<ICcpSession> {
     let baseUrl = process.env.CORECCP_BASE_URL || this.defaultBaseUrl;
     let username = process.env.CORECCP_USERNAME || '';
     let password = process.env.CORECCP_PASSWORD || '';
@@ -165,6 +176,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     }
 
     if (
+      !forceFresh &&
       this.cachedSession &&
       this.cachedSession.username === username &&
       this.cachedSession.expiresAt - Date.now() > 5 * 60 * 1000
@@ -476,7 +488,11 @@ export class CoreCcpApiAdapter implements IIngressPort {
     baseUrl: string,
     refererRoute = '',
     filterPayload: Record<string, any> = {},
+    isRetry = false,
   ): Promise<void> {
+    const cookieHeader = session.sessionCookie
+      ? (session.sessionCookie.startsWith('SESSION=') ? session.sessionCookie : `SESSION=${session.sessionCookie}`)
+      : '';
     const res = await fetch(`${baseUrl}/ccp/export/create`, {
       method: 'POST',
       headers: {
@@ -484,7 +500,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
         Authorization: `Bearer ${session.accessToken}`,
         connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
         'Content-Type': 'application/json',
-        Cookie: session.sessionCookie,
+        Cookie: cookieHeader,
         Origin: baseUrl,
         Referer: `${baseUrl}${refererRoute || '/'}`,
       },
@@ -500,7 +516,17 @@ export class CoreCcpApiAdapter implements IIngressPort {
       signal: AbortSignal.timeout(15000),
     });
 
-    const data = await res.json();
+    if (res.status === 401 && !isRetry) {
+      this.logger.warn(`[CoreCcpApiAdapter] createExportJob ${searchCode} bị 401 (Invalid token). Tự động xóa cache, lấy token mới và thử lại...`);
+      this.clearSessionCache();
+      const freshSession = await this.getValidSession(true);
+      session.accessToken = freshSession.accessToken;
+      session.sessionCookie = freshSession.sessionCookie;
+      session.expiresAt = freshSession.expiresAt;
+      return this.createExportJob(session, searchCode, fekey, baseUrl, refererRoute, filterPayload, true);
+    }
+
+    const data = await res.json().catch(() => ({}));
     if (!res.ok || (data && data.success === false)) {
       throw new Error(`Export Create ${searchCode} thất bại (${res.status}): ${JSON.stringify(data)}`);
     }
@@ -514,19 +540,33 @@ export class CoreCcpApiAdapter implements IIngressPort {
     reportId: string | number,
     baseUrl: string,
     refererRoute = '',
+    isRetry = false,
   ): Promise<Buffer> {
+    const cookieHeader = session.sessionCookie
+      ? (session.sessionCookie.startsWith('SESSION=') ? session.sessionCookie : `SESSION=${session.sessionCookie}`)
+      : '';
     const res = await fetch(`${baseUrl}/ccp/report/download/${reportId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
         connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
-        Cookie: session.sessionCookie,
+        Cookie: cookieHeader,
         Accept:
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*',
         Referer: `${baseUrl}${refererRoute || '/'}`,
       },
       signal: AbortSignal.timeout(30000),
     });
+
+    if (res.status === 401 && !isRetry) {
+      this.logger.warn(`[CoreCcpApiAdapter] downloadReportBinary ${reportId} bị 401. Tự động xóa cache, lấy token mới và thử lại...`);
+      this.clearSessionCache();
+      const freshSession = await this.getValidSession(true);
+      session.accessToken = freshSession.accessToken;
+      session.sessionCookie = freshSession.sessionCookie;
+      session.expiresAt = freshSession.expiresAt;
+      return this.downloadReportBinary(session, reportId, baseUrl, refererRoute, true);
+    }
 
     if (!res.ok) {
       throw new Error(`Tải file download/${reportId} thất bại: HTTP ${res.status}`);
@@ -738,10 +778,15 @@ export class CoreCcpApiAdapter implements IIngressPort {
     endpoint: string,
     payload: any,
     refererRoute: string,
+    isRetry = false,
   ): Promise<{ status: number; data: any }> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const parsedUrl = new URL(baseUrl);
       const postData = JSON.stringify(payload);
+
+      const cookieHeader = session.sessionCookie
+        ? (session.sessionCookie.startsWith('SESSION=') ? session.sessionCookie : `SESSION=${session.sessionCookie}`)
+        : '';
 
       const req = https.request({
         hostname: parsedUrl.hostname,
@@ -754,7 +799,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           Accept: 'application/json, text/plain, */*',
           Authorization: `Bearer ${session.accessToken}`,
           connectkey: EXTERNAL_SYSTEM_CORECCP.connectKey,
-          Cookie: `SESSION=${session.sessionCookie}`,
+          Cookie: cookieHeader,
           Origin: baseUrl,
           Referer: `${baseUrl}${refererRoute || '/'}`,
         },
@@ -762,13 +807,35 @@ export class CoreCcpApiAdapter implements IIngressPort {
       }, (res) => {
         let body = '';
         res.on('data', chunk => (body += chunk));
-        res.on('end', () => {
+        res.on('end', async () => {
+          let data: any;
           try {
-            const data = JSON.parse(body);
-            resolve({ status: res.statusCode || 200, data });
+            data = JSON.parse(body);
           } catch {
-            resolve({ status: res.statusCode || 200, data: body });
+            data = body;
           }
+
+          const is401 =
+            res.statusCode === 401 ||
+            (typeof data === 'string' && data.includes('Invalid access token')) ||
+            (data && typeof data === 'object' && (data.error === 'invalid_token' || String(data.message || '').includes('Invalid access token')));
+
+          if (is401 && !isRetry) {
+            this.logger.warn(`[CoreCcpApiAdapter] Gọi ${endpoint} bị từ chối (${res.statusCode}: Invalid access token). Tự động xóa cache, lấy token mới và thử lại...`);
+            this.clearSessionCache();
+            try {
+              const freshSession = await this.getValidSession(true);
+              session.accessToken = freshSession.accessToken;
+              session.sessionCookie = freshSession.sessionCookie;
+              session.expiresAt = freshSession.expiresAt;
+              const retryRes = await this.makeJsonPost(session, baseUrl, endpoint, payload, refererRoute, true);
+              return resolve(retryRes);
+            } catch (reloginErr: any) {
+              this.logger.error(`[CoreCcpApiAdapter] Tái đăng nhập CoreCCP thất bại: ${reloginErr.message}`);
+            }
+          }
+
+          resolve({ status: res.statusCode || 200, data });
         });
       });
 
