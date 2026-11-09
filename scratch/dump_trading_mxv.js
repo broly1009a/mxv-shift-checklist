@@ -32,3 +32,4 @@ mongoose.connect('mongodb://127.0.0.1:27017/trading_mxv')
   username: 'mxvadmin',
   password: 'MxV!,#2o26',
 });
+

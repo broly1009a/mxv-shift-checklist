@@ -27,3 +27,4 @@ console.log('TOP 10 COMMODITIES (RAW HD):');
 Object.entries(commCqg).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([k,v], i) => {
   console.log('  STT ' + (i+1) + ': ' + k + ' = ' + v.toLocaleString() + ' lots');
 });
+

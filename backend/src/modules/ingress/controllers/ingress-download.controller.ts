@@ -139,7 +139,7 @@ export class IngressDownloadController {
    * Kích hoạt kiểm tra và ghép file backup CQG.
    * POST /api/v1/ingress/trigger-audit-cqg & POST /api/v1/bot-engine/trigger-audit-cqg
    */
-  @Post('trigger-audit-cqg')
+  // [DEPRECATED/OFF] @Post('trigger-audit-cqg')
   async triggerAuditCqg(
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
@@ -315,7 +315,7 @@ export class IngressDownloadController {
    * Kích hoạt kiểm tra và tải bổ sung file backup MS.
    * POST /api/v1/ingress/trigger-audit-ms & POST /api/v1/bot-engine/trigger-audit-ms
    */
-  @Post('trigger-audit-ms')
+  // [DEPRECATED/OFF] @Post('trigger-audit-ms')
   async triggerAuditMs(
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
@@ -339,7 +339,7 @@ export class IngressDownloadController {
    * Kích hoạt kiểm tra file backup ACM.
    * POST /api/v1/ingress/trigger-audit-acm & POST /api/v1/bot-engine/trigger-audit-acm
    */
-  @Post('trigger-audit-acm')
+  // [DEPRECATED/OFF] @Post('trigger-audit-acm')
   async triggerAuditAcm(
     @Body('targetDate') targetDateStr?: string,
     @Body('sessionDate') sessionDateStr?: string,
@@ -364,7 +364,7 @@ export class IngressDownloadController {
    * Trigger trực tiếp tải báo cáo từ CoreCCP (Async).
    * POST /api/v1/ingress/download-ccp-report & POST /api/v1/bot-engine/download-ccp-report
    */
-  @Post('download-ccp-report')
+  // [DEPRECATED/OFF] @Post('download-ccp-report')
   async downloadCcpReport(@Body() body: any) {
     const ccpRaw = await this.settingsService.getSetting('bot_credentials_ccp', '');
     if (!ccpRaw) {
@@ -416,7 +416,7 @@ export class IngressDownloadController {
    * Trigger trực tiếp tải báo cáo từ CoreEX (Async).
    * POST /api/v1/ingress/download-ce-report & POST /api/v1/bot-engine/download-ce-report
    */
-  @Post('download-ce-report')
+  // [DEPRECATED/OFF] @Post('download-ce-report')
   async downloadCeReport(@Body() body: any) {
     const ceRaw = await this.settingsService.getSetting('bot_credentials_ce', '');
     if (!ceRaw) {
@@ -985,7 +985,7 @@ export class IngressDownloadController {
    * Đọc đường dẫn backup MS.
    * GET /api/v1/ingress/backup-ms/config & GET /api/v1/bot-engine/backup-ms/config
    */
-  @Get('backup-ms/config')
+  // [DEPRECATED/OFF] @Get('backup-ms/config')
   async getBackupMsConfig() {
     const backupPath = await this.settingsService.getSetting(
       'bot_backup_path_ms',
@@ -998,7 +998,7 @@ export class IngressDownloadController {
    * Lưu đường dẫn backup MS.
    * POST /api/v1/ingress/backup-ms/config & POST /api/v1/bot-engine/backup-ms/config
    */
-  @Post('backup-ms/config')
+  // [DEPRECATED/OFF] @Post('backup-ms/config')
   async saveBackupMsConfig(@Body('backupPath') backupPath: string) {
     if (!backupPath || typeof backupPath !== 'string') {
       throw new HttpException(
@@ -1017,7 +1017,7 @@ export class IngressDownloadController {
    * Đọc đường dẫn backup CQG.
    * GET /api/v1/ingress/backup-cqg/config & GET /api/v1/bot-engine/backup-cqg/config
    */
-  @Get('backup-cqg/config')
+  // [DEPRECATED/OFF] @Get('backup-cqg/config')
   async getBackupCqgConfig() {
     const { baseDir, fullPath } = await this.cqgMergerService.getDailyBackupPath(
       new Date(),
@@ -1029,7 +1029,7 @@ export class IngressDownloadController {
    * Lưu đường dẫn backup CQG.
    * POST /api/v1/ingress/backup-cqg/config & POST /api/v1/bot-engine/backup-cqg/config
    */
-  @Post('backup-cqg/config')
+  // [DEPRECATED/OFF] @Post('backup-cqg/config')
   async saveBackupCqgConfig(@Body('backupPath') backupPath: string) {
     if (!backupPath || typeof backupPath !== 'string') {
       throw new HttpException(
@@ -1048,7 +1048,7 @@ export class IngressDownloadController {
    * Đọc đường dẫn backup ACM.
    * GET /api/v1/ingress/backup-acm/config & GET /api/v1/bot-engine/backup-acm/config
    */
-  @Get('backup-acm/config')
+  // [DEPRECATED/OFF] @Get('backup-acm/config')
   async getBackupAcmConfig() {
     const backupPath = await getAcmBackupBase(this.settingsService);
     return { backupPath };
@@ -1058,7 +1058,7 @@ export class IngressDownloadController {
    * Lưu đường dẫn backup ACM.
    * POST /api/v1/ingress/backup-acm/config & POST /api/v1/bot-engine/backup-acm/config
    */
-  @Post('backup-acm/config')
+  // [DEPRECATED/OFF] @Post('backup-acm/config')
   async saveBackupAcmConfig(@Body('backupPath') _backupPath: string) {
     return {
       success: true,
@@ -1070,7 +1070,7 @@ export class IngressDownloadController {
    * Đọc cấu hình lịch tự động tải CoreCCP.
    * GET /api/v1/ingress/backup-ccp/schedule & GET /api/v1/bot-engine/backup-ccp/schedule
    */
-  @Get('backup-ccp/schedule')
+  // [DEPRECATED/OFF] @Get('backup-ccp/schedule')
   async getCcpSchedule() {
     const periodic = await this.settingsService.getSetting('bot_ccp_periodic_enabled', 'true');
     const periodicMinutes = await this.settingsService.getSetting('bot_ccp_periodic_minutes', '60');
@@ -1100,7 +1100,7 @@ export class IngressDownloadController {
    * Lưu cấu hình lịch tự động tải CoreCCP.
    * POST /api/v1/ingress/backup-ccp/schedule & POST /api/v1/bot-engine/backup-ccp/schedule
    */
-  @Post('backup-ccp/schedule')
+  // [DEPRECATED/OFF] @Post('backup-ccp/schedule')
   async saveCcpSchedule(
     @Body('periodic') periodic?: boolean,
     @Body('periodicMinutes') periodicMinutes?: number,

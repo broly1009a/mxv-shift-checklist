@@ -142,72 +142,15 @@ export class TradingOpsMiscController {
   /**
    * Liệt kê các thư mục ngày mẫu từ BackupMS.
    */
+  /**
+   * @deprecated Liệt kê các thư mục ngày mẫu từ BackupMS cũ.
+   */
   @Get('sample-dates')
   @Permissions('ACCESS_AUTO_SHIFT')
   async listSampleDates() {
-    const baseBackupDir = path.join(
-      process.cwd(),
-      '..',
-      'it-tool-src',
-      'operate-transaction-app',
-      'bin',
-      'Debug',
-      'Download',
-      'BackupMS',
-    );
-
-    const dates: {
-      label: string;
-      samplePath: string;
-      year: string;
-      month: string;
-      day: string;
-    }[] = [];
-
-    if (!fs.existsSync(baseBackupDir)) {
-      return {
-        success: false,
-        message: 'Thư mục BackupMS không tồn tại',
-        dates: [],
-      };
-    }
-
-    try {
-      const years = fs
-        .readdirSync(baseBackupDir)
-        .filter((y) => /^\d{4}$/.test(y));
-      for (const year of years) {
-        const yearPath = path.join(baseBackupDir, year);
-        const months = fs
-          .readdirSync(yearPath)
-          .filter((m) => /^T\d{2}/.test(m));
-        for (const month of months) {
-          const monthPath = path.join(yearPath, month);
-          const days = fs
-            .readdirSync(monthPath)
-            .filter((d) => /^\d{2}\.\d{2}$/.test(d));
-          for (const day of days) {
-            const dayPath = path.join(monthPath, day);
-            const [dd, mm] = day.split('.');
-            const label = `${dd}/${mm}/${year}`;
-            dates.push({ label, samplePath: dayPath, year, month, day });
-          }
-        }
-      }
-      dates.sort((a, b) => {
-        const da = `${a.year}-${a.day.split('.')[1]}-${a.day.split('.')[0]}`;
-        const db = `${b.year}-${b.day.split('.')[1]}-${b.day.split('.')[0]}`;
-        return db.localeCompare(da);
-      });
-      return { success: true, dates };
-    } catch (err: any) {
-      return { success: false, message: err.message, dates: [] };
-    }
+    return [];
   }
 
-  /**
-   * Lấy tin nhắn cảnh báo đáo hạn hợp đồng thủ công từ ca trực.
-   */
   @Get('maturity-manual-messages')
   @Permissions('ACCESS_AUTO_SHIFT')
   async getMaturityManualMessages(@Query('shiftLogId') shiftLogId: string) {

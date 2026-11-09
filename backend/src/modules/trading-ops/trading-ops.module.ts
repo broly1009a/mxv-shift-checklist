@@ -63,7 +63,7 @@ import { DsgdBeforeEodReconController } from './controllers/dsgd-before-eod-reco
 import { TradingOpsUploadController } from './controllers/trading-ops-upload.controller';
 import { MarginCheckerController } from './controllers/margin-checker.controller';
 import { GttReconController } from './controllers/gtt-recon.controller';
-import { GttUploadController } from './controllers/gtt-upload.controller';
+// import { GttUploadController } from './controllers/gtt-upload.controller'; (Deprecated test upload)
 import { MacroExecutionController } from './controllers/macro-execution.controller';
 import { MonthlyReportingController } from './controllers/monthly-reporting.controller';
 import { TradingOpsMiscController } from './controllers/trading-ops-misc.controller';
@@ -103,7 +103,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     TradingOpsUploadController,
     MarginCheckerController,
     GttReconController,
-    GttUploadController,
+    // GttUploadController, (Deprecated test upload)
     MacroExecutionController,
     MonthlyReportingController,
     TradingOpsMiscController,

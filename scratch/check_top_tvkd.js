@@ -52,3 +52,4 @@ console.log('\nTOP 10 TVKD ACM (22 DAYS):');
 Object.entries(tvkdAcm).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([k,v], i) => {
   console.log('  STT ' + (i+1) + ': TVKD ' + k + ' = ' + v.toLocaleString() + ' lots (' + (v/58307*100).toFixed(2) + '%)');
 });
+

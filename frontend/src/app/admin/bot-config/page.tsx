@@ -5,32 +5,23 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth, API_BASE_URL } from '@/context/AuthContext';
 import { api } from '@/services/api';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   Cpu,
   Key,
-  Database,
-  FileText,
-  Clock,
   Terminal,
-  Download,
-  FileSpreadsheet,
-  TrendingUp,
   Sliders,
+  Layers,
+  ExternalLink,
 } from 'lucide-react';
 
 import ConnectionSettings from './components/ConnectionSettings';
 import SystemSchedulerSettings from './components/SystemSchedulerSettings';
-import GttChecker from './components/GttChecker';
-import ReconciliationPanel from './components/ReconciliationPanel';
-import BackupAuditor from './components/BackupAuditor';
 import JobQueuePanel, { BotJob } from './components/JobQueuePanel';
-import ReportDownloader from './components/ReportDownloader';
-import LotStatisticsPanel from './components/LotStatisticsPanel';
-import ValueStatisticsPanel from './components/ValueStatisticsPanel';
 import MarginCheckerModal from '@/app/checklist/components/MarginCheckerModal';
 
-type TabType = 'credentials' | 'scheduler' | 'gtt' | 'reconciliation' | 'lot-statistics' | 'value-statistics' | 'backup' | 'downloader' | 'queue';
+type TabType = 'credentials' | 'scheduler' | 'queue';
 
 export default function AdminBotConfigPage() {
   const { user, token } = useAuth();
@@ -127,7 +118,7 @@ export default function AdminBotConfigPage() {
       const params = new URLSearchParams(window.location.search);
       const m365Auth = params.get('m365_auth');
       const error = params.get('error');
-      
+
       if (m365Auth === 'success') {
         toast.success('Cấp quyền hòm thư Bot Microsoft 365 thành công!');
         router.replace('/admin/bot-config?tab=credentials');
@@ -173,17 +164,16 @@ export default function AdminBotConfigPage() {
     }
   }, [jobs, trackedJobs]);
 
-  // Tab configurations
+  // Tab configurations: Chuẩn hóa 3 tabs quản trị thực thụ
   const TABS = [
     { id: 'credentials', label: 'Tài khoản kết nối', icon: Key },
     { id: 'scheduler', label: 'Tham số & Lập lịch', icon: Sliders },
-    { id: 'gtt', label: 'Kiểm tra GTT', icon: FileText },
-    { id: 'reconciliation', label: 'Kiểm thử Đối chiếu', icon: Database },
-    { id: 'lot-statistics', label: 'Thống kê số lot', icon: FileSpreadsheet },
-    { id: 'value-statistics', label: 'Thống kê giá trị', icon: TrendingUp },
-    { id: 'backup', label: 'Backup & Macro', icon: Clock },
-    { id: 'downloader', label: 'Yêu cầu Tải báo cáo', icon: Download },
-    { id: 'queue', label: 'Hàng đợi & Logs', icon: Terminal, count: jobs.filter(j => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length },
+    {
+      id: 'queue',
+      label: 'Hàng đợi & Logs',
+      icon: Terminal,
+      count: jobs.filter(j => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length,
+    },
   ];
 
   if (!token) {
@@ -259,9 +249,49 @@ export default function AdminBotConfigPage() {
           )}
         </div>
 
+        {/* Banner điều hướng tập trung về Trading Manager Hub */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Layers size={18} color="#3b82f6" />
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+              Các tính năng vận hành tác vụ (Đối chiếu, Tải backup, Thống kê Lot/GTGD, Kiểm tra GTT, Báo cáo Tháng) đã được tích hợp tập trung tại <strong>Trading Manager Hub</strong>.
+            </span>
+          </div>
+          <Link
+            href="/trading-manager"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: '#3b82f6',
+              textDecoration: 'none',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+            }}
+          >
+            <span>Mở Trading Manager Hub</span>
+            <ExternalLink size={14} />
+          </Link>
+        </div>
+
         {/* Tab Buttons bar */}
         <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap' }} className="table-responsive-wrapper">
-
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -345,40 +375,6 @@ export default function AdminBotConfigPage() {
               </div>
               <SystemSchedulerSettings token={token} apiBaseUrl={API_BASE_URL} />
             </div>
-          )}
-
-          {activeTab === 'gtt' && (
-            <GttChecker token={token} apiBaseUrl={API_BASE_URL} />
-          )}
-
-          {activeTab === 'reconciliation' && (
-            <ReconciliationPanel token={token} apiBaseUrl={API_BASE_URL} />
-          )}
-
-          {activeTab === 'lot-statistics' && (
-            <LotStatisticsPanel token={token} apiBaseUrl={API_BASE_URL} />
-          )}
-
-          {activeTab === 'value-statistics' && (
-            <ValueStatisticsPanel token={token} apiBaseUrl={API_BASE_URL} />
-          )}
-
-          {activeTab === 'backup' && (
-            <BackupAuditor
-              token={token}
-              apiBaseUrl={API_BASE_URL}
-              fetchJobs={fetchJobs}
-              setTrackedJobs={setTrackedJobs}
-            />
-          )}
-
-          {activeTab === 'downloader' && (
-            <ReportDownloader
-              token={token}
-              apiBaseUrl={API_BASE_URL}
-              fetchJobs={fetchJobs}
-              setTrackedJobs={setTrackedJobs}
-            />
           )}
 
           {activeTab === 'queue' && (

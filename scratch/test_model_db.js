@@ -40,3 +40,4 @@ test().catch(e => { console.error(e); process.exit(1); });
   username: 'mxvadmin',
   password: 'MxV!,#2o26',
 });
+
