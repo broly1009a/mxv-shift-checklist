@@ -7,6 +7,8 @@ import { extractCqgSnapshotTime } from '../../parsers/cqg-excel.parser';
 import { getMsConversionRate } from '../../helpers/ms-exchange-rate.helper';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
 import { TelegramService } from '../../../telegram/telegram.service';
+import { SystemLogsService } from '../../../system-logs/system-logs.service';
+import { ShiftsGateway } from '../../../shifts/shifts.gateway';
 import { resolveStoragePathCrossPlatform, resolveDailySubfolder, getMsBackupBase, getCqgBackupBase, FAST_XLSX_READ_OPTIONS as FAST_XLSX_OPTS } from '../../../../shared';
 
 export interface CqgAuditResult {
@@ -206,6 +208,10 @@ export class CqgMergerService {
     private readonly settingsService?: SystemSettingsService,
     @Optional()
     private readonly telegramService?: TelegramService,
+    @Optional()
+    private readonly systemLogsService?: SystemLogsService,
+    @Optional()
+    private readonly shiftsGateway?: ShiftsGateway,
   ) {}
 
   /**
@@ -821,6 +827,36 @@ export class CqgMergerService {
 
     if (this.telegramService) {
       await this.telegramService.sendMessage(telegramMsg).catch(() => {});
+    }
+
+    const isMatched = totalMismatched === 0;
+    const cqgNotice = isMatched
+      ? `Khớp số dư CQG ngày ${day}/${month}: M-System và CQG`
+      : `Lệch số dư CQG ngày ${day}/${month}: ${totalMismatched} tài khoản (> $100)`;
+
+    if (this.systemLogsService) {
+      await this.systemLogsService.logEvent({
+        eventType: isMatched ? 'CQG_SYNC_MATCHED' : 'CQG_SYNC_MISMATCHED',
+        source: 'SYSTEM',
+        status: isMatched ? 'SUCCESS' : 'FAILED',
+        message: cqgNotice,
+        metadata: { day, month, year, totalMismatched },
+      }).catch(() => {});
+    }
+
+    if (this.shiftsGateway) {
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        null,
+        null,
+        null,
+        `${year}-${month}-${day}`,
+        {
+          type: 'CQG_SYNC',
+          status: isMatched ? 'SUCCESS' : 'FAILED',
+          message: cqgNotice,
+        },
+      );
     }
 
     return {

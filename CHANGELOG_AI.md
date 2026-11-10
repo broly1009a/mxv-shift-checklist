@@ -577,25 +577,296 @@
 
 ### 4. Xác nhận Build & Kiểm thử
 - **Typecheck**: Chạy `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.build.json` thành công 100% (Exit code: 0).
+## [2026-11-10T16:50] FEAT(HYBRID_ACM_OCTOBER_RECON): Triển Khai Cơ Chế Ghép Nối Chuyển Giao CoreCCP (Hybrid ACM) Cho Báo Cáo Tháng 10 Khớp 1:1 Với QLGD (62,489 Lot)
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+- Triển khai Phương án 2 đã được phê duyệt chính thức bởi USER và Trưởng ca QLGD:
+  - _"tôi vừa confirm với anh QLGD đúng rồi nhé từ 12/10 mới sang hết ccp còn lại trước đó vẫn còn bên MS và rule của mình sẽ check cả hai và đúng với số liệu 62,489 lot Phương án 2 (Khớp 1:1 với Lũy kế 62,489 lot của QLGD) là chuẩn rồi"_
+  - _"giúp tôi lên tài liệu thiết kế chia nhỏ từng task để kiểm thử chính xác không code thừa code bừa phỏng đoán"_
+  - _"giúp tôi phát triển"_
+- Bản chất nghiệp vụ: Giai đoạn 01/10 - 08/10/2026 là thời kỳ chuyển giao TVKD sang CoreCCP. Một số TVKD (003, 085, 046, 009) chưa kịp chuyển đổi vẫn giao dịch ACM trên M-System cũ trước khi hoàn tất chuyển giao vào ngày 12/10/2026.
+- Mục tiêu: Bổ sung cơ chế quét bù tự động các TVKD chưa sang CoreCCP từ `DSGD.xlsx` (M-System) vào `DSGD CCP.xlsx` (CoreCCP) với nguyên tắc chống cộng trùng 100% (Zero-Double-Counting), đảm bảo lũy kế Tháng 10 đạt đúng **62,489 lot ACM** và **169,289 lot CQG**, đồng thời bảo vệ toàn vẹn các tháng lịch sử và tháng tương lai.
+
+### 2. Danh Sách File Chỉnh Sửa & Tóm Tắt Code Đã Sửa
+
+- **Core Backend Engine**:
+  - [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1611-L1865):
+    - **Khối A (CQG & gom dòng ACM M-System)**: Khai báo mảng `msAcmRows = []`. Khi duyệt file `DSGD.xlsx` của từng ngày, phân loại các dòng ACM Nano (TK kết thúc bằng `A` hoặc mã HĐ `SI5CO`, `PL1NY`, `CP2CO` hoặc hàng hóa `...ACM`) để lưu vào `msAcmRows`, đồng thời loại trừ 100% khỏi khối CQG.
+    - **Khối B (CoreCCP ACM)**: Duyệt `DSGD CCP.xlsx`, ghi nhận tập hợp TVKD đã hoạt động trên CoreCCP trong ngày vào `ccpTvkdsOnDay = new Set<string>()`.
+    - **Khối B2 (Cơ chế Hybrid Quét Bù Tự Động)**: Duyệt lại `msAcmRows`, chỉ cộng bù giao dịch của các TVKD thỏa mãn điều kiện `!ccpTvkdsOnDay.has(tvkdCode)`. Nếu TVKD đã có mặt trên CoreCCP ngày hôm đó $\rightarrow$ Bỏ qua hoàn toàn, triệt tiêu 100% nguy cơ cộng trùng.
+- **Tài liệu Hướng dẫn & Quy chuẩn Nghiệp vụ**:
+  - [`HUONG_DAN_CONG_THUC_BAO_CAO_THANG_QLGD.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/HUONG_DAN_CONG_THUC_BAO_CAO_THANG_QLGD.md):
+    - Cập nhật công thức và cơ sở dữ liệu chuyển tiếp Tháng 10/2026.
+    - Ghi nhận chi tiết 4,182 lot bù M-System từ các TVKD 003, 085, 046, 009 giai đoạn 01/10 - 08/10.
+
+### 3. Kết Quả Kiểm Thử & Xác Nhận Ground Truth 100%
+
+1. **Khớp 1:1 Báo Cáo Ca Phiên 30/10/2026 của Lê Doãn Việt Hoàng**:
+   - **CQG Phiên 30/10**: Hệ thống tính ra **5,978** lot $\rightarrow$ Khớp 100% (Tin nhắn: `CQG: 5,978 lot`).
+   - **ACM Phiên 30/10**: Hệ thống tính ra **3,490** lot $\rightarrow$ Khớp 100% (Tin nhắn: `ACM: 3,490 lot`):
+     - Bạc Nano (`SI5CO`): **3,227** lot (Khớp 100%).
+     - Bạch kim Nano (`PL1NY`): **74** lot (Khớp 100%).
+     - Đồng Nano (`CP2CO`): **189** lot (Khớp 100%).
+2. **Khớp 1:1 Lũy Kế Tháng 10/2026**:
+   - **Tổng CQG Lũy kế**: **169,289** lot (Tin nhắn: `Lũy kế 169,289 lot`).
+   - **Tổng ACM Lũy kế**: **62,489** lot (Tin nhắn: `Lũy kế 62,489 lot`).
+   - **Tổng Toàn Thị Trường**: **231,778** lot.
+   - Cơ cấu mặt hàng ACM Tháng 10:
+     - Bạc Nano ACM: **51,495** lot (Tỷ trọng 82.41%).
+     - Bạch kim Nano ACM: **6,880** lot (Tỷ trọng 11.01%).
+     - Đồng Nano ACM: **4,114** lot (Tỷ trọng 6.58%).
+3. **Kiểm tra Hồi quy (Regression Test)**:
+   - Tháng 8/2026: CQG **144,962** lot, ACM **54,911** lot, Tổng **199,873** lot $\rightarrow$ Bất biến, khớp chuẩn 100%.
+   - Tháng 9/2026: CQG **159,794** lot, ACM **67,246** lot, Tổng **227,040** lot $\rightarrow$ Bất biến, khớp chuẩn 100%.
+   - Tháng 11/2026: 100% TVKD đã chuyển đổi trọn vẹn sang CoreCCP, không còn phát sinh ACM trên M-System $\rightarrow$ Không có rủi ro sai lệch.
+4. **Trạng Thái Triển Khai Hạ Tầng**:
+   - Local Build Frontend & Backend: Pass 100% (`Exit Code 0`).
+   - Server Ubuntu `10.0.0.26`: Đã fastPut code, chạy `npm run build` thành công và khởi động lại PM2 service `mxv-backend`.
+   - CSDL Snapshot MongoDB: Đã gọi API `forceRefresh=true` cập nhật dữ liệu hoàn tất.
+
+---
+
+## [2026-11-10T11:30] REFACTOR(CLEAN_HUMAN_NOTIFICATIONS): Chuẩn Hóa Toàn Diện Câu Từ Thông Báo Hệ Thống Theo Ngôn Ngữ Vận Hành Con Người & Kiểm Thử Cuốn Chiếu
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+- Thực hiện chỉ đạo từ USER: _"tôi cần noti chuẩn clean không thông báo máy móc kỹ thuật kiểu ai mà ngắn gọn con người và chuẩn. nên tôi cần bạn tạo tasks khoanh vùng chỗ cần sửa rồi chuẩn chỉ không fallback bịa lung tung - được giúp tôi update từng task và kiểm thử từng task cuốn chiếu"_
+- Loại bỏ hoàn toàn các câu từ kỹ thuật debug máy móc (như `status=SUCCESS, note=...`, `[Bot Đối Soát] Thất bại tác vụ RUN_MACRO: Error: ...`, `tích hoàn thành`, `bỏ tích`).
+- Thay thế bằng câu từ súc tích, chuyên nghiệp vận hành, đọc hiểu trong 2 giây.
+- Triển khai cuốn chiếu 5 task tuần tự kèm build verification ở từng bước.
+
+### 2. Danh Sách File Chỉnh Sửa & Tóm Tắt Code Đã Sửa
+
+- **Task 1: Chuẩn hóa Thông báo Ca Trực**:
+  - [`backend/src/modules/shifts/shifts.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/shifts/shifts.service.ts#L248):
+    - Khởi tạo ca: Chuyển thành `Bắt đầu ca: ${templateTitle}` (ngắn gọn, tập trung nghiệp vụ).
+    - Cập nhật tác vụ (`#L720`): Chuyển thành `Đã hoàn thành "${taskName}"` hoặc `Mở lại tác vụ "${taskName}"`, kèm ghi chú gọn gàng `(${note})`.
+    - Khóa sổ ca (`#L1017`): Chuyển thành `Đã chốt ca: ${templateTitle}`.
+  - [`backend/src/modules/dashboard/dashboard.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/dashboard/dashboard.service.ts#L320-L330):
+    - Đổi `tích hoàn thành` / `bỏ tích` thành `Đã hoàn thành "${taskName}"` / `Mở lại tác vụ "${taskName}"` / `Ghi chú "${taskName}": ${details}`.
+
+- **Task 2: Chuẩn hóa Thông báo Hàng đợi Bot Job**:
+  - [`backend/src/shared/constants/bot-task-registry.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/constants/bot-task-registry.ts#L521-L527):
+    - Bổ sung helper `getBotJobDisplayName(jobType)` tra cứu tên tiếng Việt nghiệp vụ chuẩn từ `BOT_TASK_REGISTRY` (ví dụ `RUN_MACRO` $\rightarrow$ `Thống Kê Khối Lượng CCP (Macro)`).
+  - [`backend/src/shared/index.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/shared/index.ts#L21):
+    - Re-export `bot-task-registry`.
+  - [`backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts#L674-L705) & (`#L1017-L1025`):
+    - Khi hoàn thành: `Hoàn tất ${displayName}` (không để lộ mã Task ID kỹ thuật dạng `[TASK_123]`).
+    - Khi có sự cố: `Chưa hoàn tất ${displayName}: ${cleanError}` (cắt gọt error message sạch sẽ, loại bỏ tiền tố `Error: ` và stack trace).
+
+- **Task 3: Chuẩn hóa Thông báo Trading Ops**:
+  - [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L721) & (`#L1832`):
+    - Khóa sổ: `Đã khóa sổ Báo cáo tháng ${monthYear}`.
+    - Tổng hợp: `Đã tổng hợp Báo cáo tháng ${monthYear} (${totalLots} lot)`.
+  - [`backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts#L832-L836):
+    - Khớp: `Khớp số dư CQG ngày ${day}/${month}: M-System và CQG`.
+    - Lệch: `Lệch số dư CQG ngày ${day}/${month}: ${totalMismatched} tài khoản (> $100)`.
+  - [`backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts#L680-L684):
+    - Khớp: `Khớp EOD CoreCCP phiên ${dateFormatted} (${totalAccounts} tài khoản)`.
+    - Lệch: `Cảnh báo EOD CoreCCP phiên ${dateFormatted}: ${mismatchedCount} TK lệch, ${negativeCount} TK âm mới`.
+
+- **Task 4: Tinh gọn Tiêu đề Toast & Khay Chuông UI**:
+  - [`frontend/src/components/NotificationDropdown.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/NotificationDropdown.tsx#L12-L24) & (`#L135-L215`, `#L435-L485`):
+    - Đồng nhất hàm xác định tiêu đề `getNotificationTitle()` cho cả Toast nổi và danh sách Dropdown.
+    - Tiêu đề ngắn gọn: `Tác vụ ca trực`, `Ca trực`, `Báo cáo tháng`, `Đối chiếu CQG`, `Đối chiếu CoreCCP`, `Cảnh báo lệch số liệu`, `Tác vụ tự động`, `Cảnh báo tự động`.
+    - Cho phép click trực tiếp vào Toast nổi để tự động điều hướng đến đúng phân hệ (Báo cáo tháng, Trading Ops hoặc Ca trực).
+
+- **Task 5: Chuẩn hóa Truy vấn Data-First**:
+  - [`backend/src/modules/dashboard/dashboard.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/dashboard/dashboard.service.ts#L295-L312):
+    - Cơ chế fallback lấy dữ liệu thực tế từ MongoDB (`createdAt: -1`) khi ngày hôm nay chưa có sự kiện, tuyệt đối không chèn mảng giả lập rác (Tuân thủ Quy tắc 5 & 7 trong AGENTS.md).
+
+### 3. Kiểm thử Cuốn Chiếu & Quality Gate
+- Task 1: Backend Build pass (Exit Code 0).
+- Task 2: Backend Build pass (Exit Code 0).
+- Task 3: Backend Build pass (Exit Code 0).
+- Task 4: Frontend Typecheck pass (Exit Code 0).
+- Task 5: Backend Build & Frontend Typecheck pass 100% (Exit Code 0).
+
+---
+
+## [2026-11-10T09:15] FEAT(IN_APP_NOTIFICATIONS_EXPANSION): Mở Rộng Luồng Bắn Noti In-App (Chuông & Toast Nổi) Cho Toàn Bộ Sự Kiện Trading Ops Độc Lập Khỏi Ca Trực
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+- Thực hiện chỉ đạo từ USER: _"Thông luồng In-App (Chuông & Toast nổi trên Web): Mở rộng để chuông nhận cả các sự kiện của Trading Ops (như khi chạy xong Báo cáo tháng, đối chiếu CQG/CoreCCP xong, hoặc phát hiện lệch dữ liệu) mà không phụ thuộc vào việc có ca trực hôm nay hay không? có"_
+- Giải quyết triệt để vấn đề chuông thông báo Header và Toast bị rỗng/tắt ngấm khi không có ca trực nào chạy hôm nay.
+- Đấu nối toàn bộ sự kiện nghiệp vụ Trading Ops (Báo cáo tháng, Đối chiếu CQG, Đối chiếu CCP EOD, Hoàn thành tác vụ Bot) vào bộ phát sự kiện Realtime WebSockets và lịch sử hoạt động In-App.
+
+### 2. Danh Sách File Chỉnh Sửa
+- **Backend**:
+  - [`backend/src/modules/dashboard/dashboard.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/dashboard/dashboard.service.ts#L229-L380):
+    - Chuẩn hóa mốc thời gian GMT+7 (`+07:00`) tránh lỗi lệch múi giờ đầu ngày.
+    - Không chặn log Trading Ops/hệ thống chung (`departmentId: null`).
+    - Thêm cơ chế Fallback tự động: Khi ngày hôm nay chưa có sự kiện nào hoặc không có ca trực hôm nay, tự động lấy các hoạt động vận hành gần nhất trong 7 ngày để khay thông báo luôn hiển thị đầy đủ trạng thái.
+    - Mở rộng phân loại sự kiện: `MONTHLY_REPORT`, `CQG_SYNC`, `CCP_EOD`, `RECON_MISMATCH`, `BOT_COMPLETED`, `BOT_FAILED`.
+  - [`backend/src/modules/trading-ops/trading-ops.module.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/trading-ops.module.ts#L39-L85):
+    - Import `SystemLogsModule` để các service Trading Ops có thể ghi nhận hoạt động vào nhật ký hệ thống.
+  - [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L22-L215) & (`#L714-L745`, `#L1815-L1845`):
+    - Ghi nhận `MONTHLY_REPORT_GENERATED` và `MONTHLY_REPORT_LOCKED` vào `systemLogs` và phát sự kiện WebSocket `DASHBOARD_UPDATED` ngay khi tổng hợp hoặc khóa sổ Báo cáo tháng.
+  - [`backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/merger/cqg-merger.service.ts#L9-L215) & (`#L820-L855`):
+    - Tự động ghi `CQG_SYNC_MATCHED` (khớp hoàn toàn) hoặc `CQG_SYNC_MISMATCHED` (lệch số dư $> $100) và phát WebSocket cập nhật chuông.
+  - [`backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/recon/ccp-eod.service.ts#L17-L85) & (`#L665-L700`):
+    - Tự động ghi `CCP_EOD_MATCHED` hoặc `CCP_EOD_MISMATCHED` và phát WebSocket báo trạng thái đối chiếu CoreCCP.
+  - [`backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts#L1005-L1015):
+    - Ghi nhận `BOT_JOB_COMPLETED` khi bot job chạy thành công (`status === 'COMPLETED'`) để người dùng thấy tiến trình hoàn tất trên chuông.
+- **Frontend**:
+  - [`frontend/src/components/NotificationDropdown.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/NotificationDropdown.tsx#L140-L165) & (`#L440-L530`):
+    - Hiển thị tiêu đề chuẩn theo từng loại sự kiện: `Báo cáo tháng QLGD`, `Đối chiếu số dư CQG`, `Đối chiếu EOD CoreCCP`, `Cảnh báo lệch dữ liệu`, `Tác vụ hoàn thành`, `Cảnh báo Bot đối soát`.
+    - Điều hướng thông minh khi click vào thông báo: Sự kiện Báo cáo tháng mở thẳng `/trading-manager/monthly-report`, sự kiện đối chiếu mở `/trading-manager`, sự kiện ca trực mở chi tiết ca trực.
+    - Chuẩn hóa giao diện không dùng raw emojis theo Quy tắc 4.5 của AGENTS.md.
+
+### 3. Kiểm thử & Quality Gate
+- Backend Build (`nest build`): **Exit Code 0 (Thành công 100%)**.
+- Frontend Typecheck (`npx tsc --noEmit`): **Exit Code 0 (Thành công 100%)**.
+
+---
+
+## [2026-11-10T08:18] CONFIG(TELEGRAM_TEMPORARY_DISABLE): Tạm Thời Tắt 100% Gửi Thông Báo Telegram Trên Toàn Hệ Thống
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+- Thực hiện chỉ đạo từ USER: _"tạm thời chưa dùng telegram"_
+- Vô hiệu hóa tính năng gửi thông báo Telegram trên toàn bộ hệ thống (ở cả 2 phân hệ Ca Trực và Trading Ops) tại cổng điều phối trung tâm.
+
+### 2. Danh sách File Chỉnh sửa & Cập nhật
+- [`backend/src/modules/telegram/telegram.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/telegram/telegram.service.ts#L38-L47):
+  - Phương thức `sendMessage(text: string, customChatId?: string)` ghi log `[TELEGRAM DISABLED]` và `return` ngay lập tức, không thực hiện bất kỳ HTTP request nào đến Telegram Bot API.
+- [`docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md#L261):
+  - Cập nhật ma trận phân định trách nhiệm: Kênh Telegram được chuyển trạng thái **Tạm thời tắt 100%** trên toàn bộ hệ thống theo chỉ đạo của USER.
+
+### 3. Kiểm thử & Quality Gate
+- Backend Build (`nest build`): **Exit Code 0 (Thành công 100%)**.
+
+---
+
+## [2026-11-09T18:24] DOCS(MONTHLY_REPORT_FORMULAS_GUIDE): Tạo Tài Liệu Hướng Dẫn Toàn Diện Công Thức & Quy Tắc Nghiệp Vụ Báo Cáo Giao Dịch Tháng (`HUONG_DAN_CONG_THUC_BAO_CAO_THANG_QLGD.md`)
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+
+- Thực hiện chỉ đạo từ USER:
+  - _"hoan hô bạn làm rất chuẩn, tôi cần bạn tổng hợp toàn bộ công thức vào 1 file hướng dẫn làm báo cáo để người sau hoặc argent sau làm có thể hiểu và làm được theo"_
+
+### 2. Danh sách File Tạo mới
+
+- [`HUONG_DAN_CONG_THUC_BAO_CAO_THANG_QLGD.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/HUONG_DAN_CONG_THUC_BAO_CAO_THANG_QLGD.md)
+
+### 3. Tóm tắt Nội dung Tài liệu
+
+- Tổng hợp đầy đủ bản đồ mã nguồn, kiến trúc 3 nguồn dữ liệu (`Backup MS`, `Backup CCP`, `M-System Live APIs`), lộ trình chuyển giao ACM Nano giữa `DSGD.xlsx` và `DSGD CCP.xlsx`, công thức toán học và quy tắc nghiệp vụ chi tiết cho cả 3 phần:
+  - **Phần I (Theo TVKD — CQG & ACM)**: Phân loại dòng giao dịch, công thức $\sum \text{Số lượng} / 2$, công thức `% Tăng/giảm`, thuật toán tìm `Max Day` & `Min Day` trên tập ngày giao dịch toàn thị trường (`allMarketDates`), công thức tự động tính lịch nghỉ lễ sàn CME (`US Labor Day 07/09`...), Đỉnh/Đáy dòng `TỔNG`, và công thức tính 3 cột `TK Active Tháng M-1`, `TK Active Tháng M`, `TK +/-` từ `DSTKGD-Futures.xlsx` & `DSTKGD-ACM.xlsx`.
+  - **Phần II (Theo Mặt hàng — 51 CQG + 3 ACM)**: Quy tắc chuẩn hóa tên mặt hàng, bảng ánh xạ mã LME & Options về mặt hàng cơ sở, công thức tỉ trọng nội bộ từng hệ thống.
+  - **Phần III (Sản phẩm đặc biệt — Spread, LME, Options)**: Điều kiện bóc tách Lot từ `DSGD.xlsx` (`Loại lệnh === 'M leg'`, mã LME, ký tự thứ 3 `'O'` của Options) và công thức đếm TKGD Active theo `Ngày tham gia` từ 3 file `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx`.
+  - **Bảng số liệu chuẩn đã kiểm chứng (Ground Truth Benchmarks)** cho cả 3 kỳ Tháng 08, Tháng 09 và Tháng 10/2026.
+
+---
+
+## [2026-11-09T18:15] FIX(MONTHLY_REPORT_MIN_DAY_CALCULATION): Chuẩn Hóa Thuật Toán Tính "Số Lot Giao Dịch Ít Nhất/Ngày" (Loại Trừ Ngày Nghỉ Lễ CME US Labor Day `07/09` & Xét Tập Ngày Giao Dịch Toàn Thị Trường)
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+
+- Thực hiện chỉ đạo kiểm tra từ USER:
+  - _"tại sao ở I. Tình hình giao dịch theo TVKD CQG sau khi tôi tải về là : 1 080 APEX 31,697 34,663 9.36% 2,249 11/09 203 07/09 còn file gốc là ... bạn check lại giúp tôi xem có nhầm lẫn ở đâu không ở cột 'Số Lot giao dịch ít nhất/ngày'"_
+- Qua đối soát chi tiết từng ô giữa file xuất từ hệ thống và file gốc `Bao cao thang 09.2026 - Final.xlsx`, phát hiện 2 nguyên nhân dẫn đến sai lệch ở cột **Số Lot giao dịch ít nhất/ngày (`Min Day`)**:
+  1. **Ngày nghỉ lễ Mỹ / Sàn CME (`07/09/2026` — US Labor Day)**: Thứ Hai đầu tiên của tháng 9 (`2026-09-07`) là ngày nghỉ lễ Lao Động Mỹ (US Labor Day), sàn CME nghỉ/đóng cửa sớm khiến thanh khoản CQG toàn thị trường chỉ đạt `1,365 lot` (so với `5,752 – 8,884 lot/ngày` bình thường; riêng `APEX - 080` ngày `07/09` chỉ đạt `203 lot`, trong khi ngày giao dịch bình thường thấp nhất là `1,047 lot` vào ngày `18/09`). Do bảng `exchange_holidays` trong DB đang trống nên `cmeHolidaySet` chưa loại trừ ngày `2026-09-07`.
+  2. **Các TVKD có ngày không phát sinh giao dịch (`0 lot`) trong tháng (từ hạng 17 đến 27 như `043, 086, 088, 023, 046, 041, 066, 059, 076`)**: Logic cũ chỉ lặp qua `val.dailyMap.entries()` (chỉ gồm các ngày có `lot > 0`), dẫn đến lấy giá trị nhỏ nhất trong các ngày có giao dịch (`1, 2, 3 lot`), thay vì duyệt trên toàn bộ các ngày thị trường mở cửa (`allMarketDates`) để ghi nhận `0 lot` tại ngày đầu tiên TVKD không phát sinh giao dịch (ví dụ `043 - Edu Trade` là `0 lot` ngày `04/09`, `086 - ABL` là `0 lot` ngày `11/09`, `046 - SFVN` là `0 lot` ngày `08/09`).
+
+### 2. Danh sách File Chỉnh sửa
+
+- [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+
+1. **Bổ sung hàm tính động lịch nghỉ lễ chuẩn của sàn CME (`getStandardCmeHolidaysForMonth(year, month)`)** ([`monthly-reporting.service.ts#L901-L968`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L901-L968)):
+   - Tự động xác định các ngày nghỉ lễ chuẩn của sàn CME theo quy tắc lịch Mỹ cho bất kỳ năm/tháng nào (New Year's Day, MLK Jr. Day, Presidents' Day, Good Friday, Memorial Day, Juneteenth, Independence Day, US Labor Day = Thứ Hai đầu tiên của tháng 9, US Thanksgiving, Christmas) và hợp nhất với `exchange_holidays` trong MongoDB.
+2. **Duyệt trên toàn bộ tập ngày giao dịch của thị trường (`allMarketDates`) khi tìm `Max Day` & `Min Day`** ([`monthly-reporting.service.ts#L1077-L1217`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1077-L1217)):
+   - Khi TVKD có phát sinh giao dịch trong tháng (`val.lotTotal > 0`), duyệt qua toàn bộ `allMarketDates` (đã loại trừ ngày nghỉ lễ CME đối với CQG) với `dLot = val.dailyMap.get(dStr) || 0`.
+   - Kết quả đối chiếu toàn bộ 35/35 dòng TVKD CQG và dòng `TỔNG CQG` của Tháng 09/2026 khớp **100% tuyệt đối** với file gốc `Bao cao thang 09.2026 - Final.xlsx` (ví dụ: `APEX - 080` = `1,047 | 18/09`, `Hàng hoá HCM - 012` = `790 | 02/09`, `Gia Cát Lợi - 003` = `795 | 29/09`, `Edu Trade - 043` = `0 | 04/09`, `TỔNG CQG` = `5,752 | 02/09`).
+
+### 4. Xác nhận Build & Kiểm thử
+
+- **TypeScript & Build**: `nest build` thành công (`exit code 0`).
+- **Ubuntu Server (`10.0.0.26`)**: Đồng bộ code, build, restart `mxv-backend` và chạy `forceRefresh=true` cập nhật lại dữ liệu Tháng 08, Tháng 09 và Tháng 10/2026.
+
+---
+
+## [2026-11-09T17:52] FEAT(MONTHLY_REPORT_REAL_BACKUP_SYNC_T08_T09): Bỏ Seed Tĩnh Tháng 09, Đồng Bộ Thực Tế 100% Từ Thư Mục Backup Cho Cả Tháng 08, Tháng 09 & Tháng 10 (CQG + ACM Hybrid MS/CCP)
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+
+- Thực hiện chỉ đạo từ USER:
+  1. _"tôi vừa nhờ bên qlgd bổ sung tháng 8 và tháng 9 đầy đủ rồi giúp tôi lấy chuẩn thực tế"_
+  2. _"tức là để tính toán tháng 9 cần ms và acm chứ lúc đó chưa ra ccp"_:
+     - Gỡ bỏ hoàn toàn nhánh nạp file JSON tĩnh (`monthly_report_09_2026_seed.json`) cho kỳ Tháng 09/2026 để khi ấn **Làm mới**, hệ thống quét trực tiếp 100% từ thư mục Backup thật (`T08.2026`, `T09.2026`, `T10.2026`...).
+     - Bổ sung logic đọc giao dịch ACM Nano từ `Backup MS/Futures/.../DSGD.xlsx` (các tài khoản đuôi `A` / hợp đồng `SI5CO`, `PL1NY`, `CP2CO` trong giai đoạn Tháng 08 và Tháng 09 trước khi chuyển hoàn toàn sang CoreCCP), kết hợp với `Backup CCP/Futures/.../DSGD CCP.xlsx` (chống cộng trùng TVKD trong 3 ngày thứ Sáu chuyển giao `11.09`, `18.09`, `25.09`).
+
+### 2. Danh sách File Chỉnh sửa
+
+- [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+
+1. **Gỡ bỏ nhánh rẽ tĩnh `year === 2026 && month === 9`** tại `resolveDynamicCatalogs` ([dòng 512](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L512)), `getMonthlyReport` ([dòng 614](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L614)), `syncSpecialAccountsFromMsBackup` ([dòng 1433](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1433)) và `syncFromBackupFolders` ([dòng 1626](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1626)).
+2. **Ưu tiên quét thư mục Backup thực tế trong `calculateOrSeedHistoricalMonth`** ([`monthly-reporting.service.ts#L1569-L1605`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1569-L1605)):
+   - Tự động kiểm tra sự tồn tại của thư mục `{configuredMs}/{year}/T{MM}.{year}` (như `T08.2026`, `T09.2026`) và gọi `syncFromBackupFolders(year, month)` để tính toán thực tế từ file gốc.
+3. **Bổ sung đọc giao dịch ACM Nano từ `DSGD.xlsx` (Backup MS) kết hợp `DSGD CCP.xlsx` (Backup CCP)** ([`monthly-reporting.service.ts#L1775-L1915`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1775-L1915)):
+   - Trong `T08.2026`: Tổng hợp 21 ngày giao dịch trực tiếp từ `Backup MS/Futures/2026/T08.2026/*/DSGD.xlsx` $\rightarrow$ CQG: `144,962` lots; ACM: `54,911` lots (`Bạc Nano ACM: 48,212`, `Bạch kim Nano ACM: 3,433`, `Đồng Nano ACM: 3,266`).
+   - Trong `T09.2026`: Tổng hợp 22 ngày giao dịch trực tiếp từ `Backup MS/Futures/2026/T09.2026/*/DSGD.xlsx` + `Backup CCP/Futures/2026/T09.2026/*/DSGD CCP.xlsx` $\rightarrow$ CQG: `159,794` lots; ACM: `67,246` lots (`Bạc Nano ACM: 55,843`, `Bạch kim Nano ACM: 8,056`, `Đồng Nano ACM: 3,347`), khớp 100% đến từng lot của cả 25 TVKD và 3 mặt hàng ACM.
+
+### 4. Xác nhận Build & Kiểm thử
+
+- **Ubuntu Server (`10.0.0.26`)**: Build Backend (`nest build` exit code 0), restart `mxv-backend` và chạy `forceRefresh=true` cho cả 3 kỳ Tháng 08, Tháng 09 và Tháng 10/2026.
+
+---
+
+## [2026-11-09T17:19] FEAT(MONTHLY_REPORT_PART1_ACTIVE_ACCOUNTS): Tính Số Lượng TKGD Active Cho Phần I (Theo TVKD CQG & ACM) Từ `DSTKGD-Futures.xlsx` & `DSTKGD-ACM.xlsx` Và Hiển Thị Tên Tháng Rõ Ràng Trên Web UI
+
+### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+
+- Thực hiện chỉ đạo từ USER:
+  1. _"Phương án 2 (Giữ 3 cột này trên Web và tính số liệu thật từ DSTKGD-Futures.xlsx & DSTKGD-ACM.xlsx): Vẫn giữ file Excel xuất ra chuẩn 10 cột như mẫu, nhưng trên màn hình Web Tab 1 thì bốc số lượng TKGD Active từ file DSTKGD-Futures.xlsx (cho CQG) và DSTKGD-ACM.xlsx (cho ACM) để hiển thị lên."_
+  2. _"theo tôi ghi hẳn tên tháng ra thay vì ghi là t-1 và t"_: Đổi tên cột header từ `TK Active T-1` / `TK Active T` thành `TK Active Tháng {M-1}` / `TK Active Tháng {M}` và hiển thị tổng cộng số lượng TKGD Active ở dòng `TỔNG CỘNG` cuối bảng Tab 1.
+
+### 2. Danh sách File Chỉnh sửa
+
+- [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
+- [`frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+
+1. **Bổ sung `enrichSection1ActiveAccounts(report, year, month, forceRefresh)` trong `MonthlyReportingService`** ([`monthly-reporting.service.ts#L214-L369`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L214-L369)):
+   - Tự động quét file `DSTKGD-Futures.xlsx` (đếm các TKGD có `Trạng thái === 'Hoạt động'`) và `DSTKGD-ACM.xlsx` (đếm các TKGD có `Trạng thái === ''` hoặc `'Hoạt động'`) tại ngày giao dịch cuối cùng của tháng trong thư mục `Backup MS/Futures/`.
+   - Phân tách theo cột `Ngày tham gia` để tính chính xác:
+     - `activeAccountsPreviousMonth` (`TK Active Tháng {M-1}`): Tổng lũy kế TKGD Active tính đến hết tháng $M-1$.
+     - `activeAccountsCurrentMonth` (`TK Active Tháng {M}`): Tổng lũy kế TKGD Active tính đến hết tháng $M$.
+     - `activeAccountsDiff` (`TK +/-`): Số lượng TKGD Active tăng thêm trong tháng $M$ (`activeAccountsCurrentMonth - activeAccountsPreviousMonth`).
+2. **Hiển thị Tên Tháng Rõ Ràng & Dòng Tổng Cộng TK Active trên Giao diện Web Tab 1** ([`MonthlyReportSection.tsx#L1003-L1195`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/monthly-report/MonthlyReportSection.tsx#L1003-L1195)):
+   - Đổi tiêu đề cột từ `TK Active T-1` / `TK Active T` sang `TK Active Tháng {selectedMonth === 1 ? 12 : selectedMonth - 1}` và `TK Active Tháng {selectedMonth}`.
+   - Bổ sung tổng cộng `totalAccPrev`, `totalAccCur`, `totalAccDiff` vào dòng `TỔNG CỘNG (CQG)` và `TỔNG CỘNG (ACM)` ở cuối bảng.
+   - Giữ nguyên cấu trúc 10 cột chuẩn của Phần I trong file Excel xuất ra ([`monthly-excel-exporter.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts)).
+
+### 4. Xác nhận Build & Kiểm thử
+
+- **TypeScript Check**: `backend` và `frontend` vượt qua kiểm tra `tsc --noEmit` không có lỗi ở các module chỉnh sửa.
+- **Ubuntu Server (`10.0.0.26`)**: Đồng bộ và build thành công cả `mxv-backend` và `mxv-frontend`.
 
 ---
 
 ## [2026-11-09T16:26] FEAT(MONTHLY_REPORT_DYNAMIC_CATALOG_AND_DSTKGD): Tích Hợp API Danh Mục M-System (`/market/commodity` & `/am/admin/members`) Và Đồng Bộ 5 File `DSTKGD-*.xlsx` Từ Backup MS
 
 ### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER
+
 - Thực hiện chỉ đạo từ USER:
   1. _"trong này (`phân tích.md`) bao gồm các api bạn có thể call api để lấy response file tài liệu phân tích và xem có tích hợp vào phần luồng báo cáo này không"_: Loại bỏ phụ thuộc cứng vào danh sách mặt hàng/thành viên tĩnh bằng cách tích hợp trực tiếp API danh mục M-System (`/market/commodity?subType=F,L,A` và `/am/admin/members`).
   2. _"M:\Tailieuchung\QLGD-IT\Quanlygiaodich\Tai lieu hoat dong\Backup MS\Futures\2026\T10.2026\30.10 DSTKGD-Futures.xlsx DSTKGD-LME.xlsx DSTKGD-Options.xlsx DSTKGD-Spread.xlsx DSTKGD-ACM.xlsx trong này rồi lọc ra các mã tvkd được giao dịch để thống kê thay vì lấy tất trong cả tvkd"_ & _"còn hàng hóa sẽ lấy theo api vì trong thư mục backup không có lưu backup file hàng hóa"_:
      - **Hàng hóa (Mục II)**: Đồng bộ động từ API `/market/commodity?subType=F,L,A` (42 mặt hàng Futures + 9 mặt hàng LME = 51 mặt hàng CQG; 3 mặt hàng ACM Nano).
-     - **Thành viên (Mục I.1 CQG)**: Kết hợp danh sách TVKD đang `ACTIVE` từ API `/am/admin/members` giao với các mã TVKD có tài khoản `Hoạt động` trong file `DSTKGD-Futures.xlsx` tại thư mục Backup MS ngày cuối tháng (giữ nguyên tên gốc từ API/file đối với TVKD mới như `090 - Công ty Cổ phần Giao dịch hàng hóa Wikex`).
+     - **Thành viên (Mục I.1 CQG & Mục I.2 ACM)**: Kết hợp danh sách TVKD đang `ACTIVE` từ API `/am/admin/members` giao với các mã TVKD có tài khoản `Hoạt động` trong file `DSTKGD-Futures.xlsx` (34 TVKD cho CQG) và `DSTKGD-ACM.xlsx` (30 TVKD cho ACM) tại thư mục Backup MS ngày cuối tháng (giữ nguyên tên gốc từ API/file đối với TVKD mới như `090 - Công ty Cổ phần Giao dịch hàng hóa Wikex`).
      - **Tài khoản Đặc thù (Mục III Spread, LME, Options)**: Tự động đọc trực tiếp từ 3 file `DSTKGD-Spread.xlsx`, `DSTKGD-LME.xlsx`, `DSTKGD-Options.xlsx` trong thư mục Backup MS ngày cuối tháng.
 
 ### 2. Danh sách File Chỉnh sửa
+
 - [`backend/src/modules/ingress/adapters/ms-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts)
 - [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
 - [`backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts)
 
 ### 3. Tóm tắt Nội dung Code Đã Sửa
+
 1. **Bổ sung `fetchMarketCommodities()` và `fetchAdminMembers()` vào `MsApiAdapter`** ([`ms-api.adapter.ts#L720-L855`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/adapters/ms-api.adapter.ts#L720-L855)):
    - Tự động đăng nhập lấy Bearer Token và gọi `GET /market/commodity?subType=F,L,A` và `GET /am/admin/members` từ `https://msapi.mxv.com.vn`.
 2. **Bổ sung `resolveDynamicCatalogs(year, month)` trong `MonthlyReportingService`** ([`monthly-reporting.service.ts#L214-L405`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L214-L405)):
@@ -606,6 +877,7 @@
    - Bóc tách chính xác cả ngày dạng chuỗi `DD/MM/YYYY` và Excel numeric serial date để tính `activeBeforeMonth`, `newActiveInMonth` và `totalActiveCumulative`.
 
 ### 4. Xác nhận Build & Deploy
+
 - **Local Build**: `cd backend && npm.cmd run build` thành công (Exit code: 0).
 - **Ubuntu Server (`10.0.0.26`)**: Đã đồng bộ code, build lại Backend, restart `mxv-backend` và chạy `forceRefresh=true` cập nhật Snapshot Báo cáo Tháng 10/2026.
 
@@ -614,16 +886,19 @@
 ## [2026-11-09T14:42] FIX(MONTHLY_REPORT_PARITY): Tách Cột Mã TVKD & Tên TVKD Ngắn Gọn, Chuẩn Hóa 51 Mặt Hàng CQG & Kế Thừa Lũy Kế TKGD Active Cho Phần III (Spread, LME, Options)
 
 ### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER / Quản lý
+
 - Thực hiện 4 chỉ đạo trực tiếp từ Quản lý của USER:
   1. _"tên cty m để như cái file Thống kê số lot giao dịch được khum, dài vl ) a nghĩ là sửa sang tí: tách thành Mã TVKD và tên TVKD"_: Thay thế tên pháp nhân dài (`Công ty Cổ phần Giao dịch Hàng hóa...`) bằng tên thương hiệu ngắn gọn chuẩn theo file `Thong ke so lot giao dich 2026.xlsx`, đồng thời tách thành 2 cột độc lập `MÃ TVKD` và `TÊN THÀNH VIÊN` / `Tên TVKD` trên cả Phần I và Phần III của file Excel xuất ra.
   2. _"số liệu theo hàng hoá, check lại nhé"_: Khắc phục triệt để lỗi lệch tên mặt hàng giữa danh mục BGS và Báo cáo tháng chính thức (`Đường 11` $\leftrightarrow$ `Đường`, `Nhôm` $\leftrightarrow$ `Nhôm COMEX`, `Lúa Mỳ Micro` $\leftrightarrow$ `Lúa mì Micro`, `SNDD13X26` $\leftrightarrow$ `Thiếc LME`), đảm bảo số liệu tháng trước (Tháng 09) và % tăng/giảm của Tháng 10 khớp 100%.
   3. _"đống ở dưới đâu hết r m(ở ảnh)"_ & _"tên cty có trong 3 bảng dưới hay k dựa vào việc cty đó có số TKGD active loại sản phẩm đó hay không nhớ không. Không phải dựa trên khối lượng giao dịch"_: Khắc phục lỗi mất danh sách TVKD và hiển thị `0 | 0 | 0` tại Phần III (Spread, LME, Options) bằng cách tự động kế thừa số lượng TKGD Active lũy kế cuối tháng trước (`totalActiveAccounts` từ `prevSnapshot`) làm số đầu kỳ (`activeBeforeMonth`) của tháng hiện tại, và lọc hiển thị TVKD dựa trên việc có TKGD Active (`totalActive > 0`) thay vì phụ thuộc vào khối lượng giao dịch.
 
 ### 2. Danh sách File Chỉnh sửa
+
 - [`backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts)
 - [`backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-excel-exporter.service.ts)
 
 ### 3. Tóm tắt Nội dung Code Đã Sửa
+
 1. **Chuẩn hóa Tên TVKD Ngắn Gọn (`OFFICIAL_TVKD_SHORT_NAMES`)** ([`monthly-reporting.service.ts#L27-L92`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L27-L92)):
    - Định nghĩa danh bạ 64 tên thương hiệu ngắn gọn chuẩn MXV (`001: Hữu Nghị`, `002: Saigon Futures`, `003: Gia Cát Lợi`, `012: Hàng hoá HCM`, `080: APEX`...).
    - Chặn việc ghi đè tên pháp nhân dài từ `QL TT TVKD.xlsx` và `DSGD.xlsx` lên tên ngắn gọn chuẩn tại [`monthly-reporting.service.ts#L1163-L1215`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/services/reporting/monthly-reporting.service.ts#L1163-L1215).
@@ -641,6 +916,7 @@
    - Phần III: Tách thành 9 cột (`A: STT`, `B: Mã TVKD`, `C: Tên TVKD`, `D..F: Số Lot giao dịch`, `G..I: Số lượng TKGD Active`), cập nhật toàn bộ công thức `SUM` và `IFERROR`.
 
 ### 4. Xác nhận Build, Deploy & Kiểm thử Thực tế
+
 - **Local Build**: Backend (`nest build`) và Frontend (`next build`) thành công 100% (Exit code: 0).
 - **Ubuntu Server (`10.0.0.26`)**: Đã đồng bộ code, build lại cả Backend/Frontend, restart PM2 (`mxv-backend`, `mxv-frontend`), kích hoạt `forceRefresh=true` cho kỳ Tháng 10/2026 và kiểm chứng trực tiếp file Excel xuất ra bằng `openpyxl`.
 
@@ -649,10 +925,12 @@
 ## [2026-11-09T14:58] FIX(CORECCP_API_401_AUTO_RECOVERY): Khắc Phục Triệt Để Lỗi 401 "Invalid access token" & Bổ Sung Cơ Chế Tự Động Refresh Session Cho CoreCCP API
 
 ### 1. Mục tiêu thay đổi & Phản ánh từ USER
+
 - **Hiện tượng**: Job tải báo cáo CoreCCP (DSGD, ORDERBOOK...) báo lỗi liên tục: `Search API ORDERBOOK thất bại (401): "Invalid access token"`, trong khi người dùng test đăng nhập trên giao diện Web thì báo thành công.
 - **Yêu cầu từ USER**: "tại sao login được mà lại báo lỗi", "xem lý do lỗi gì mà không tải được qua api".
 
 ### 2. Nguyên nhân gốc (Root Cause)
+
 1. **Lệch pha giữa Web Login (Playwright) và Direct REST API**:
    - Khi USER bấm nút "Test kết nối CCP" trên giao diện Admin, hệ thống gọi `omsWatcherService.testConnection('ccp')` dùng trình duyệt Playwright mở form web `/login` để kiểm tra đăng nhập. Vì thông tin tài khoản đúng nên web báo thành công.
    - Tuy nhiên, khi tài khoản được đăng nhập trên Web, máy chủ SSO/OAuth2 của CoreCCP (`coreccp.vnclear.vn`) thu hồi (revoke) các Access Token cũ đã cấp cho REST API.
@@ -661,9 +939,10 @@
    - Dù token trên máy chủ CoreCCP đã bị thu hồi, `getValidSession()` vẫn thấy hạn dùng trên giấy còn hơn 1 tiếng nên tiếp tục tái sử dụng token chết này.
    - Khi API trả về `401 "Invalid access token"`, adapter không có cơ chế bắt lỗi để xóa cache, dẫn đến cả 3 lần retry (Attempt 1, 2, 3) đều bốc lại đúng token chết đó.
 3. **Lỗi định dạng Cookie Header**:
-   - Tại dòng 757, code ghép `Cookie: \`SESSION=\${session.sessionCookie}\``, trong khi `session.sessionCookie` đã chứa sẵn tiền tố `SESSION=`, làm header bị nhân đôi thành `SESSION=SESSION=...`.
+   - Tại dòng 757, code ghép `Cookie: \`SESSION=\${session.sessionCookie}\``, trong khi `session.sessionCookie`đã chứa sẵn tiền tố`SESSION=`, làm header bị nhân đôi thành `SESSION=SESSION=...`.
 
 ### 3. Chi tiết chỉnh sửa
+
 - **[backend/src/modules/ingress/adapters/coreccp-api.adapter.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)**:
   - Bổ sung method `clearSessionCache()`: Xóa sạch cache trong bộ nhớ và xóa file `temp/coreccp_session.json` trên ổ đĩa.
   - Bổ sung tham số `forceFresh` cho `getValidSession(forceFresh = false)` để ép đăng nhập mới lấy token tươi từ CoreCCP.
@@ -671,6 +950,7 @@
   - Chuẩn hóa `cookieHeader`: Kiểm tra tiền tố để bảo đảm không bị nhân đôi `SESSION=`.
 
 ### 4. Xác nhận Build & Kiểm thử
+
 - **Backend Build**: `nest build` thành công 100% (exit code 0).
 - **Kiểm thử thực tế trên server Ubuntu**: Xóa cache cũ và chạy thử `searchFullJson('ORDERBOOK')` với token tươi $\\rightarrow$ **Thành công 100%, tải được toàn bộ 1,718 bản ghi**.
 
@@ -679,6 +959,7 @@
 ## [2026-11-03T23:37] DEPLOY(PROD_UBUNTU_10.0.0.26): Triển Khai Toàn Diện Code Mới Lên Server Ubuntu Production (Build Backend, Frontend, Schema Migration & PM2 Restart)
 
 ### 1. Mục tiêu triển khai & Chỉ đạo từ USER
+
 - **Yêu cầu từ USER**: "giúp tôi ủn code mới lên ubtune".
 - **Nội dung mã nguồn mới được đồng bộ**:
   1. **Hệ thống Quản lý Âm Ký Quỹ & Đối chiếu Cuối ngày (Post-EOD)**:
@@ -692,6 +973,7 @@
      - Chạy `migrate_negative_accounts_schema.js` sau build backend để đảm bảo tính nhất quán của dữ liệu.
 
 ### 2. Chi tiết thực thi triển khai trên Ubuntu 10.0.0.26
+
 - **Script điều phối**: `backend/src/scripts/deploy_to_ubuntu.js`.
 - **Bước 1 - Backup an toàn**: Nén toàn bộ `/opt/mxv-checklist` thành `/home/mxvadmin/code_backups/mxv-checklist_backup_20261103_233455.tar.gz` (dung lượng: 2.5GB). Tự động dọn dẹp giữ lại 2 bản backup mới nhất.
 - **Bước 2 - Đồng bộ mã nguồn (SFTP)**: Upload hoàn tất 731 files nguồn (Backend, Frontend, Configs).
@@ -704,15 +986,18 @@
   - Frontend: `curl -I http://127.0.0.1:3000/login` $\rightarrow$ HTTP 200 OK.
   - Backend API: `curl -I http://127.0.0.1:3001/api/v1/users` $\rightarrow$ HTTP 401 Unauthorized (Auth guard chuẩn).
   - Exit code toàn bộ quá trình: **0**.
+
 ## [2026-11-09T12:10] ARCHITECTURE(NOTIFICATION_AUDIT): Rà Soát Toàn Diện Luồng Bắn Noti Bằng Loop Engineering & Thiết Kế Phân Tách Độc Lập Ca Trực vs Trading Ops
 
 ### 1. Mục tiêu Thay đổi
+
 - Thực hiện chỉ đạo từ USER: _"giúp tôi rà sát lại luồng bắn noti ở hệ thống chi tiết bằng loop enginiring và tổng hợp vào 1 file tài liệu chi tiết vì sau khi chuyển đổi tách độc lập ca trực và trading ops ra làm hai thì luồng bắn noti cũng phải khác nhau"_
 - Sử dụng phương pháp **Loop Engineering (5 Vòng Lặp Code-First Grounding)** để rà soát toàn bộ các điểm kích hoạt thông báo (Telegram, Email SMTP, Real-time WebSockets, Teams Webhooks, In-App Notifications).
 - Nhận diện các lỗi kiến trúc ngầm, điển hình là lỗi ngậm/nuốt toàn bộ cảnh báo Telegram của Trading Ops tại `telegram.service.ts#L38-L45` và mối phụ thuộc chéo trái SRP giữa `shifts.service.ts` với `marginCheckerService`.
 - Tổng hợp thành một tài liệu kiến trúc kỹ thuật chi tiết tại [docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md).
 
 ### 2. Danh Sách File Tạo Mới / Tác Động
+
 - **File tài liệu kiến trúc**: [docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/docs/RA_SOAT_VA_THIET_KE_LUONG_NOTIFICATION_CA_TRUC_VA_TRADING_OPS.md).
 - **Tập hợp các file mã nguồn đã rà soát và kiểm chứng dẫn chứng trực tiếp**:
   - [`backend/src/modules/telegram/telegram.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/telegram/telegram.service.ts#L38-L99)
@@ -732,22 +1017,25 @@
   - [`frontend/src/components/NotificationDropdown.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/components/NotificationDropdown.tsx#L72-L140) (`#L277-L305`)
 
 ### 3. Tóm Tắt Nội Dung Phân Tích & Thiết Kế Kiến Trúc
+
 - **5 Vòng lặp Loop Engineering**:
-  1. *Vòng 1 (Inventory)*: Kiểm kê toàn bộ 9 thành phần dịch vụ notification trong Backend & Frontend.
-  2. *Vòng 2 (Ca Trực)*: Bóc tách 5 luồng: Khởi tạo ca, Check tác vụ CRITICAL, Chốt ca & Bàn giao, Tự động quét ca quá hạn, Cảnh báo lỗi bot job.
-  3. *Vòng 3 (Trading Ops)*: Bóc tách 6 luồng: Lệch số dư CQG, Bất thường EOD CCP, Lỗi gửi sao kê M-System, Vi phạm mức ký quỹ trên lệnh (Margin on Order), Thay đổi ký quỹ Sở (Margin Change), Thông báo đáo hạn TVKD qua MS Teams.
-  4. *Vòng 4 (Điểm nghẽn kiến trúc)*: Làm rõ 5 lỗi (Lỗi nuốt Telegram Trading Ops, Ràng buộc chéo giữa `shifts.service` và `marginCheckerService`, Gộp cọc cấu hình `margin_checker_config`, Ô nhiễm sự kiện WebSocket trên `ShiftsGateway`, Tách rời bảng Rule/Channel khỏi runtime).
-  5. *Vòng 5 (Kiến trúc đích)*: Xây dựng Ma trận phân tách trách nhiệm giữa `ChecklistNotifierService` và `TradingOpsNotifierService`, sơ đồ kiến trúc đích và 4 bước lộ trình refactoring an toàn.
+  1. _Vòng 1 (Inventory)_: Kiểm kê toàn bộ 9 thành phần dịch vụ notification trong Backend & Frontend.
+  2. _Vòng 2 (Ca Trực)_: Bóc tách 5 luồng: Khởi tạo ca, Check tác vụ CRITICAL, Chốt ca & Bàn giao, Tự động quét ca quá hạn, Cảnh báo lỗi bot job.
+  3. _Vòng 3 (Trading Ops)_: Bóc tách 6 luồng: Lệch số dư CQG, Bất thường EOD CCP, Lỗi gửi sao kê M-System, Vi phạm mức ký quỹ trên lệnh (Margin on Order), Thay đổi ký quỹ Sở (Margin Change), Thông báo đáo hạn TVKD qua MS Teams.
+  4. _Vòng 4 (Điểm nghẽn kiến trúc)_: Làm rõ 5 lỗi (Lỗi nuốt Telegram Trading Ops, Ràng buộc chéo giữa `shifts.service` và `marginCheckerService`, Gộp cọc cấu hình `margin_checker_config`, Ô nhiễm sự kiện WebSocket trên `ShiftsGateway`, Tách rời bảng Rule/Channel khỏi runtime).
+  5. _Vòng 5 (Kiến trúc đích)_: Xây dựng Ma trận phân tách trách nhiệm giữa `ChecklistNotifierService` và `TradingOpsNotifierService`, sơ đồ kiến trúc đích và 4 bước lộ trình refactoring an toàn.
 
 ---
 
 ## [2026-11-09T12:05] REFACTOR(CLEANUP_DEAD_APIS): Khóa & Đóng 14 Endpoints Test và Endpoint Cũ Không Dùng (Zero-Caller)
 
 ### 1. Mục tiêu & Chỉ đạo từ USER
+
 - Yêu cầu: _"có giúp tôi off các đầu api này"_
 - Tiến hành đóng toàn bộ các endpoint test/tạm thời và các API mồ côi (zero-callers từ frontend) đã được di dời sang Trading Manager Hub hoặc chuyển sang cơ chế System Settings.
 
 ### 2. Danh Sách Các File & Endpoints Đã Đóng (Deprecated / Off)
+
 - [ingress-config.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-config.controller.ts):
   - Khóa endpoint test kết nối scraper CAST cũ: `// [DEPRECATED/OFF] @Post('test-connection-cast')`.
 - [ingress-download.controller.ts](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/ingress/controllers/ingress-download.controller.ts):
@@ -764,6 +1052,7 @@
     - `// [DEPRECATED/OFF] @Get('backup-ccp/schedule')` & `@Post('backup-ccp/schedule')`
 
 ### 3. Kiểm thử & Quality Gate
+
 - Backend Build (`nest build`): **Exit Code 0 (Thành công 100%)**.
 - Frontend Typecheck (`npx tsc --noEmit`): **Exit Code 0 (Thành công 100%)**.
 - Toàn bộ các luồng hoạt động chính của hệ thống không bị ảnh hưởng.

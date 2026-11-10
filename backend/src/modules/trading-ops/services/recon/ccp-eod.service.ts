@@ -14,6 +14,8 @@ import { ValueStatisticsService } from '../statistics/value-statistics.service';
 import { TelegramService } from '../../../telegram/telegram.service';
 import { WorkingCalendarService } from '../../../working-calendar/working-calendar.service';
 import { CoreCcpApiAdapter } from '../../../ingress/adapters/coreccp-api.adapter';
+import { SystemLogsService } from '../../../system-logs/system-logs.service';
+import { ShiftsGateway } from '../../../shifts/shifts.gateway';
 import {
   findHeaderIndex,
   findLatestFile,
@@ -78,6 +80,10 @@ export class CcpEodService {
     @Optional()
     @Inject(forwardRef(() => CoreCcpApiAdapter))
     private readonly coreCcpApiAdapter?: CoreCcpApiAdapter,
+    @Optional()
+    private readonly systemLogsService?: SystemLogsService,
+    @Optional()
+    private readonly shiftsGateway?: ShiftsGateway,
   ) {}
 
   /**
@@ -669,6 +675,36 @@ export class CcpEodService {
         telegramMsg += `• Danh sách âm mới: <code>${newNegativeIMRAcc.join(', ')}</code>\n`;
       }
       await this.telegramService.sendMessage(telegramMsg).catch(() => {});
+    }
+
+    const isEodClean = mismatchedCcp.length === 0 && newNegativeIMRAcc.length === 0;
+    const eodMessage = isEodClean
+      ? `Khớp EOD CoreCCP phiên ${dateFormatted} (${totalAccounts} tài khoản)`
+      : `Cảnh báo EOD CoreCCP phiên ${dateFormatted}: ${mismatchedCcp.length} TK lệch, ${newNegativeIMRAcc.length} TK âm mới`;
+
+    if (this.systemLogsService) {
+      await this.systemLogsService.logEvent({
+        eventType: isEodClean ? 'CCP_EOD_MATCHED' : 'CCP_EOD_MISMATCHED',
+        source: 'SYSTEM',
+        status: isEodClean ? 'SUCCESS' : 'FAILED',
+        message: eodMessage,
+        metadata: { dateFormatted, totalAccounts, mismatchedCount: mismatchedCcp.length, newNegativeCount: newNegativeIMRAcc.length },
+      }).catch(() => {});
+    }
+
+    if (this.shiftsGateway) {
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        null,
+        null,
+        null,
+        tradingDate.toISOString().split('T')[0],
+        {
+          type: 'CCP_EOD',
+          status: isEodClean ? 'SUCCESS' : 'FAILED',
+          message: eodMessage,
+        },
+      );
     }
 
     return {

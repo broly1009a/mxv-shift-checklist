@@ -245,7 +245,7 @@ export class ShiftsService {
         departmentId: result.departmentId,
         shiftSlotId: result.shiftSlotId,
         status: 'SUCCESS',
-        message: `Khởi tạo thành công ca trực "${(result.templateId as any)?.title}" bởi ${user.fullName || 'Nhân sự'}.`,
+        message: `Bắt đầu ca: ${(result.templateId as any)?.title || 'Ca trực'}`,
         metadata: {
           templateTitle: (result.templateId as any)?.title,
           date: result.shiftDate,
@@ -718,6 +718,9 @@ export class ShiftsService {
     this.shiftsGateway.notifyShiftUpdate(shiftLogId, result, auditLogRecord);
 
     // Write system log
+    let actionText = isChecked ? `Đã hoàn thành "${task.taskNameSnapshot}"` : `Mở lại tác vụ "${task.taskNameSnapshot}"`;
+    if (note) actionText += ` (${note})`;
+
     await this.systemLogsService.logEvent({
       eventType: 'TASK_UPDATED',
       source: 'USER',
@@ -726,7 +729,7 @@ export class ShiftsService {
       departmentId: result.departmentId,
       shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
-      message: `Tác vụ "${task.taskNameSnapshot}" trong ca trực "${(result.templateId as any)?.title || 'Ca trực'}" được cập nhật: status=${status}${note !== undefined ? `, note="${note}"` : ''}.`,
+      message: actionText,
       metadata: {
         taskId,
         taskName: task.taskNameSnapshot,
@@ -1014,7 +1017,7 @@ export class ShiftsService {
       departmentId: result.departmentId,
       shiftSlotId: result.shiftSlotId,
       status: 'SUCCESS',
-      message: `Chốt ca trực "${(result.templateId as any)?.title || 'Ca trực'}" ngày ${result.shiftDate} thành công.`,
+      message: `Đã chốt ca: ${(result.templateId as any)?.title || 'Ca trực'}`,
       metadata: {
         handoverNote: result.handoverNote,
         progressPercentage: result.progressPercentage,

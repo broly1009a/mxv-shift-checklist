@@ -1001,8 +1001,12 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
                       <th style={{ padding: '10px 12px', textAlign: 'center' }}>Ngày Đáy</th>
                       <th style={{ padding: '10px 12px', textAlign: 'right' }}>Lot Đáy</th>
                       <th style={{ padding: '10px 12px', textAlign: 'center' }}>Số Phiên</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>TK Active T-1</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>TK Active T</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        TK Active Tháng {selectedMonth === 1 ? 12 : selectedMonth - 1}
+                      </th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', color: '#059669' }}>
+                        TK Active Tháng {selectedMonth}
+                      </th>
                       <th style={{ padding: '10px 12px', textAlign: 'right' }}>TK +/-</th>
                     </tr>
                   </thead>
@@ -1085,6 +1089,7 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
                               textAlign: 'right',
                               fontFamily: 'monospace',
                               fontWeight: 700,
+                              color: '#059669',
                             }}
                           >
                             {formatNumber(m.activeAccountsCurrentMonth)}
@@ -1097,7 +1102,7 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
                               color: m.activeAccountsDiff > 0 ? '#059669' : m.activeAccountsDiff < 0 ? '#dc2626' : 'inherit',
                             }}
                           >
-                            {m.activeAccountsDiff > 0 ? `+${m.activeAccountsDiff}` : m.activeAccountsDiff}
+                            {m.activeAccountsDiff > 0 ? `+${formatNumber(m.activeAccountsDiff)}` : formatNumber(m.activeAccountsDiff)}
                           </td>
                         </tr>
                       );
@@ -1110,6 +1115,13 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
                         part1Platform === 'CQG'
                           ? reportData.part1Members.totals.cqg
                           : reportData.part1Members.totals.acm;
+                      const membersList =
+                        part1Platform === 'CQG'
+                          ? reportData.part1Members.cqgMembers
+                          : reportData.part1Members.acmMembers;
+                      const totalAccPrev = membersList.reduce((sum, m) => sum + (m.activeAccountsPrevMonth || 0), 0);
+                      const totalAccCur = membersList.reduce((sum, m) => sum + (m.activeAccountsCurrentMonth || 0), 0);
+                      const totalAccDiff = totalAccCur - totalAccPrev;
                       return (
                         <tr
                           style={{
@@ -1155,8 +1167,24 @@ export default function MonthlyReportSection({ token }: IMonthlyReportSectionPro
                             {formatPercent(t.growthRate)}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'right' }}>{formatShare(t.shareRate)}</td>
-                          <td colSpan={8} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td colSpan={5} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             -
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>
+                            {formatNumber(totalAccPrev)}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace', color: '#059669' }}>
+                            {formatNumber(totalAccCur)}
+                          </td>
+                          <td
+                            style={{
+                              padding: '12px',
+                              textAlign: 'right',
+                              fontFamily: 'monospace',
+                              color: totalAccDiff > 0 ? '#059669' : totalAccDiff < 0 ? '#dc2626' : 'inherit',
+                            }}
+                          >
+                            {totalAccDiff > 0 ? `+${formatNumber(totalAccDiff)}` : formatNumber(totalAccDiff)}
                           </td>
                         </tr>
                       );

@@ -519,6 +519,14 @@ export function findBotTasksInShift(
 }
 
 /**
+ * Lấy tên hiển thị chuẩn tiếng Việt nghiệp vụ cho loại Bot Job.
+ */
+export function getBotJobDisplayName(jobType: string): string {
+  if (!jobType) return 'Tác vụ tự động';
+  return BOT_TASK_REGISTRY[jobType]?.displayName || jobType;
+}
+
+/**
  * Trả về danh sách tất cả các ID liên quan (cha + con + anh em) của một taskId bất kỳ
  * dựa HOÀN TOÀN ĐỘNG vào cấu trúc cây trong ca trực (details).
  * Tuyệt đối không dùng bất kỳ chuỗi hardcode nào (Tuân thủ AGENTS.md Mục 7).

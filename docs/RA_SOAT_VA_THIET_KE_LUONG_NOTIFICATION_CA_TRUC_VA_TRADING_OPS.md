@@ -258,7 +258,7 @@ Qua việc kiểm tra đối chiếu trực tiếp các dòng mã nguồn, AI As
 | Tiêu chí | Phân hệ Ca Trực (Shift Checklist Hub) | Phân hệ Trading Ops (Vận Hành Giao Dịch) |
 | :--- | :--- | :--- |
 | **Tên Notifier Đảm Nhận** | **`ChecklistNotifierService`** | **`TradingOpsNotifierService`** |
-| **Kênh Telegram** | **Vô hiệu hóa mặc định** (Theo chỉ đạo không spam ca trực), chỉ gửi tin nhắn cá nhân khi bật cấu hình riêng. | **Bật 100%** qua Chat ID riêng của Nhóm Quản trị Rủi ro & Quản lý Giao dịch (`TELEGRAM_TRADING_OPS_CHAT_ID`). |
+| **Kênh Telegram** | **Tạm thời tắt 100%** (Theo chỉ đạo trực tiếp từ USER: chưa sử dụng Telegram cho toàn bộ hệ thống). | **Tạm thời tắt 100%** (Theo chỉ đạo trực tiếp từ USER: chưa sử dụng Telegram cho toàn bộ hệ thống). |
 | **Kênh Email** | 1. Báo cáo Bàn giao Ca Trực (`SHIFT_HANDOVER`)<br/>2. Cảnh báo Lỗi Kỹ Thuật Bot Job Ca Trực (`BOT_FAILURE` - gửi IT/DevOps). | 1. Cảnh báo Vi Phạm Mức Ký Quỹ Lệnh (kèm file Excel)<br/>2. Cảnh báo Biến Động Ký Quỹ Sở (kèm file Excel)<br/>3. Báo cáo SOD / EOD chênh lệch số dư. |
 | **Kênh Microsoft Teams** | Không sử dụng. | Sử dụng **Webhook Teams đa kênh** theo mã thành viên kinh doanh (TVKD) để bắn tin đáo hạn hợp đồng. |
 | **Kênh WebSocket** | Namespace `/shifts`: `shift-updated`, `task-updated`, `shift-job-closed`, `shift-handover`. | Namespace `/trading-ops`: `recon-updated`, `cqg-sync-status`, `eod-mismatch-alert`, `margin-threshold-breached`. |
