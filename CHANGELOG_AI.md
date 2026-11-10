@@ -39,13 +39,18 @@
    - Hàm `abortBarrierIfStrict()` đánh dấu lỗi `[PARTNER_SERVICE_UNAVAILABLE]` khi một trong các nguồn bắt buộc bị gián đoạn, giúp hàng đợi ngắt ngay Attempt 1 và áp dụng Cooldown 15 phút an toàn.
 
 ### 4. Xác nhận Build & Kiểm thử Kịch Bản
-- **Unit Test Suites (14/14 tests pass)**:
+- **Unit Test Suites (18/18 tests pass)**:
   - `trading-recon-log.controller.spec.ts`: 4/4 tests pass (chặn truy cập trái phép, tìm kiếm theo ID và sắp xếp theo ngày).
   - `crypto.spec.ts`: 6/6 tests pass (mã hóa/giải mã, biến môi trường, tương thích ngược 3 tầng, dữ liệu hỏng).
   - `coreccp-coreex-failfast.spec.ts`: 4/4 tests pass (Fail-Fast URL rỗng, tái sử dụng cache hợp lệ, bắt lỗi `/change-password`).
+  - `ingress-failfast.spec.ts`: 4/4 tests pass (Fail-Fast thông số SFTP ACM, URL CoreCCP rỗng).
 - **Build Verification**:
-  - `backend`: `npm run build` (`nest build`) thành công (exit code 0).
+  - `backend`: `npm run build` (`nest build`) thành công trên cả Local và Server Ubuntu `10.0.0.26`.
   - `frontend`: `npm run build` (`next build`) thành công 100% (50/50 routes tối ưu, exit code 0).
+- **Live Smoke Test Trực Tiếp trên Server Ubuntu `10.0.0.26` (2026-11-10T11:47:56)**:
+  - Cài đặt `helmet` thành công trên máy chủ.
+  - PM2 Backend (`mxv-backend`) reload thành công với PID mới `2711248`, hoạt động trơn tru.
+  - Kích hoạt xác thực CoreCCP Live qua REST API: **PASS trong 580ms! User: `tradingdesk`, UserId: `75`, AccessToken sinh mới thành công, hiệu lực đến 14:47:56**. Không có bất kỳ lỗi lặp hoặc spam đối tác.
 
 ---
 
