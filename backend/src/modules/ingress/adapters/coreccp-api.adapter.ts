@@ -201,11 +201,19 @@ export class CoreCcpApiAdapter implements IIngressPort {
       }
     }
 
+    if (!baseUrl) {
+      throw new Error(
+        'Không tìm thấy cấu hình URL CoreCCP trong bot_credentials_ccp hoặc biến môi trường CORECCP_BASE_URL. Bắt buộc phải cấu hình URL hợp lệ (Data-Driven), không dùng fallback!',
+      );
+    }
+
     try {
       const parsedUrl = new URL(baseUrl);
       baseUrl = parsedUrl.origin;
     } catch {
-      baseUrl = this.defaultBaseUrl;
+      throw new Error(
+        `URL CoreCCP không hợp lệ: "${baseUrl}". Bắt buộc phải cấu hình URL chuẩn (ví dụ: https://coreccp.vnclear.vn)`,
+      );
     }
 
     if (
@@ -311,7 +319,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     jar.setFromHeaders(postLoginRes.headers);
     const loc = postLoginRes.headers.get('location');
     if (postLoginRes.status !== 302 || !loc || loc.includes('error')) {
-      throw new Error(`Đăng nhập CoreCCP thất bại: URL chuyển về ${loc || postLoginRes.status}`);
+      throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] Đăng nhập CoreCCP thất bại: URL chuyển về ${loc || postLoginRes.status}`);
     }
 
     // BƯỚC 3: Theo dõi chuỗi redirect bắt OAuth2 Code
@@ -361,7 +369,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {
-      throw new Error(`Đổi Access Token CoreCCP thất bại: ${JSON.stringify(tokenData)}`);
+      throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] Đổi Access Token CoreCCP thất bại: ${JSON.stringify(tokenData)}`);
     }
 
     const jwt = this.decodeJwt(tokenData.access_token);

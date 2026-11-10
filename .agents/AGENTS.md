@@ -333,3 +333,41 @@ Khi di dời code từ `reconciliation.service.ts` sang `trading-ops/`:
 - **Bảo tồn vĩnh viễn Pure Logic**: Các thuật toán tính toán so khớp lệnh (`klgd-recon.service.ts`, `dsgd-before-eod-recon.service.ts`) được thiết kế hoàn toàn độc lập với phương thức lấy dữ liệu.
 - **Hoán đổi Adapter không xâm lấn**: Khi tắt Playwright, chỉ việc thay thế hoặc bổ sung Ingress Adapter mới (`CoreExApiAdapter`, `CoreCcpApiAdapter`) nạp vào Cổng `IIngressPort`. Toàn bộ mã nguồn nghiệp vụ của các Domain Worker được giữ nguyên vẹn 100%.
 - **Giải phóng tài nguyên**: Việc loại bỏ Playwright sẽ triệt tiêu 100% rủi ro ngốn RAM (giảm từ 1.5GB Chromium xuống vài chục MB HTTP Client) và tăng tốc thời gian lấy dữ liệu từ hàng chục giây xuống dưới 500ms.
+
+---
+
+## 11. Persistent Fix Context & Standard Flow Protocol (Quy Chuẩn Lưu Ngữ Cảnh Sửa Lỗi & Luồng Kỹ Thuật Chuẩn)
+
+Quy chuẩn này được ban hành để **chấm dứt triệt để tình trạng "fix bừa phỏng đoán, bug tùm lum, chắp vá tạm bợ"** và đảm bảo hệ thống vận hành ổn định bền vững sau 4 tháng triển khai:
+
+### 1. Quy Tắc Duy Trì File Trạng Thái Sống (`ACTIVE_FIX_STATE.md`)
+- Trong suốt quá trình sửa lỗi hoặc điều tra hệ thống, AI BẮT BUỘC duy trì và cập nhật liên tục file `ACTIVE_FIX_STATE.md` tại thư mục gốc repository.
+- File này đóng vai trò là **bộ nhớ trạng thái bất biến (Single Source of Truth for Session Memory)**.
+- Mỗi khi bắt đầu lượt trả lời mới hoặc tiếp nhận yêu cầu mới, **AI BẮT BUỘC PHẢI ĐỌC `ACTIVE_FIX_STATE.md` TRƯỚC TIÊN** để biết rõ:
+  1. Mục tiêu và phạm vi của tác vụ hiện tại là gì?
+  2. Những việc cụ thể đã hoàn thành (`[x]`)?
+  3. Đang dừng ở đâu (`[/]`)?
+  4. Việc cụ thể tiếp theo cần làm ngay là gì (`[ ]`)?
+  5. Đã deploy lên server chưa (Commit hash, PM2 PID)?
+
+### 2. Quy Tắc 5 Bước Sửa Lỗi Theo Luồng Chuẩn (Standard 5-Step Flow)
+Tuyệt đối cấm nhảy vào sửa 1 dòng code đơn lẻ theo triệu chứng bề mặt. Mọi quy trình sửa lỗi phải tuân thủ nghiêm ngặt 5 bước:
+
+1. **Bước 1 - Xác thực Bằng Chứng (Ground Truth Verification)**:
+   - Trích xuất log thực tế có timestamp, mã lỗi, URL và tham số từ PM2/MongoDB.
+   - Không đưa ra kết luận hoặc sửa code khi chưa đọc trực tiếp dòng log gốc.
+2. **Bước 2 - Vẽ Bản Đồ Luồng Chuẩn (End-to-End Flow Mapping)**:
+   - Lần theo toàn bộ luồng từ đầu đến cuối:
+     `Scheduler / Trigger UI` $\rightarrow$ `Job Queue (Domain Locks)` $\rightarrow$ `Ingress Adapter / Scraper` $\rightarrow$ `Partner API Response` $\rightarrow$ `Domain Worker (Pure Logic)` $\rightarrow$ `Persistence / CSDL Ca trực`.
+   - Xác định chính xác lỗi xảy ra ở mắt xích nào và vì sao mắt xích đó gãy.
+3. **Bước 3 - Thiết Kế Giải Pháp Chuẩn Kiến Trúc (Architecture-First Fix)**:
+   - Sửa tận gốc nguyên nhân kỹ thuật (Root Cause), không sửa ngọn (Symptom Patching).
+   - Đảm bảo tính tương thích với toàn bộ hệ thống cấu hình động (`system_settings`, Data-driven, Zero Hardcoded IDs).
+4. **Bước 4 - Kiểm Thử Biên Dịch & Không Phá Vỡ (Build & Non-regression Gate)**:
+   - Chạy `npm run build` (hoặc `nest build`) đạt Exit code 0.
+   - Kiểm tra ảnh hưởng phụ (Side-effects) lên các phân hệ khác trước khi bàn giao.
+5. **Bước 5 - Đồng Bộ Trạng Thái & Ghi Vết Triển Khai (Deployment & State Sync)**:
+   - Cập nhật tiến độ vào `ACTIVE_FIX_STATE.md`.
+   - Ghi nhật ký vào `CHANGELOG_AI.md`.
+   - Báo cáo rõ ràng: Đã sửa gì, file nào, đã test ra sao và bước tiếp theo là gì.
+

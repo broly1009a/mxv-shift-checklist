@@ -15,7 +15,7 @@ Tài liệu này hướng dẫn chi tiết các bước cài đặt hệ thống
 
 ## 2. Các Bước Cài Đặt Chi Tiết trên Ubuntu
 
-Kết nối vào máy chủ bằng MobaXterm qua IP `10.0.0.26` (user `mxvadmin`, password `MxV!,#2o26`). Thực hiện chạy các lệnh sau:
+Kết nối vào máy chủ bằng MobaXterm qua IP `10.0.0.26` (user `mxvadmin`, mật khẩu do Quản trị hệ thống cấp riêng, KHÔNG ghi trong tài liệu/Git). Thực hiện chạy các lệnh sau:
 
 ### Bước 1: Cài đặt Node.js (Phiên bản LTS v20.x)
 Sử dụng NodeSource PPA chính thức để cài đặt Node.js ổn định:

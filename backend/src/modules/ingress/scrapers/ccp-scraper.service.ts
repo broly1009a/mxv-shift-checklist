@@ -54,12 +54,18 @@ export class CcpScraperService {
   async login(
     credentials: ICcpLoginCredentials,
   ): Promise<{ browser: Browser; page: Page; baseUrl: string }> {
-    const { username, password } = credentials;
+    const { username, password, url } = credentials;
     if (!username || !password) {
       throw new Error('Chưa cấu hình thông tin đăng nhập CoreCCP (username, password).');
     }
+    if (!url || !url.trim()) {
+      throw new Error(
+        'Chưa cấu hình URL đăng nhập CoreCCP (bot_credentials_ccp.url). Vui lòng cấu hình URL hệ thống trên giao diện Quản trị (Tuyệt đối không sử dụng URL hardcode/mặc định).',
+      );
+    }
 
-    const ccpUrl = (credentials.url || 'https://coreccp.mxv.com.vn')
+    const ccpUrl = url
+      .trim()
       .replace(/\/login\/?$/, '')
       .replace(/\/$/, '');
 

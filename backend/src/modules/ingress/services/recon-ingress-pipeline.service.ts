@@ -247,7 +247,7 @@ export class ReconIngressPipelineService {
       triggerAllRemainingPairs();
       if (REQUIRE_ALL_SOURCES_FRESH && !barrierTriggered && !barrierAborted) {
         barrierAborted = true;
-        abortReason = `Nguồn [${source}] gặp sự cố: ${errorMsg}`;
+        abortReason = `[PARTNER_SERVICE_UNAVAILABLE] Nguồn [${source}] gặp sự cố: ${errorMsg}`;
         log(` TẠM DỪNG TIẾN TRÌNH: ${abortReason}. Hệ thống tạm dừng để tránh so khớp sai lệch khi chưa đủ dữ liệu các bên.`);
         triggerBarrierReject(new Error(abortReason));
       }

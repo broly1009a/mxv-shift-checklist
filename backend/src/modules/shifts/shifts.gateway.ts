@@ -11,7 +11,24 @@ import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    // Chỉ chấp nhận origin giao diện lấy từ FRONTEND_URL (đánh giá tại thời điểm kết nối, không mở '*').
+    // Request không có header Origin (công cụ phía server) được phép; origin lạ bị từ chối.
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      const allowed = (process.env.FRONTEND_URL || '').trim();
+      if (!origin) return callback(null, true);
+      try {
+        if (allowed && new URL(allowed).origin === origin) {
+          return callback(null, true);
+        }
+      } catch {
+        // FRONTEND_URL không hợp lệ -> từ chối bên dưới
+      }
+      return callback(new Error('Origin không được phép kết nối WebSocket'), false);
+    },
+    credentials: true,
   },
 })
 export class ShiftsGateway implements OnGatewayConnection, OnGatewayDisconnect {

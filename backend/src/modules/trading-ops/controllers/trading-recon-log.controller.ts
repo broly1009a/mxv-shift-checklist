@@ -1,8 +1,10 @@
-import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, UseGuards } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { TradingReconLog } from '../schemas/trading-recon-log.schema';
 
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/trading-ops/recon-logs')
 export class TradingReconLogController {
   constructor(

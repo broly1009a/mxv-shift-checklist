@@ -26,12 +26,21 @@ class CompactConsoleLogger extends ConsoleLogger {
 }
 
 import { json, urlencoded } from 'express';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: new CompactConsoleLogger(),
   });
-  app.enableCors(); // Enables communication between NextJS frontend and NestJS backend
+  // Fail-Fast: CORS chỉ cho phép đúng origin giao diện (FRONTEND_URL), không mở '*' và không có giá trị mặc định.
+  const frontendOrigin = (process.env.FRONTEND_URL || '').trim();
+  if (!frontendOrigin) {
+    throw new Error(
+      'FRONTEND_URL chưa được cấu hình trong .env. Từ chối khởi động để tránh mở CORS toàn cục.',
+    );
+  }
+  app.use(helmet());
+  app.enableCors({ origin: new URL(frontendOrigin).origin, credentials: true });
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ limit: '50mb', extended: true }));
   const port = process.env.PORT ?? 3000;

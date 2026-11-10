@@ -229,9 +229,10 @@ export class IngressService implements IIngressPort {
 
       case 'CCP':
       case 'CORE_CCP': {
-        const ccpCreds = {
+        const ccpCreds: { username: string; password?: string; url?: string } = {
           username: process.env.CCP_USERNAME || '',
           password: process.env.CCP_PASSWORD || '',
+          url: process.env.CCP_URL || '',
         };
 
         if (this.settingsService) {
@@ -241,6 +242,7 @@ export class IngressService implements IIngressPort {
               const dec = JSON.parse(decrypt(rawCcp));
               if (dec.username) ccpCreds.username = dec.username;
               if (dec.password) ccpCreds.password = dec.password;
+              if (dec.url) ccpCreds.url = dec.url;
             } catch {}
           }
         }

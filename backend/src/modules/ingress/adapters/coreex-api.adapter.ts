@@ -288,11 +288,19 @@ export class CoreExApiAdapter implements IIngressPort {
       clientSecret = baseUrl.includes('uat') ? 'jY3lgfDQQdJceOILsjKIxKLa0MQ7IU' : 'RyDmU4K6eiSCY2WDHbnOmCwtorSyG1';
     }
 
+    if (!baseUrl) {
+      throw new Error(
+        'Không tìm thấy cấu hình URL CoreExchange trong bot_credentials_ce hoặc biến môi trường COREEXCHANGE_BASE_URL. Bắt buộc phải cấu hình URL hợp lệ (Data-Driven), không dùng fallback!',
+      );
+    }
+
     try {
       const parsedUrl = new URL(baseUrl);
       baseUrl = parsedUrl.origin;
     } catch {
-      baseUrl = this.defaultBaseUrl;
+      throw new Error(
+        `URL CoreExchange không hợp lệ: "${baseUrl}". Bắt buộc phải cấu hình URL chuẩn (ví dụ: https://coreexchange.mxv.com.vn)`,
+      );
     }
 
     // Tự động phân giải Client ID & Secret từ host /assets-manifest.js (Self-Healing)
@@ -404,12 +412,12 @@ export class CoreExApiAdapter implements IIngressPort {
     let nextUrl = postLoginRes.headers.get('location');
 
     if (postLoginRes.status !== 302 || !nextUrl || nextUrl.includes('error')) {
-      throw new Error(`Đăng nhập Core Exchange thất bại! HTTP Status: ${postLoginRes.status}, Location: ${nextUrl || 'none'}`);
+      throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] Đăng nhập Core Exchange thất bại! HTTP Status: ${postLoginRes.status}, Location: ${nextUrl || 'none'}`);
     }
 
     if (nextUrl.includes('change-password')) {
       throw new Error(
-        `Tài khoản CoreExchange (${username}) bị máy chủ yêu cầu đổi mật khẩu bắt buộc (/change-password). Vui lòng đăng nhập giao diện web CoreExchange bằng tài khoản này để cập nhật mật khẩu mới trước khi bot có thể hoạt động.`,
+        `[PARTNER_SERVICE_UNAVAILABLE] Tài khoản CoreExchange (${username}) bị máy chủ yêu cầu đổi mật khẩu bắt buộc (/change-password). Vui lòng đăng nhập giao diện web CoreExchange bằng tài khoản này để cập nhật mật khẩu mới trước khi bot có thể hoạt động.`,
       );
     }
 

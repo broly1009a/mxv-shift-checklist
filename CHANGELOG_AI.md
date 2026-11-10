@@ -1,3 +1,85 @@
+## [2026-11-10T11:22] FIX(SECURITY_HARDENING_AND_FULL_TESTCASE_GATE): Thắt Chặt Bảo Mật Toàn Diện, Loại Bỏ Hardcode Fallback & Thiết Lập Full Testcase Verification Cho 5 Phân Hệ
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: _"tuần vừa rồi do có request từ ip lạ vào hệ thống mxv nên đã thắt chặt rule bảo mật nên tôi cần bạn fix triệt để code rác và lỗ hổng hệ thống luồng hiện tại"_, _"giúp tôi tổng hợp thành task chi tiết để fix lẻ chuẩn chỉ từng file"_, và _"giúp tôi update từng cái và kiểm thử với full testcase kịch bản"_.
+- **Mục tiêu**:
+  1. Bịt lỗ hổng Endpoint `/api/v1/trading-ops/recon-logs` công khai bằng `@UseGuards(JwtAuthGuard)`.
+  2. Bổ sung Header bảo mật `helmet`, thắt chặt nguồn CORS và WebSocket Origin khớp với `FRONTEND_URL`.
+  3. Loại bỏ Fallback URL hardcode tại `CoreCcpApiAdapter` và `CoreExApiAdapter`; ném lỗi Fail-Fast rõ nghĩa khi thiếu URL cấu hình.
+  4. Đánh dấu lỗi gián đoạn Ingress bằng tiền tố `[PARTNER_SERVICE_UNAVAILABLE]` để kích hoạt Cooldown 15 phút, ngắt ngay Attempt 1 và triệt tiêu bão retry.
+  5. Củng cố bộ mã hóa `crypto.ts`: Phát cảnh báo khi thiếu `ENCRYPTION_KEY`, hỗ trợ giải mã 3 tầng tương thích ngược dữ liệu `bot_credentials`.
+  6. Xây dựng 3 bộ test tự động (14 test cases) và kiểm chứng 100% Build Gates trên cả Backend và Frontend.
+
+### 2. Danh sách File Chỉnh sửa & Tạo mới
+- [`backend/src/modules/trading-ops/controllers/trading-recon-log.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-recon-log.controller.ts)
+- [`backend/src/shared/helpers/crypto.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.ts)
+- [`backend/src/modules/ingress/adapters/coreccp-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)
+- [`backend/src/modules/ingress/adapters/coreex-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)
+- [`backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts)
+- [`backend/src/main.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/main.ts)
+- [`backend/src/modules/shifts/shifts.gateway.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/shifts/shifts.gateway.ts)
+- [`backend/src/modules/ingress/controllers/ingress-agent.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-agent.controller.ts)
+- [`backend/src/modules/trading-ops/controllers/trading-recon-log.controller.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-recon-log.controller.spec.ts) *(Test file)*
+- [`backend/src/shared/helpers/crypto.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.spec.ts) *(Test file)*
+- [`backend/src/modules/ingress/adapters/coreccp-coreex-failfast.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-coreex-failfast.spec.ts) *(Test file)*
+- [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **TradingReconLogController**: Thêm `@UseGuards(JwtAuthGuard)` để chặn truy cập không xác thực vào lịch sử đối soát từ IP lạ.
+2. **Crypto Helper**: 
+   - Kiểm tra biến môi trường `ENCRYPTION_KEY`, cảnh báo khi thiếu key trên production.
+   - Hàm `decrypt()` giải mã 3 tầng (`Current Key -> Fixed Salt -> Legacy Default Key`) đảm bảo không làm gãy dữ liệu tài khoản cũ đã lưu trong MongoDB.
+3. **CoreCCP & CoreExchange Adapters**:
+   - Loại bỏ fallback URL hardcode, ném lỗi Fail-Fast khi chưa cấu hình URL hợp lệ.
+   - Thêm tiền tố `[PARTNER_SERVICE_UNAVAILABLE]` vào lỗi đăng nhập/đổi token thất bại và trường hợp `/change-password` của CoreExchange.
+4. **ReconIngressPipelineService**:
+   - Hàm `abortBarrierIfStrict()` đánh dấu lỗi `[PARTNER_SERVICE_UNAVAILABLE]` khi một trong các nguồn bắt buộc bị gián đoạn, giúp hàng đợi ngắt ngay Attempt 1 và áp dụng Cooldown 15 phút an toàn.
+
+### 4. Xác nhận Build & Kiểm thử Kịch Bản
+- **Unit Test Suites (14/14 tests pass)**:
+  - `trading-recon-log.controller.spec.ts`: 4/4 tests pass (chặn truy cập trái phép, tìm kiếm theo ID và sắp xếp theo ngày).
+  - `crypto.spec.ts`: 6/6 tests pass (mã hóa/giải mã, biến môi trường, tương thích ngược 3 tầng, dữ liệu hỏng).
+  - `coreccp-coreex-failfast.spec.ts`: 4/4 tests pass (Fail-Fast URL rỗng, tái sử dụng cache hợp lệ, bắt lỗi `/change-password`).
+- **Build Verification**:
+  - `backend`: `npm run build` (`nest build`) thành công (exit code 0).
+  - `frontend`: `npm run build` (`next build`) thành công 100% (50/50 routes tối ưu, exit code 0).
+
+---
+
+## [2026-11-10T10:35] FEAT(FIX_CONTEXT_AND_STANDARD_FLOW_PROTOCOL): Ban Hành Quy Chuẩn Khắc Phục Lỗi Bằng Luồng Chuẩn & Duy Trì Bộ Nhớ Trạng Thái Phiên Làm Việc (`ACTIVE_FIX_STATE.md`)
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: _"không thể fix bừa phỏng đoán và bug tùm lum được nữa tôi muốn bạn viết rule cho argent lưu lại ngữ cảnh fix trong một cuộc trò chuyện để mỗi lần bạn làm việc có thể đọc lại vào đó để biết mình làm đến đâu và làm gì tiếp theo.tôi cần bạn có hướng fix dựa theo log chuẩn và luồng chuẩn vì hệ thống hoạt động đến nay cũng 4 tháng mà chưa bao giờ ổn cả"_.
+- **Mục tiêu**:
+  1. Ban hành Điều khoản 11 trong `.agents/AGENTS.md`: Quy định bắt buộc AI phải duy trì bộ nhớ phiên làm việc, không được phỏng đoán và phải đi theo đúng luồng kiến trúc 5 bước.
+  2. Tạo file trạng thái sống [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md) ghi nhận chính xác thực trạng của từng phân hệ, nguyên nhân gốc rễ, việc đã làm và việc cần làm tiếp theo.
+  3. Khắc phục lỗi fallback domain sai của CoreCCP từ `coreccp.mxv.com.vn` (DNS chết) thành `https://coreccp.vnclear.vn` trong `CcpScraperService` và `IngressService`.
+  4. Cập nhật `.gitignore` chặn đứng toàn bộ file rác và log tạm.
+
+### 2. Danh sách File Chỉnh sửa
+- [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.agents/AGENTS.md)
+- [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md) *(Tạo mới)*
+- [`.gitignore`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.gitignore)
+- [`backend/src/modules/ingress/scrapers/ccp-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts)
+- [`backend/src/modules/ingress/ingress.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Bổ sung Điều 11 vào `.agents/AGENTS.md`**:
+   - Quy định mọi phiên làm việc sửa lỗi phải đọc và cập nhật `ACTIVE_FIX_STATE.md` đầu tiên.
+   - Ban hành quy trình 5 bước sửa lỗi theo luồng chuẩn: Bằng chứng log gốc $\rightarrow$ Bản đồ luồng End-to-End $\rightarrow$ Sửa tận gốc nguyên nhân $\rightarrow$ Kiểm thử biên dịch $\rightarrow$ Đồng bộ trạng thái triển khai.
+2. **Khởi tạo `ACTIVE_FIX_STATE.md`**:
+   - Lưu trữ toàn bộ bảng theo dõi trạng thái 5 phân hệ (CQG, MS, ACM, CoreCCP, CoreExchange).
+   - Vẽ sequence diagram và flowchart luồng xử lý `CHECK_KLGD`.
+   - Lập checklist phân kỳ 3 giai đoạn và chỉ định hành động tiếp theo rõ ràng.
+3. **Sửa lỗi tên miền CoreCCP Fallback & Triệt Tiêu Hardcode (Fail-Fast)**:
+   - Trong `ccp-scraper.service.ts`: Xóa bỏ 100% fallback URL gán cứng (`'https://coreccp.vnclear.vn'`). Nếu trường `credentials.url` rỗng hoặc không hợp lệ, hệ thống lập tức `throw new Error('Chưa cấu hình URL đăng nhập CoreCCP (bot_credentials_ccp.url)...')` để dừng ngay lập tức (Fail-Fast), bảo đảm kiến trúc Data-driven 100%.
+   - Trong `ingress.service.ts`: Bổ sung gán `ccpCreds.url = dec.url` từ CSDL giải mã.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Typecheck & Build**: `nest build` đạt Exit code 0.
+
+---
+
 ## [2026-11-10T09:00] FIX(CQG_CIRCUIT_BREAKER_AND_SAFETY_GATE): Thiết Lập Cầu Chì Phần Cứng CQG Safety Gate, Khóa Đăng Nhập Dồn Dập & Triệt Tiêu Vòng Lặp Retry Tight-Loop Khi Đối Tác Gặp Sự Cố
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

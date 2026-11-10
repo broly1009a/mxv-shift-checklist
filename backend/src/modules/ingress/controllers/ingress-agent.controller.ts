@@ -17,6 +17,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomBytes } from 'crypto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { BotJob } from '../../../schemas/bot-job.schema';
@@ -52,7 +53,7 @@ export class AgentController {
 
     // 2. Fallback to static API key for backward compatibility or handshake
     const key = headers['x-agent-api-key'];
-    const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
+    const expected = AgentController.getExpectedAgentKey();
     if (key && key === expected) {
       return;
     }
@@ -63,21 +64,33 @@ export class AgentController {
     );
   }
 
+  /**
+   * Khóa API Agent BẮT BUỘC lấy từ biến môi trường RPA_AGENT_API_KEY.
+   * Không có giá trị mặc định (Fail-Fast): thiếu cấu hình thì từ chối toàn bộ Agent.
+   */
+  private static getExpectedAgentKey(): string {
+    const expected = process.env.RPA_AGENT_API_KEY;
+    if (!expected || !expected.trim()) {
+      throw new HttpException(
+        'RPA_AGENT_API_KEY chưa được cấu hình trên máy chủ. Từ chối kết nối Agent.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return expected;
+  }
+
   // POST /api/v1/bot-engine/agent/login
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: { apiKey: string; hostname: string }) {
-    const expected = process.env.RPA_AGENT_API_KEY || 'mxv-agent-key';
+    const expected = AgentController.getExpectedAgentKey();
     if (!body.apiKey || body.apiKey !== expected) {
       throw new HttpException(
         'Unauthorized: Invalid Agent API Key',
         HttpStatus.UNAUTHORIZED,
       );
     }
-    const token =
-      'sess_' +
-      Math.random().toString(36).substring(2) +
-      Math.random().toString(36).substring(2);
+    const token = 'sess_' + randomBytes(32).toString('hex');
     const expireAt = Date.now() + 60 * 60 * 1000; // 1 hour
     AgentController.sessionTokens.set(token, {
       hostname: body.hostname || 'unknown',
