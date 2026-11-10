@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import * as ExcelJS from 'exceljs';
 import {
   IIngressPort,
@@ -106,6 +107,44 @@ export function getPreviousTradingDate(inputDate?: string | Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dayStr = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dayStr}`;
+}
+
+/**
+ * Tự động bẫy & giải mã Basic Auth trực tiếp từ /assets-manifest.js của CoreExchange host
+ * (Cơ chế tự thích ứng Zero-Config / Self-Healing chống lỗi xoay secret)
+ */
+export async function discoverCeBasicAuthFromHost(
+  baseUrl: string,
+): Promise<{ clientId: string; clientSecret: string; basicAuth: string } | null> {
+  try {
+    const origin = new URL(baseUrl).origin;
+    const res = await fetch(`${origin}/assets-manifest.js`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const match = text.match(/window\.__ASSETS_MANIFEST__\s*=\s*["']([^"']+)["']/);
+    if (!match) return null;
+    const [prefix, encoded] = match[1].split('fss');
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    const key = Buffer.from(prefix, 'base64');
+    const iv = Buffer.from(parsed.iv, 'base64');
+    const ciphertext = Buffer.from(parsed.data, 'base64');
+
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let dec = decipher.update(ciphertext);
+    dec = Buffer.concat([dec, decipher.final()]);
+    const config = JSON.parse(dec.toString('utf8'));
+    const sso = config.api?.sso || config.api || {};
+    const clientId = sso.CLIENT_ID || 'web-exchange-mxv';
+    const clientSecret = sso.CLIENT_SECRET;
+    if (clientId && clientSecret) {
+      return {
+        clientId,
+        clientSecret,
+        basicAuth: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+      };
+    }
+  } catch {}
+  return null;
 }
 
 @Injectable()
@@ -246,7 +285,7 @@ export class CoreExApiAdapter implements IIngressPort {
     }
 
     if (!clientSecret) {
-      clientSecret = baseUrl.includes('uat') ? 'jY3lgfDQQdJceOILsjKIxKLa0MQ7IU' : '865lhHVYOWQ93CicOirSZv4NR5JBe8';
+      clientSecret = baseUrl.includes('uat') ? 'jY3lgfDQQdJceOILsjKIxKLa0MQ7IU' : 'RyDmU4K6eiSCY2WDHbnOmCwtorSyG1';
     }
 
     try {
@@ -254,6 +293,13 @@ export class CoreExApiAdapter implements IIngressPort {
       baseUrl = parsedUrl.origin;
     } catch {
       baseUrl = this.defaultBaseUrl;
+    }
+
+    // Tự động phân giải Client ID & Secret từ host /assets-manifest.js (Self-Healing)
+    const discoveredSso = await discoverCeBasicAuthFromHost(baseUrl);
+    if (discoveredSso) {
+      if (discoveredSso.clientId) clientId = discoveredSso.clientId;
+      if (discoveredSso.clientSecret) clientSecret = discoveredSso.clientSecret;
     }
 
     // 1. Kiểm tra session cache nếu còn hiệu lực (chưa hết hạn accessToken, buffer 5 phút)
@@ -361,6 +407,12 @@ export class CoreExApiAdapter implements IIngressPort {
       throw new Error(`Đăng nhập Core Exchange thất bại! HTTP Status: ${postLoginRes.status}, Location: ${nextUrl || 'none'}`);
     }
 
+    if (nextUrl.includes('change-password')) {
+      throw new Error(
+        `Tài khoản CoreExchange (${username}) bị máy chủ yêu cầu đổi mật khẩu bắt buộc (/change-password). Vui lòng đăng nhập giao diện web CoreExchange bằng tài khoản này để cập nhật mật khẩu mới trước khi bot có thể hoạt động.`,
+      );
+    }
+
     if (!nextUrl.startsWith('http')) nextUrl = `${baseUrl}${nextUrl}`;
     const continueRes = await fetch(nextUrl, {
       headers: { ...commonHeaders, Cookie: jar.getCookieHeader() },
@@ -376,40 +428,45 @@ export class CoreExApiAdapter implements IIngressPort {
       oauthCode = urlObj.searchParams.get('code') || undefined;
     }
 
+    if (!oauthCode) {
+      throw new Error(
+        `Đăng nhập CoreExchange thất bại: Không bắt được mã OAuth2 Code từ chuỗi điều hướng (location: ${validateUrl || nextUrl || 'none'})`,
+      );
+    }
+
     const sessionCookie = jar.getSessionCookie();
 
     // BƯỚC 4: Đổi authorization code lấy Access Token OAuth2
-    let accessToken = '';
-    let expiresAt = Date.now() + 10800 * 1000;
-    if (oauthCode) {
-      try {
-        const tokenParams = new URLSearchParams();
-        tokenParams.append('grant_type', 'authorization_code');
-        tokenParams.append('code', oauthCode);
-        tokenParams.append('redirect_uri', redirectUri);
+    const tokenParams = new URLSearchParams();
+    tokenParams.append('grant_type', 'authorization_code');
+    tokenParams.append('code', oauthCode);
+    tokenParams.append('redirect_uri', redirectUri);
 
-        const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-        const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Basic ${basicAuth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Cookie: sessionCookie,
-          },
-          body: tokenParams.toString(),
-          signal: AbortSignal.timeout(15000),
-        });
-        if (tokenRes.ok) {
-          const tokenJson: any = await tokenRes.json().catch(() => ({}));
-          accessToken = tokenJson.access_token || '';
-          const expiresIn = Number(tokenJson.expires_in) || 10800;
-          expiresAt = Date.now() + expiresIn * 1000;
-          this.logger.log(`[CoreExApiAdapter] Đổi OAuth2 Token thành công (Bearer length: ${accessToken.length}, hiệu lực: ${expiresIn}s)`);
-        }
-      } catch (tokenErr: any) {
-        this.logger.warn(`[CoreExApiAdapter] Lỗi đổi token OAuth2: ${tokenErr.message}`);
-      }
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: sessionCookie,
+      },
+      body: tokenParams.toString(),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const tokenJson: any = await tokenRes.json().catch(() => ({}));
+    const accessToken = tokenJson.access_token || '';
+    if (!tokenRes.ok || !accessToken) {
+      throw new Error(
+        `Đổi Access Token CoreExchange thất bại: ${JSON.stringify(tokenJson)} (HTTP: ${tokenRes.status})`,
+      );
     }
+
+    const expiresIn = Number(tokenJson.expires_in) || 10800;
+    const expiresAt = Date.now() + expiresIn * 1000;
+    this.logger.log(
+      `[CoreExApiAdapter] Đổi OAuth2 Token thành công (Bearer length: ${accessToken.length}, hiệu lực: ${expiresIn}s)`,
+    );
 
     let userId = 9;
     if (accessToken) {

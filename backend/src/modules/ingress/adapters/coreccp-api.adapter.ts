@@ -76,16 +76,49 @@ export class CookieJar {
   }
 }
 
+import * as crypto from 'crypto';
+
 export const CCP_UAT_BASIC_AUTH =
   'Basic d2ViLWNjcC1teHY6VWtXVDU2eHZCa1pPcmt6M21UWTZ0empmdWhuMkdU';
 export const CCP_PROD_BASIC_AUTH =
-  'Basic d2ViLWNjcC1teHY6d1NBbmNpNkpzN3AxWTd2eVdiZjVZajBVc3J5Yjdy';
+  'Basic d2ViLWNjcC1teHY6OTk4ZTk4d2t1OHY3UU91bHN1Qmtyc0Jkb3RBeFBO';
 
 export function resolveCcpBasicAuth(baseUrl?: string): string {
   const clean = (baseUrl || '').toLowerCase();
   return clean.includes('coreccp.vnclear.vn') || clean.includes('vnclear.vn')
     ? CCP_PROD_BASIC_AUTH
     : CCP_UAT_BASIC_AUTH;
+}
+
+/**
+ * Tự động bẫy & giải mã Basic Auth trực tiếp từ /assets-manifest.js của CoreCCP host
+ * (Cơ chế tự thích ứng Zero-Config / Self-Healing kế thừa từ mxv-account-opening standard)
+ */
+export async function discoverCcpBasicAuthFromHost(baseUrl: string): Promise<string | null> {
+  try {
+    const origin = new URL(baseUrl).origin;
+    const res = await fetch(`${origin}/assets-manifest.js`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const match = text.match(/window\.__ASSETS_MANIFEST__\s*=\s*["']([^"']+)["']/);
+    if (!match) return null;
+    const [prefix, encoded] = match[1].split('fss');
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    const key = Buffer.from(prefix, 'base64');
+    const iv = Buffer.from(parsed.iv, 'base64');
+    const ciphertext = Buffer.from(parsed.data, 'base64');
+
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let dec = decipher.update(ciphertext);
+    dec = Buffer.concat([dec, decipher.final()]);
+    const config = JSON.parse(dec.toString('utf8'));
+    const clientId = config.api?.sso?.CLIENT_ID || config.api?.CLIENT_ID || 'web-ccp-mxv';
+    const clientSecret = config.api?.sso?.CLIENT_SECRET || config.api?.CLIENT_SECRET;
+    if (clientId && clientSecret) {
+      return 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    }
+  } catch {}
+  return null;
 }
 
 @Injectable()
@@ -219,7 +252,8 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     const jar = new CookieJar();
     const redirectUri = `${baseUrl}/validate_code`;
-    const basicAuth = resolveCcpBasicAuth(baseUrl);
+    const discoveredAuth = await discoverCcpBasicAuthFromHost(baseUrl);
+    const basicAuth = discoveredAuth || resolveCcpBasicAuth(baseUrl);
     const authUrl = `${baseUrl}/oauth2/authorize?client_id=web-ccp-mxv&response_type=code&redirect_uri=${encodeURIComponent(
       redirectUri,
     )}&scope=openid%20profile`;

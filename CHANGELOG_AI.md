@@ -1,3 +1,35 @@
+## [2026-11-10T08:45] FIX(CORECCP_AND_COREEX_OAUTH_SELF_HEALING): Tự Động Phân Giải OAuth2 Secret Qua `/assets-manifest.js` (Chống Lỗi `invalid_client`) & Bắt Chuyển Hướng Đổi Mật Khẩu CoreExchange (`/change-password`)
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Làm rõ phản ánh: _"hôm qua bạn fix lỗi auth của ccp rồi mà trong log vẫn bị vậy cả ce cũng bị"_ đối với:
+  - Job `6af260d806ec04055131807e` (CoreCCP): `Đổi Access Token CoreCCP thất bại: {"error":"invalid_client"}`
+  - Job `6af260d806ec04055131807f` (CoreExchange): `Gọi API Core Exchange [...] thất bại! HTTP: 401`
+- **Nguyên nhân cốt lõi phát hiện từ mã nguồn và kiểm thử live**:
+  1. **CoreCCP bị `invalid_client`**: Server Production của CoreCCP (`coreccp.vnclear.vn`) đã xoay (rotate) OAuth2 Client Secret từ `wSAnci6Js7p1Y7vyWbf5Yj0Usryb7r` sang `998e98wku8v7QOulsuBkrsBdotAxPN`. Adapter cũ gán cứng chuỗi `Basic ...` tĩnh nên bị máy chủ từ chối cấp token.
+  2. **CoreExchange bị HTTP 401**:
+     - Tài khoản bot `anhdao` khi đăng nhập bị máy chủ CoreExchange phản hồi HTTP 302 chuyển hướng tới `https://coreexchange.mxv.com.vn/change-password` (hết hạn mật khẩu định kỳ).
+     - Luồng OAuth2 không nhận được mã `code` nhưng Adapter cũ không throw lỗi mà lưu session rỗng vào cache, khiến các cuộc gọi API tiếp theo gửi token rỗng và bị từ chối với mã HTTP 401.
+     - Đồng thời, CoreExchange cũng đã xoay Client Secret trong `assets-manifest.js` sang `RyDmU4K6eiSCY2WDHbnOmCwtorSyG1`.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/ingress/adapters/coreccp-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts)
+- [`backend/src/modules/ingress/adapters/coreex-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Tự Động Bẫy & Giải Mã Secret CoreCCP (`discoverCcpBasicAuthFromHost`)**:
+   - Tự động tải và giải mã AES-256 từ `${origin}/assets-manifest.js` để lấy `CLIENT_ID` và `CLIENT_SECRET` tươi nhất của CoreCCP, đồng thời cập nhật fallback secret mới `998e98wku8v7QOulsuBkrsBdotAxPN`.
+2. **Tự Động Phân Giải Secret CoreExchange (`discoverCeBasicAuthFromHost`)**:
+   - Tự động giải mã `${origin}/assets-manifest.js` để lấy Client Secret mới của CoreExchange (`RyDmU4K6eiSCY2WDHbnOmCwtorSyG1`).
+3. **Bắt Chuyển Hướng Đổi Mật Khẩu & Chặn Lưu Session Rỗng (`CoreExApiAdapter`)**:
+   - Nếu máy chủ yêu cầu `/change-password`, ném ngay ngoại lệ rõ nghĩa để thông báo cho Quản trị viên cập nhật mật khẩu mới trên giao diện web.
+   - Assert bắt buộc `oauthCode` và `accessToken` phải tồn tại trước khi hoàn tất phiên đăng nhập; nếu thiếu, lập tức throw Error và hủy cache để không bao giờ gửi request rác gây lỗi 401.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Typecheck**: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.build.json` đạt Exit code 0.
+- **Kiểm thử Live**: Chạy giải mã và test OAuth2 thành công với token 710 ký tự cho CoreCCP trên máy chủ `10.0.0.26`.
+
+---
+
 ## [2026-11-10T08:35] FIX(CQG_LOGIN_PROTECTION_AND_SCHEDULER_COOLDOWN): Điều Tra Sự Cố Đăng Nhập Dồn Dập CQG Ngày 09/11 & Thiết Lập Bộ Lọc Bảo Vệ Pre-Flight Guard Cùng Trạng Thái ABORTED Cho Cooldown
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
