@@ -1,3 +1,45 @@
+## [2026-11-10T18:55] FIX & REDESIGN(AUTH_MONITOR_UI_ENTERPRISE_SYSTEM): Chuẩn Hóa Toàn Diện CSS Màn Hình Giám Sát Phân Hệ & Khắc Phục Lỗi Co Thắt Giao Diện
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: Phản ánh lỗi hiển thị giao diện qua ảnh chụp: Màn hình Giám sát phân hệ (`/trading-manager/auth-monitor`) bị co cụm ngang, 5 thẻ phân hệ bị ép chặt vào 1 hàng duy nhất gây vỡ dòng, lệch tông màu với toàn bộ hệ thống (`globals.css`).
+- **Nguyên nhân kỹ thuật**:
+  1. Trong `globals.css`: `.main-content` trước đó bị gán cứng `padding: 40px`, cộng thêm padding trong trang con làm mất hơn 140px chiều rộng hiển thị trên các màn hình chuẩn 1080p / 1366px.
+  2. Trong `auth-monitor/page.tsx`: Dùng lưới cứng `lg:grid-cols-5` mà không có `min-width`, dẫn tới mỗi thẻ KPI bị co hẹp xuống còn dưới 170px, làm số liệu và văn bản bị ép gãy dòng.
+  3. Màu sắc giao diện dùng các class Tailwind rời rạc (`bg-slate-50`, `bg-white`) thay vì sử dụng hệ thống biến CSS chuẩn của MXV (`var(--bg-app)`, `var(--bg-card)`, `glass-panel`, `btn btn-primary`, `btn btn-secondary`).
+
+### 2. Danh sách File Chỉnh sửa
+- [`frontend/src/app/globals.css`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/globals.css#L280-L293): Điều chỉnh `.main-content` sang `padding: 24px 28px` (và `20px 16px` ở màn hình <= 1280px) để tối ưu không gian hiển thị cho toàn bộ các module.
+- [`frontend/src/app/trading-manager/auth-monitor/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/app/trading-manager/auth-monitor/page.tsx):
+  - Chuyển đổi toàn bộ giao diện sang hệ thống Design Tokens: `glass-panel`, `var(--bg-card)`, `var(--border-color)`, `btn btn-primary`, `btn btn-secondary`.
+  - Thay thế `grid-cols-5` cứng nhắc bằng Responsive Auto-Fit Grid: `repeat(auto-fit, minmax(260px, 1fr))` $\rightarrow$ Thẻ luôn đảm bảo chiều rộng tối thiểu 260px, tự động xuống hàng 2-3 cột thông minh trên màn hình nhỏ.
+  - Sắp xếp lại chỉ số KPI trong từng thẻ thành lưới 2x2 rõ ràng, nổi bật RPM, lượt đăng nhập, tỷ lệ thành công và lỗi liên tiếp.
+  - Tái cấu trúc bảng Audit Stream với `table-responsive-wrapper`, các nút lọc phân hệ rộng rãi, hiệu ứng hover mượt mà.
+  - Chuẩn hóa Modal "Cấu hình Ngưỡng" đồng bộ giao diện Dark/Light mode.
+- [`CHANGELOG_AI.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết thay đổi.
+
+### 3. Kết Quả Xác Minh Thực Tế
+- **Frontend TypeScript (`npx tsc --noEmit`)**: 0 lỗi.
+- **Frontend Production Build (`next build`)**: Biên dịch thành công 51/51 routes, exit code 0.
+
+---
+
+## [2026-11-10T18:45] FEAT(SIDEBAR_AUTH_MONITOR_NAVIGATION): Bổ Sung Mục "Giám Sát Phân Hệ" Vào Sidebar Menu Frontend
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: "à vào trang giám sát các phân hệ kiểu gì vậy"
+- **Mục tiêu**:
+  - Tạo lối vào trực quan ngay trên thanh điều hướng Menu bên trái (Sidebar) của Frontend, giúp người dùng truy cập trang Giám sát phân hệ & Rate-limit (`/trading-manager/auth-monitor`) chỉ với 1 cú click từ bất kỳ màn hình nào.
+  - Tích hợp cho cả 2 khối phân quyền: Menu Quản lý giao dịch (Trading Manager) và Menu Khối Vận hành/Admin.
+
+### 2. Danh sách File Chỉnh sửa
+- [`frontend/src/components/Sidebar.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/frontend/src/components/Sidebar.tsx#L790-L803): Bổ sung liên kết `<Link href="/trading-manager/auth-monitor">` với icon `ShieldAlert`.
+- [`CHANGELOG_AI.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết thay đổi.
+
+### 3. Kết Quả Xác Minh Thực Tế
+- **Frontend TypeScript (`npx tsc --noEmit`)**: 0 lỗi, biên dịch thành công.
+
+---
+
 ## [2026-11-10T18:15] AUDIT & PURGE(CLEAN_CODE_EXHAUSTIVE_LINE_BY_LINE_AUDIT): Rà Soát Từng Dòng Code Mới, Xóa Bỏ Hoàn Toàn Vòng Lặp 5 Dòng & Mảng Fallback Đoán Mò Trong Toàn Bộ MsExcelParser
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

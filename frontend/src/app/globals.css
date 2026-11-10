@@ -279,9 +279,15 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 40px;
+  padding: 24px 28px;
   max-width: 100%;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 1280px) {
+  .main-content {
+    padding: 20px 16px;
+  }
 }
 
 /* Mobile Responsive Layout Override */

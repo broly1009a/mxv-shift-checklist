@@ -787,6 +787,18 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
               <Calendar size={18} style={{ flexShrink: 0 }} />
               <span>Báo Cáo Tháng</span>
             </Link>
+
+            {/* 9. Giám Sát Phân Hệ -> /trading-manager/auth-monitor */}
+            <Link
+              href="/trading-manager/auth-monitor"
+              onClick={onClose}
+              onMouseEnter={() => { if (isCollapsed) setFlyoutData(null); }}
+              className={`nav-link ${pathname.startsWith('/trading-manager/auth-monitor') ? 'active' : ''}`}
+              title={isCollapsed ? "Giám Sát Phân Hệ & Rate-Limit" : undefined}
+            >
+              <ShieldAlert size={18} style={{ flexShrink: 0 }} />
+              <span>Giám Sát Phân Hệ</span>
+            </Link>
           </>
         ) : (
           /* MẶC ĐỊNH CHO CÁC KHỐI KHÁC (IT, ADMIN, V.V...) - GIỮ NGUYÊN HOÀN TOÀN NHƯ CŨ */
@@ -929,6 +941,15 @@ export default function Sidebar({ isOpen = false, isCollapsed = false, onClose }
                 >
                   <Calendar size={18} style={{ flexShrink: 0 }} />
                   <span>Báo Cáo Tháng</span>
+                </Link>
+                <Link
+                  href="/trading-manager/auth-monitor"
+                  onClick={onClose}
+                  className={`nav-link ${pathname.startsWith('/trading-manager/auth-monitor') ? 'active' : ''}`}
+                  title={isCollapsed ? "Giám Sát Phân Hệ & Rate-Limit" : undefined}
+                >
+                  <ShieldAlert size={18} style={{ flexShrink: 0 }} />
+                  <span>Giám Sát Phân Hệ</span>
                 </Link>
               </>
             )}
