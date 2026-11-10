@@ -857,6 +857,20 @@ export class ReconIngressPipelineService {
           return;
         }
 
+        if (!readyState.ms || !readyState.acm || !readyState.ccp) {
+          const missing: string[] = [];
+          if (!readyState.ms) missing.push('M-System');
+          if (!readyState.acm) missing.push('ACM');
+          if (!readyState.ccp) missing.push('CoreCCP');
+          const preflightErr = `[CQG_ABORT_PREFLIGHT] Hủy mở trình duyệt CQG do đối tác chưa sẵn sàng sau 15s Pre-flight: ${missing.join(', ')}`;
+          log(`CQG  ${preflightErr}`);
+          readyState.cqg1 = true;
+          readyState.cqg2 = true;
+          errors.push(preflightErr);
+          abortBarrierIfStrict('CQG Pre-flight Guard', preflightErr);
+          return;
+        }
+
         log(`CQG  [Bước 1: Chuẩn bị] Mở đồng thời 2 tài khoản CQG1 & CQG2 chuẩn bị tải: ${Object.keys(filesToDownload).join(', ')}...`);
 
         const onReadyBarrierCqg1 = async () => {

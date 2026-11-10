@@ -488,37 +488,47 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       );
 
       const isPartnerUnavailable = errorMsg.includes('[PARTNER_SERVICE_UNAVAILABLE]');
+      const isCircuitBreaker =
+        errorMsg.includes('[CQG_CIRCUIT_BREAKER]') ||
+        errorMsg.includes('[CQG_ABORT_PREFLIGHT]');
+      const isFatalAuthError =
+        errorMsg.includes('invalid_client') ||
+        errorMsg.includes('401') ||
+        errorMsg.includes('đổi mật khẩu bắt buộc');
 
-      if (job.attempts < job.maxAttempts) {
+      const shouldAbortImmediately =
+        isPartnerUnavailable || isCircuitBreaker || isFatalAuthError;
+
+      if (shouldAbortImmediately) {
+        await this.syncJobToChecklist(job, 'ABORTED', errorMsg);
+        this.logger.warn(
+          `[FAIL_FAST] Job ${job.jobType} (ID: ${job._id}) tạm dừng ngay (ABORTED) ở lần thử ${job.attempts}/${job.maxAttempts} để bảo vệ hệ thống: ${errorMsg}`,
+        );
+      } else if (job.attempts < job.maxAttempts) {
         await this.syncJobToChecklist(job, 'PENDING', errorMsg);
       } else {
-        if (isPartnerUnavailable) {
-          await this.syncJobToChecklist(job, 'ABORTED', errorMsg);
-          this.logger.warn(
-            `Job ${job.jobType} (ID: ${job._id}) tạm dừng (ABORTED) do đối tác không khả dụng sau ${job.attempts} lần thử: ${errorMsg}`,
-          );
-        } else {
-          await this.sendOperationalFailureAlert(job, errorMsg).catch(
-            (emailErr) => {
-              this.logger.error(
-                `Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`,
-              );
-            },
-          );
-          await this.syncJobToChecklist(job, 'FAILED', errorMsg);
-          await this.logFailureToSystemLog(job, errorMsg).catch((logErr) => {
-            this.logger.error(`Lỗi ghi SystemLog thất bại: ${logErr.message}`);
-          });
-        }
+        await this.sendOperationalFailureAlert(job, errorMsg).catch(
+          (emailErr) => {
+            this.logger.error(
+              `Lỗi khi gọi sendOperationalFailureAlert: ${emailErr.message}`,
+            );
+          },
+        );
+        await this.syncJobToChecklist(job, 'FAILED', errorMsg);
+        await this.logFailureToSystemLog(job, errorMsg).catch((logErr) => {
+          this.logger.error(`Lỗi ghi SystemLog thất bại: ${logErr.message}`);
+        });
       }
     } finally {
       this.domainLockManager.release(job._id.toString());
-      // Kích hoạt ngay vòng lặp bốc job tiếp theo cho phân hệ vừa rảnh
-      setImmediate(() => {
+      // Giãn cách nếu job vừa thất bại cần retry để tránh tight-loop 0ms
+      const isImmediateRetry = job.status === 'PENDING';
+      const dispatchDelayMs = isImmediateRetry ? 15000 : 0;
+      setTimeout(() => {
         this.processQueue().catch((err) => {
           this.logger.error(`Error triggering queue after job release: ${err.message}`);
         });
-      });
+      }, dispatchDelayMs);
       if (typeof global !== 'undefined' && (global as any).gc) {
         try {
           (global as any).gc();

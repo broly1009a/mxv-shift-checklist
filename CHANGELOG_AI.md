@@ -1,3 +1,42 @@
+## [2026-11-10T09:00] FIX(CQG_CIRCUIT_BREAKER_AND_SAFETY_GATE): Thiết Lập Cầu Chì Phần Cứng CQG Safety Gate, Khóa Đăng Nhập Dồn Dập & Triệt Tiêu Vòng Lặp Retry Tight-Loop Khi Đối Tác Gặp Sự Cố
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: _"tôi cần bạn check thật kỹ để khắc phục như này nguy hiểm quá"_.
+- Giải quyết triệt để 100% rủi ro tài khoản CQG bị sàn khóa (account lockout) do đăng nhập quá nhanh hoặc bị retry dồn dập khi hệ thống đối tác gặp sự cố.
+- **Các lỗ hổng được xử lý toàn diện**:
+  1. **Khóa Đăng Nhập Đồng Thời (Concurrency Mutex)**: Ngăn ngừa tuyệt đối 2 tiến trình mở browser đăng nhập vào cùng 1 tài khoản CQG cùng lúc (gây đá phiên `?ref=forced` qua lại).
+  2. **Giãn Cách Cưỡng Chế 120 Giây (Mandatory Cooldown)**: Bắt buộc cách nhau tối thiểu 2 phút giữa 2 lần đăng nhập của bất kỳ tài khoản nào. Mọi nỗ lực gọi lại trong 120s đều bị từ chối với ngoại lệ `[CQG_CIRCUIT_BREAKER]`.
+  3. **Ngưỡng Giới Hạn Cửa Sổ Trượt (Sliding Window Rate Limit)**: Cố định tối đa 8 lần đăng nhập trong 1 giờ cho mỗi tài khoản. Vượt ngưỡng này lập tức tự động ngắt kết nối với CQG để bảo vệ tài khoản sống.
+  4. **Triệt Tiêu Vòng Lặp Retry Tight-Loop trong Hàng Đợi (`BotJobQueueService`)**:
+     - Trước đây: Khi gặp lỗi đối tác (`isPartnerUnavailable`), bot vẫn set `PENDING` và kích hoạt retry lần 2, lần 3 trong tích tắc 0ms thông qua `setImmediate`, khiến tài khoản CQG bị đăng nhập 3 lần trong vài chục giây.
+     - Sau khi sửa: Khi phát hiện `[PARTNER_SERVICE_UNAVAILABLE]`, `[CQG_CIRCUIT_BREAKER]`, hoặc lỗi xác thực định danh (`invalid_client`, `401`), hàng đợi lập tức chuyển trạng thái sang `ABORTED` ngay ở lần thử 1, triệt tiêu hoàn toàn các lần retry tiếp theo. Nếu có retry do lỗi tạm thời, áp dụng độ trễ giãn cách an toàn tối thiểu 15 giây.
+  5. **Pre-Flight Barrier Guard Hoàn Chỉnh (`ReconIngressPipelineService`)**:
+     - Worker CQG kiểm tra chặt chẽ: Chỉ khi M-System, ACM và CoreCCP đều vượt qua kiểm tra trạng thái trong 15s thì CQG mới khởi động trình duyệt. Nếu bất kỳ bên nào chưa sẵn sàng, CQG tự động hủy bỏ tại chỗ (`[CQG_ABORT_PREFLIGHT]`), không chạm vào máy chủ CQG.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/ingress/scrapers/cqg-safety-gate.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/cqg-safety-gate.ts) *(Tạo mới)*
+- [`backend/src/modules/ingress/scrapers/rpa-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/rpa-scraper.service.ts)
+- [`backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts)
+- [`backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Module `CqgSafetyGate`**:
+   - Quản lý `activeAccounts`, `lastLoginMap`, `loginHistory` theo từng tài khoản (`mxvtradingdesk1`, `mxvtradingdesk3`).
+   - Cung cấp `acquire(account, source)` và callback `release()` tự động giải phóng khi trình duyệt đóng (`browser.on('disconnected')`).
+2. **Tích hợp vào `RpaScraperService`**:
+   - `loginCQG`, `loginCQGTrade`, và `downloadCqgBackup` (cho cả `runCqg1` và `runCqg2`) đều phải đi qua `CqgSafetyGate.acquire()`.
+3. **Thắt Chặt Pre-Flight Guard (`ReconIngressPipelineService`)**:
+   - Bổ sung kiểm tra `!readyState.ms || !readyState.acm || !readyState.ccp` sau 15s để ném `[CQG_ABORT_PREFLIGHT]` và ngắt ngay worker CQG.
+4. **Fail-Fast & Không Retry Vô Ích (`BotJobQueueService`)**:
+   - Chuyển `ABORTED` ngay ở attempt 1 đối với các lỗi hệ thống đối tác hoặc cầu chì CQG, tránh lặp lại hành vi đăng nhập spam.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Typecheck**: `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.build.json` (Exit code 0).
+- **Build**: `nest build` (Exit code 0).
+- **Unit Test**: `node scratch/test_cqg_safety_gate.js` kiểm tra thành công cả 7 kịch bản (Cho phép ban đầu -> Khóa Concurrency -> Giải phóng -> Khóa Cooldown 120s -> Báo cáo trạng thái).
+
+---
+
 ## [2026-11-10T08:45] FIX(CORECCP_AND_COREEX_OAUTH_SELF_HEALING): Tự Động Phân Giải OAuth2 Secret Qua `/assets-manifest.js` (Chống Lỗi `invalid_client`) & Bắt Chuyển Hướng Đổi Mật Khẩu CoreExchange (`/change-password`)
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

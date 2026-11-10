@@ -14,6 +14,7 @@ import { decrypt, CaptchaSolverHelper, EXTERNAL_SYSTEM_MSYSTEM } from '../../../
 import { IngressService } from '../ingress.service';
 import { CcpScraperService } from './ccp-scraper.service';
 import { CastScraperService } from './cast-scraper.service';
+import { CqgSafetyGate } from './cqg-safety-gate';
 import {
   MSystemTabNavigatorHelper,
   MS_REPORT_FILE_PATTERNS,
@@ -441,6 +442,8 @@ export class RpaScraperService {
       );
     }
 
+    const releaseLock = CqgSafetyGate.acquire(username, 'loginCQG');
+
     // 2. Launch Browser
     const executablePath = this.getChromeExecutablePath();
     const isHeadless =
@@ -463,7 +466,14 @@ export class RpaScraperService {
     }
 
     this.logger.log('Starting Playwright browser session for CQG...');
-    const browser = await chromium.launch(launchOptions);
+    let browser: Browser;
+    try {
+      browser = await chromium.launch(launchOptions);
+      browser.on('disconnected', () => releaseLock());
+    } catch (launchErr: any) {
+      releaseLock();
+      throw launchErr;
+    }
     const context = await browser.newContext({
       acceptDownloads: true,
       viewport: { width: 1280, height: 800 },
@@ -633,8 +643,16 @@ export class RpaScraperService {
     };
     if (executablePath) launchOptions.executablePath = executablePath;
 
+    const releaseLock = CqgSafetyGate.acquire(username, `loginCQGTrade:${account}`);
     this.logger.log(`Starting Playwright browser session for ${account.toUpperCase()} Trade...`);
-    const browser = await chromium.launch(launchOptions);
+    let browser: Browser;
+    try {
+      browser = await chromium.launch(launchOptions);
+      browser.on('disconnected', () => releaseLock());
+    } catch (launchErr: any) {
+      releaseLock();
+      throw launchErr;
+    }
     const context = await browser.newContext({
       acceptDownloads: true,
       viewport: { width: 1280, height: 800 },
@@ -4820,7 +4838,9 @@ export class RpaScraperService {
 
       let browser1: any = null;
       let page1: Page | null = null;
+      let releaseLock1: (() => void) | null = null;
       try {
+        releaseLock1 = CqgSafetyGate.acquire(username1, 'downloadCqgBackup:CQG1');
         const { browser, page } = await loginCqgAccount(
           username1,
           password1,
@@ -4920,6 +4940,7 @@ export class RpaScraperService {
           await this.logoutCqg(page1).catch(() => { });
         }
         if (browser1) await browser1.close().catch(() => { });
+        if (releaseLock1) releaseLock1();
         this.logger.log('[CQG1] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG1.');
       }
     };
@@ -4946,7 +4967,9 @@ export class RpaScraperService {
 
       let browser2: any = null;
       let page2: Page | null = null;
+      let releaseLock2: (() => void) | null = null;
       try {
+        releaseLock2 = CqgSafetyGate.acquire(username2, 'downloadCqgBackup:CQG2');
         const { browser, page } = await loginCqgAccount(
           username2,
           password2,
@@ -5046,6 +5069,7 @@ export class RpaScraperService {
           await this.logoutCqg(page2).catch(() => { });
         }
         if (browser2) await browser2.close().catch(() => { });
+        if (releaseLock2) releaseLock2();
         this.logger.log('[CQG2] Đã đăng xuất và đóng hoàn toàn trình duyệt CQG2.');
       }
     };
