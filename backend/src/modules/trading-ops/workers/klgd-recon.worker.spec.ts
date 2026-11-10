@@ -93,3 +93,4 @@ describe('KlgdReconWorker (Task 7 Fail-Fast & Pre-Flight)', () => {
     expect(mockReconLogModel.create).toHaveBeenCalled();
   });
 });
+

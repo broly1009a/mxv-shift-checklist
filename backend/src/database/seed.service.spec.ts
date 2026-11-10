@@ -92,3 +92,4 @@ describe('SeedService (Task 2 Security Gate)', () => {
     expect(seedUsersSpy).toHaveBeenCalledWith({}, 'SecureDynamicPass2026!');
   });
 });
+
