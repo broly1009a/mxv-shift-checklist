@@ -1,3 +1,54 @@
+## [2026-11-10T18:15] AUDIT & PURGE(CLEAN_CODE_EXHAUSTIVE_LINE_BY_LINE_AUDIT): Rà Soát Từng Dòng Code Mới, Xóa Bỏ Hoàn Toàn Vòng Lặp 5 Dòng & Mảng Fallback Đoán Mò Trong Toàn Bộ MsExcelParser
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: "sao vẫn có dấu hiệu sửa vậy [kèm ảnh diff]", "giúp tôi soát lại các code mới từng dòng xem".
+- **Mục tiêu**:
+  - Rà soát từng dòng toàn bộ mã nguồn mới/sửa đổi trên branch `v10-update-permisson-request-auth-module`.
+  - Phát hiện và dọn dẹp nốt 2 hàm còn sót mảng fallback tự suy diễn và vòng lặp `scanLimit = 5`: `parseTTMForExecutive` và `parseTTTTForExecutive`.
+  - Khôi phục chuẩn Header cố định tại `rows[0]` (Excel row 1) theo cấu trúc file M-System thực tế (`tool-C#/operate-transaction-app/bin/Debug/Download/2025/T06.2025/27.06/TTM.xlsx` & `TTTT.xlsx`).
+  - Gỡ bỏ hoàn toàn `findHeaderIndex` và các mảng alias rác khỏi `ms-excel.parser.ts`.
+  - Đảm bảo 100% không còn bất kỳ dòng code nào phỏng đoán, ép kiểu vô căn cứ hay nuốt lỗi.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/trading-ops/parsers/ms-excel.parser.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/parsers/ms-excel.parser.ts): Xóa bỏ vòng lặp quét 5 dòng và các mảng aliases trong `parseTTMForExecutive` và `parseTTTTForExecutive`, chuyển sang tìm trực tiếp tên cột chuẩn tại dòng 1 (`rows[0]`).
+- [`backend/src/modules/ingress/auth-monitor/partner-auth-monitor.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/auth-monitor/partner-auth-monitor.service.ts): Xóa nhánh RAM fallback, truy vấn MongoDB trực tiếp, áp dụng Fail-Fast nếu có lỗi CSDL.
+- [`CHANGELOG_AI.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md): Ghi vết kiểm toán chi tiết.
+
+### 3. Kết Quả Xác Minh Thực Tế
+- **C# Parity Verification ([`test_csharp_ground_truth_parity.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/scripts/test_csharp_ground_truth_parity.ts))**: **5/5 Tests PASS 100%**.
+- **Backend Build (`nest build`)**: Exit code 0 (Hoàn tất không có lỗi).
+- **Jest Unit & Integration Test Suites**: **3/3 Test Suites PASS, 14/14 Tests PASS 100%**.
+
+---
+
+## [2026-11-10T17:55] PURGE & HARDENING(PURGE_RAM_FALLBACK_AUTH_MONITOR): Loại Bỏ Triệt Để Fallback RAM Phỏng Đoán & Ép Kiểu Cưỡng Bức Trong PartnerAuthMonitorService
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: Phản ánh đoạn code phỏng đoán tự bịa:
+  ```typescript
+  // Fallback sang RAM events nếu MongoDB chưa có hoặc đang khởi động
+  let ramEvents = Array.from(this.recentEvents.values()).flat();
+  ...
+  return ramEvents.slice(0, limit) as unknown as PartnerAuthTelemetry[];
+  ```
+- **Mục tiêu**:
+  - Xóa bỏ triệt để nhánh fallback đọc RAM trong `getRecentEvents()`.
+  - Tôn trọng nguyên tắc **Single Source of Truth**: CSDL MongoDB là nơi lưu trữ dữ liệu duy nhất và chính thức cho bảng Audit Log.
+  - Áp dụng nguyên tắc **Fail-Fast**: Nếu truy vấn MongoDB gặp sự cố, ném ngoại lệ rõ ràng, không nuốt lỗi và không báo thành công ảo.
+  - Loại bỏ hoàn toàn ép kiểu cưỡng bức `as unknown as PartnerAuthTelemetry[]`.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/ingress/auth-monitor/partner-auth-monitor.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/auth-monitor/partner-auth-monitor.service.ts)
+- [`CHANGELOG_AI.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/CHANGELOG_AI.md)
+
+### 3. Kết Quả Xác Minh Thực Tế
+- **Jest Test Suite**: **12/12 Test Suites PASS, 43/43 Tests PASS 100%**.
+- **Backend Build (`nest build`)**: Exit code 0.
+- **Frontend Build (`next build`)**: Exit code 0 (51/51 routes).
+- **C# Parity Verification**: **5/5 Tests PASS 100%**.
+
+---
+
 ## [2026-11-10T17:35] FIX & PARITY(MS_EXCEL_PARSER_CSHARP_PARITY): Khôi Phục 100% Logic Bóc Tách DSGD.xlsx, TTM.xlsx, TTTT.xlsx Theo Chuẩn C# FileUtils.cs, Xóa Sạch Mã Ảo ORD_${i} & Mảng Fallback Đoán Mò
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

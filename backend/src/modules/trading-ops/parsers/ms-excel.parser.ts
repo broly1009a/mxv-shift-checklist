@@ -7,7 +7,6 @@
 
 import * as XLSX from 'xlsx';
 import { getNormalizedAccount, normalizeContractCode } from './symbol-normalizer.helper';
-import { findHeaderIndex } from '../helpers/trading-math.helper';
 
 /**
  * Đọc file DSGD (Danh sách giao dịch khớp lệnh M-System).
@@ -250,6 +249,7 @@ function parseAccountingNumber(val: any): number {
 /**
  * Đọc chi tiết file TTM phục vụ Dashboard QLGD:
  * Bóc tách Mã TKGD, Mã HĐ, KL Mua, KL Bán, và Lãi lỗ dự kiến (VND).
+ * Header cố định ở dòng 1 (rows[0]) theo chuẩn file M-System.
  */
 export function parseTTMForExecutive(buffer: Buffer): ExecutiveTtmRow[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -259,44 +259,19 @@ export function parseTTMForExecutive(buffer: Buffer): ExecutiveTtmRow[] {
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
   if (rows.length < 2) return [];
 
-  let headerRowIdx = 0;
-  let maTKGDIdx = -1;
-  let maHDIdx = -1;
-  let tongMuaIdx = -1;
-  let tongBanIdx = -1;
-  let pnlVndIdx = -1;
+  const header = rows[0].map((h) => String(h || '').trim());
+  const findCol = (name: string) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase());
 
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const header = rows[r].map((h) => String(h || '').trim());
-    const tempAcc = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'TKGD']);
-    const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
-    const tempMua = findHeaderIndex(header, 'Khối lượng mua', ['KL Mua', 'KLM', 'Mua']);
-    const tempBan = findHeaderIndex(header, 'Khối lượng bán', ['KL Bán', 'KLB', 'Bán']);
-    const tempPnl = findHeaderIndex(header, 'Lãi lỗ dự kiến (VND)', [
-      'Lãi lỗ dự kiến(VND)',
-      'Lãi lỗ dự kiến VND',
-      'PnL (VND)',
-      'Lai lo du kien (VND)',
-      'Lai lo du kien(VND)',
-    ]);
-
-    if (tempAcc !== -1 && tempSym !== -1) {
-      headerRowIdx = r;
-      maTKGDIdx = tempAcc;
-      maHDIdx = tempSym;
-      tongMuaIdx = tempMua;
-      tongBanIdx = tempBan;
-      pnlVndIdx = tempPnl;
-      break;
-    }
-  }
+  const maTKGDIdx = findCol('Mã TKGD');
+  const maHDIdx = findCol('Mã HĐ');
+  const tongMuaIdx = findCol('KL Mua');
+  const tongBanIdx = findCol('KL Bán');
+  const pnlVndIdx = findCol('Lãi lỗ dự kiến (VND)');
 
   if (maTKGDIdx === -1 || maHDIdx === -1) return [];
 
   const result: ExecutiveTtmRow[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+  for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
@@ -323,6 +298,7 @@ export function parseTTMForExecutive(buffer: Buffer): ExecutiveTtmRow[] {
 /**
  * Đọc chi tiết file TTTT phục vụ Dashboard QLGD:
  * Bóc tách Mã TKGD, Mã HĐ, Khối lượng tất toán, và Lãi lỗ thực tế (VND).
+ * Header cố định ở dòng 1 (rows[0]) theo chuẩn file M-System.
  */
 export function parseTTTTForExecutive(buffer: Buffer): ExecutiveTtttRow[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -332,45 +308,19 @@ export function parseTTTTForExecutive(buffer: Buffer): ExecutiveTtttRow[] {
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
   if (rows.length < 2) return [];
 
-  let headerRowIdx = 0;
-  let maTKGDIdx = -1;
-  let maHDIdx = -1;
-  let muaTatToanIdx = -1;
-  let banTatToanIdx = -1;
-  let pnlThucTeIdx = -1;
+  const header = rows[0].map((h) => String(h || '').trim());
+  const findCol = (name: string) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase());
 
-  const scanLimit = Math.min(rows.length, 5);
-  for (let r = 0; r < scanLimit; r++) {
-    if (!rows[r]) continue;
-    const header = rows[r].map((h) => String(h || '').trim());
-    const tempAcc = findHeaderIndex(header, 'Mã TKGD', ['Mã tài khoản', 'Account', 'TKGD']);
-    const tempSym = findHeaderIndex(header, 'Mã HĐ', ['Mã hợp đồng', 'Symbol', 'Hợp đồng']);
-    const tempMua = findHeaderIndex(header, 'KL Mua tất toán', ['KL Mua', 'Số lô', 'KL tất toán']);
-    const tempBan = findHeaderIndex(header, 'KL Bán tất toán', ['KL Bán', 'KL bán tất toán']);
-    const tempPnl = findHeaderIndex(header, 'Lãi lỗ thực tế (VND)', [
-      'Lãi lỗ thực tế(VND)',
-      'Lãi lỗ thực tế VND',
-      'Realized PnL (VND)',
-      'Realized PnL(VND)',
-      'Lai lo thuc te (VND)',
-      'Lai lo thuc te(VND)',
-    ]);
-
-    if (tempAcc !== -1 && tempSym !== -1) {
-      headerRowIdx = r;
-      maTKGDIdx = tempAcc;
-      maHDIdx = tempSym;
-      muaTatToanIdx = tempMua;
-      banTatToanIdx = tempBan;
-      pnlThucTeIdx = tempPnl;
-      break;
-    }
-  }
+  const maTKGDIdx = findCol('Mã TKGD');
+  const maHDIdx = findCol('Mã HĐ');
+  const muaTatToanIdx = findCol('KL Mua');
+  const banTatToanIdx = findCol('KL Bán');
+  const pnlThucTeIdx = findCol('Lãi lỗ thực tế (VND)');
 
   if (maTKGDIdx === -1 || maHDIdx === -1) return [];
 
   const result: ExecutiveTtttRow[] = [];
-  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+  for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
