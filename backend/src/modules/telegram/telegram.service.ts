@@ -36,13 +36,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   async sendMessage(text: string, customChatId?: string): Promise<void> {
-    // Nếu không có customChatId (tin nhắn gửi nhóm chung QLGD), bỏ qua theo yêu cầu đóng tính năng Telegram QLGD
-    if (!customChatId) {
-      this.logger.log(
-        `[QLGD TELEGRAM DISABLED] Bỏ qua gửi thông báo nhóm QLGD: ${text.replace(/<[^>]*>/g, '').substring(0, 80)}...`,
-      );
-      return;
-    }
+    // Tạm thời tắt toàn bộ tính năng gửi thông báo qua Telegram theo chỉ đạo của USER
+    this.logger.log(
+      `[TELEGRAM DISABLED] Tạm thời tắt gửi Telegram${customChatId ? ` (Chat ID: ${customChatId})` : ''}: ${text.replace(/<[^>]*>/g, '').substring(0, 80)}...`,
+    );
+    return;
 
     const targetChatId = customChatId;
 

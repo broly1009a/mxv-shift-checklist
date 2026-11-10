@@ -230,11 +230,11 @@ export class DashboardService {
     this.validateDateStr(dateStr);
     const scopeFilter = await this.getScopeFilter(user);
 
-    // Calculate date range in UTC/Saigon
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+    // Calculate date range in UTC/Saigon (+07:00)
+    const startOfDay = new Date(`${dateStr}T00:00:00+07:00`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999+07:00`);
 
-    // 1. Query Audit Logs on shifts that match the scoped filter and are active on that date
+    // 1. Query Audit Logs on shifts that match the scoped filter and are active on that date (nếu có ca trực)
     const targetShiftQuery = { shiftDate: dateStr, ...scopeFilter };
     const matchingShifts = await this.shiftLogModel
       .find(targetShiftQuery)
@@ -242,45 +242,74 @@ export class DashboardService {
       .exec();
     const matchingShiftIds = matchingShifts.map((s) => s._id);
 
-    const auditQuery: any = {
-      shiftLogId: { $in: matchingShiftIds },
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
-      $or: [
-        { action: { $ne: 'NOTE_UPDATE' } },
-        { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } }
-      ]
-    };
+    let auditLogs: any[] = [];
+    if (matchingShiftIds.length > 0) {
+      const auditQuery: any = {
+        shiftLogId: { $in: matchingShiftIds },
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        $or: [
+          { action: { $ne: 'NOTE_UPDATE' } },
+          { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } },
+        ],
+      };
 
-    const auditLogs = await this.auditLogModel
-      .find(auditQuery)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .populate('userId', 'fullName username')
-      .populate({
-        path: 'shiftLogId',
-        populate: { path: 'departmentId' },
-      })
-      .exec();
+      auditLogs = await this.auditLogModel
+        .find(auditQuery)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('userId', 'fullName username')
+        .populate({
+          path: 'shiftLogId',
+          populate: { path: 'departmentId' },
+        })
+        .exec();
+    }
 
-    // 2. Query System Logs on that date
+    // 2. Query System Logs on that date (Lấy cả sự kiện Ca Trực và Trading Ops / Báo cáo tháng)
     const systemQuery: any = {
       createdAt: { $gte: startOfDay, $lte: endOfDay },
       eventType: { $ne: 'TASK_UPDATED' },
     };
-    // For non-admin, filter system logs by department scope
+    // Cho phép lấy log theo department HOẶC các log chung không gắn phòng ban (như Trading Ops, Báo cáo tháng)
     if (scopeFilter.departmentId) {
-      systemQuery.departmentId = scopeFilter.departmentId;
+      systemQuery.$or = [
+        { departmentId: scopeFilter.departmentId },
+        { departmentId: null },
+        { departmentId: { $exists: false } },
+      ];
     } else if (scopeFilter.departmentId?.$in) {
-      systemQuery.departmentId = { $in: scopeFilter.departmentId.$in };
+      systemQuery.$or = [
+        { departmentId: { $in: scopeFilter.departmentId.$in } },
+        { departmentId: null },
+        { departmentId: { $exists: false } },
+      ];
     }
 
-    const systemLogs = await this.systemLogModel
+    let systemLogs = await this.systemLogModel
       .find(systemQuery)
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('actorUserId', 'fullName username')
       .populate('departmentId')
       .exec();
+
+    // Nếu trong ngày hôm nay chưa có sự kiện nào (đầu ngày hoặc không có ca trực hôm nay):
+    // Fallback lấy các sự kiện gần nhất (trong 7 ngày gần đây) để khay thông báo không bị trống rỗng
+    if (auditLogs.length === 0 && systemLogs.length === 0) {
+      const fallbackQuery: any = {
+        eventType: { $ne: 'TASK_UPDATED' },
+      };
+      if (systemQuery.$or) {
+        fallbackQuery.$or = systemQuery.$or;
+      }
+      systemLogs = await this.systemLogModel
+        .find(fallbackQuery)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('actorUserId', 'fullName username')
+        .populate('departmentId')
+        .exec();
+    }
 
     // 3. Map and merge
     const activities: any[] = [];
@@ -289,16 +318,23 @@ export class DashboardService {
       const shift = log.shiftLogId as any;
       const dept = shift?.departmentId;
       let actionMsg = '';
-      if (log.action === 'CHECK') actionMsg = 'tích hoàn thành';
-      else if (log.action === 'UNCHECK') actionMsg = 'bỏ tích';
-      else actionMsg = 'cập nhật ghi chú';
+      if (log.action === 'CHECK') {
+        actionMsg = `Đã hoàn thành "${log.taskName}"`;
+      } else if (log.action === 'UNCHECK') {
+        actionMsg = `Mở lại tác vụ "${log.taskName}"`;
+      } else {
+        const noteDetail = log.details ? `: ${log.details}` : '';
+        actionMsg = `Ghi chú "${log.taskName}"${noteDetail}`;
+      }
 
       activities.push({
         id: log._id.toString(),
         type: 'TASK_UPDATED',
-        message: `Tác vụ "${log.taskName}" được ${actionMsg}`,
+        eventType: 'TASK_UPDATED',
+        status: 'SUCCESS',
+        message: actionMsg,
         actorName: log.userId ? (log.userId as any).fullName : 'Hệ thống',
-        departmentCode: dept ? dept.code : 'UNKNOWN',
+        departmentCode: dept ? dept.code : 'CA_TRUC',
         jobId: log.shiftLogId.toString(),
         createdAt: log.createdAt,
       });
@@ -307,30 +343,43 @@ export class DashboardService {
     systemLogs.forEach((log) => {
       const dept = log.departmentId as any;
       const isBotFailed = log.eventType === 'BOT_JOB_FAILED' || log.status === 'FAILED';
+
+      let mappedType = 'SYSTEM_EVENT';
+      if (log.eventType === 'JOB_GENERATED') {
+        mappedType = 'JOB_GENERATED';
+      } else if (log.eventType === 'MONTHLY_REPORT_GENERATED' || log.eventType === 'MONTHLY_REPORT_LOCKED') {
+        mappedType = 'MONTHLY_REPORT';
+      } else if (log.eventType.startsWith('CQG_SYNC')) {
+        mappedType = 'CQG_SYNC';
+      } else if (log.eventType.startsWith('CCP_EOD')) {
+        mappedType = 'CCP_EOD';
+      } else if (log.eventType.includes('MISMATCH') || log.eventType.includes('MARGIN_BREACH')) {
+        mappedType = 'RECON_MISMATCH';
+      } else if (isBotFailed) {
+        mappedType = 'BOT_FAILED';
+      } else if (log.status === 'SUCCESS' && (log.eventType.startsWith('BOT_') || log.eventType.includes('COMPLETED'))) {
+        mappedType = 'BOT_COMPLETED';
+      }
+
       activities.push({
         id: log._id.toString(),
-        type:
-          log.eventType === 'JOB_GENERATED'
-            ? 'JOB_GENERATED'
-            : isBotFailed
-            ? 'BOT_FAILED'
-            : 'SYSTEM_EVENT',
+        type: mappedType,
+        eventType: log.eventType,
         status: log.status,
         message: log.message,
         actorName: log.actorUserId
           ? (log.actorUserId as any).fullName
-          : isBotFailed
-          ? 'Bot Vận Hành'
-          : 'Hệ thống',
-        departmentCode: dept ? dept.code : 'SYSTEM',
+          : (mappedType === 'MONTHLY_REPORT' ? 'Quản Lý Báo Cáo' : isBotFailed ? 'Bot Vận Hành' : 'Hệ thống'),
+        departmentCode: dept ? dept.code : 'TRADING',
         jobId: log.jobId ? log.jobId.toString() : null,
+        metadata: log.metadata || {},
         createdAt: log.createdAt,
       });
     });
 
     // Sort by createdAt descending and slice
     return activities
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);
   }
 
@@ -343,8 +392,8 @@ export class DashboardService {
     this.validateDateStr(dateStr);
     const scopeFilter = await this.getScopeFilter(user);
 
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+    const startOfDay = new Date(`${dateStr}T00:00:00+07:00`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999+07:00`);
 
     let sinceTimeMs = 0;
     if (lastReadTime) {
@@ -357,12 +406,9 @@ export class DashboardService {
     }
 
     const filterStart =
-      sinceTimeMs > startOfDay.getTime() ? new Date(sinceTimeMs) : startOfDay;
+      sinceTimeMs > 0 ? new Date(sinceTimeMs) : startOfDay;
 
-    if (filterStart.getTime() >= endOfDay.getTime()) {
-      return { count: 0 };
-    }
-
+    let auditCount = 0;
     const targetShiftQuery = { shiftDate: dateStr, ...scopeFilter };
     const matchingShifts = await this.shiftLogModel
       .find(targetShiftQuery)
@@ -370,30 +416,39 @@ export class DashboardService {
       .exec();
     const matchingShiftIds = matchingShifts.map((s) => s._id);
 
-    const auditQuery: any = {
-      shiftLogId: { $in: matchingShiftIds },
-      createdAt: { $gt: filterStart, $lte: endOfDay },
-      $or: [
-        { action: { $ne: 'NOTE_UPDATE' } },
-        { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } }
-      ]
-    };
+    if (matchingShiftIds.length > 0) {
+      const auditQuery: any = {
+        shiftLogId: { $in: matchingShiftIds },
+        createdAt: { $gt: filterStart, $lte: endOfDay },
+        $or: [
+          { action: { $ne: 'NOTE_UPDATE' } },
+          { userId: { $nin: [null, new Types.ObjectId('000000000000000000000000')] } },
+        ],
+      };
+      auditCount = await this.auditLogModel.countDocuments(auditQuery).exec();
+    }
 
     const systemQuery: any = {
       createdAt: { $gt: filterStart, $lte: endOfDay },
       eventType: { $ne: 'TASK_UPDATED' },
     };
-
     if (scopeFilter.departmentId) {
-      systemQuery.departmentId = scopeFilter.departmentId;
+      systemQuery.$or = [
+        { departmentId: scopeFilter.departmentId },
+        { departmentId: null },
+        { departmentId: { $exists: false } },
+      ];
     } else if (scopeFilter.departmentId?.$in) {
-      systemQuery.departmentId = { $in: scopeFilter.departmentId.$in };
+      systemQuery.$or = [
+        { departmentId: { $in: scopeFilter.departmentId.$in } },
+        { departmentId: null },
+        { departmentId: { $exists: false } },
+      ];
     }
 
-    const [auditCount, systemCount] = await Promise.all([
-      this.auditLogModel.countDocuments(auditQuery).exec(),
-      this.systemLogModel.countDocuments(systemQuery).exec(),
-    ]);
+    const systemCount = await this.systemLogModel
+      .countDocuments(systemQuery)
+      .exec();
 
     return { count: auditCount + systemCount };
   }

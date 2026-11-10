@@ -9,6 +9,18 @@ import { toast } from 'react-hot-toast';
 
 import { useRouter } from 'next/navigation';
 
+function getNotificationTitle(type?: string, status?: string): string {
+  if (type === 'TASK_UPDATED') return 'Tác vụ ca trực';
+  if (type === 'JOB_GENERATED') return 'Ca trực';
+  if (type === 'MONTHLY_REPORT') return 'Báo cáo tháng';
+  if (type === 'CQG_SYNC') return status === 'FAILED' ? 'Cảnh báo lệch CQG' : 'Đối chiếu CQG';
+  if (type === 'CCP_EOD') return status === 'FAILED' ? 'Cảnh báo CoreCCP' : 'Đối chiếu CoreCCP';
+  if (type === 'RECON_MISMATCH') return 'Cảnh báo lệch số liệu';
+  if (type === 'BOT_COMPLETED') return 'Tác vụ tự động';
+  if (type === 'BOT_FAILED') return 'Cảnh báo tự động';
+  return 'Thông báo';
+}
+
 export default function NotificationDropdown() {
   const router = useRouter();
   const { token } = useAuth();
@@ -137,14 +149,7 @@ export default function NotificationDropdown() {
           const latest = data[0];
           const latestId = latest.id || latest._id || latest.createdAt;
           if (lastActivityIdRef.current && lastActivityIdRef.current !== latestId && shouldToast) {
-            let title = 'Cập nhật hệ thống';
-            if (latest.type === 'TASK_UPDATED') {
-              title = 'Cập nhật tác vụ';
-            } else if (latest.type === 'JOB_GENERATED') {
-              title = 'Khởi tạo ca trực';
-            } else if (latest.type === 'BOT_FAILED') {
-              title = ' Cảnh báo Bot Đối Soát';
-            }
+            const title = getNotificationTitle(latest.type, latest.status);
 
             // Play synthesized notification sound
             try {
@@ -178,7 +183,16 @@ export default function NotificationDropdown() {
 
             toast.custom((t) => (
               <div
-                onClick={() => toast.dismiss(t.id)}
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  if (latest.type === 'MONTHLY_REPORT') {
+                    router.push('/trading-manager/monthly-report');
+                  } else if (latest.type === 'CQG_SYNC' || latest.type === 'CCP_EOD' || latest.type === 'RECON_MISMATCH' || latest.type === 'BOT_FAILED' || latest.type === 'BOT_COMPLETED') {
+                    router.push('/trading-manager');
+                  } else if (latest.jobId) {
+                    router.push(`/shifts/${latest.jobId}`);
+                  }
+                }}
                 style={{
                   opacity: t.visible ? 1 : 0,
                   transform: t.visible ? 'translateY(0)' : 'translateY(-10px)',
@@ -200,7 +214,7 @@ export default function NotificationDropdown() {
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', flex: 1 }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}> {title}</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{title}</span>
                   <span style={{
                     fontSize: '0.78rem',
                     color: 'var(--text-secondary)',
@@ -439,47 +453,48 @@ export default function NotificationDropdown() {
               </div>
             ) : (
               displayedActivities.map((act, idx) => {
-                let title = 'Cập nhật hệ thống';
-                if (act.type === 'TASK_UPDATED') {
-                  title = 'Cập nhật tác vụ';
-                } else if (act.type === 'JOB_GENERATED') {
-                  title = 'Khởi tạo ca trực';
-                } else if (act.type === 'BOT_FAILED') {
-                  title = ' Cảnh báo Bot Đối Soát';
-                }
+                const title = getNotificationTitle(act.type, act.status);
 
                 const isLast = idx === displayedActivities.length - 1;
                 const isUnread = !lastReadTime || new Date(act.createdAt).getTime() > new Date(lastReadTime).getTime();
-                const isBotFailure = act.type === 'BOT_FAILED';
+                const isFailure = act.status === 'FAILED' || act.type === 'BOT_FAILED' || act.type === 'RECON_MISMATCH';
+                const isMonthly = act.type === 'MONTHLY_REPORT';
+                const isClickable = true;
+
+                const handleClick = () => {
+                  setShowNotifications(false);
+                  if (act.type === 'MONTHLY_REPORT') {
+                    router.push('/trading-manager/monthly-report');
+                  } else if (act.type === 'CQG_SYNC' || act.type === 'CCP_EOD' || act.type === 'RECON_MISMATCH' || act.type === 'BOT_FAILED' || act.type === 'BOT_COMPLETED') {
+                    router.push('/trading-manager');
+                  } else if (act.jobId) {
+                    router.push(`/shifts/${act.jobId}`);
+                  }
+                };
 
                 return (
                   <div
                     key={act.id || act._id || act.createdAt || idx}
                     className="notification-item"
-                    onClick={() => {
-                      if (isBotFailure) {
-                        setShowNotifications(false);
-                        router.push('/trading-manager');
-                      }
-                    }}
+                    onClick={handleClick}
                     style={{
                       fontSize: '0.8rem',
-                      padding: isBotFailure ? '8px 10px' : '0 0 8px 0',
-                      marginBottom: isBotFailure ? '6px' : '0',
-                      borderRadius: isBotFailure ? '8px' : '0',
-                      background: isBotFailure ? 'rgba(239, 68, 68, 0.12)' : 'transparent',
-                      border: isBotFailure ? '1px solid rgba(239, 68, 68, 0.3)' : 'none',
-                      borderBottom: isBotFailure ? '1px solid rgba(239, 68, 68, 0.3)' : isLast ? 'none' : '1px dashed var(--border-color)',
+                      padding: isFailure || isMonthly ? '8px 10px' : '0 0 8px 0',
+                      marginBottom: isFailure || isMonthly ? '6px' : '0',
+                      borderRadius: isFailure || isMonthly ? '8px' : '0',
+                      background: isFailure ? 'rgba(239, 68, 68, 0.12)' : isMonthly ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                      border: isFailure ? '1px solid rgba(239, 68, 68, 0.3)' : isMonthly ? '1px solid rgba(59, 130, 246, 0.25)' : 'none',
+                      borderBottom: isFailure || isMonthly ? undefined : isLast ? 'none' : '1px dashed var(--border-color)',
                       opacity: isUnread ? 1 : 0.75,
-                      cursor: isBotFailure ? 'pointer' : 'default',
+                      cursor: 'pointer',
                       transition: 'all 0.2s ease'
                     }}
-                    title={isBotFailure ? 'Bấm để mở Quản lý Vận hành (Trading Manager)' : undefined}
+                    title="Bấm để xem chi tiết"
                   >
                     <p style={{
                       fontWeight: isUnread ? 700 : 600,
                       margin: '0 0 2px 0',
-                      color: isBotFailure ? '#f87171' : 'var(--text-primary)',
+                      color: isFailure ? '#f87171' : 'var(--text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px'
@@ -490,7 +505,7 @@ export default function NotificationDropdown() {
                           width: '6px',
                           height: '6px',
                           borderRadius: '50%',
-                          background: isBotFailure ? '#ef4444' : 'var(--color-accent, #3b82f6)',
+                          background: isFailure ? '#ef4444' : 'var(--color-accent, #3b82f6)',
                           flexShrink: 0
                         }} />
                       )}
@@ -509,7 +524,7 @@ export default function NotificationDropdown() {
                       {act.message}
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.7rem', color: isBotFailure ? '#fca5a5' : 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.7rem', color: isFailure ? '#fca5a5' : 'var(--text-muted)' }}>
                         {act.actorName || 'Hệ thống'}
                       </span>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>

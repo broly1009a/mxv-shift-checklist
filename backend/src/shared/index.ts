@@ -18,4 +18,5 @@ export * from './constants/job-types.constant';
 export * from './constants/required-files.constant';
 export * from './constants/excel.constant';
 export * from './constants/job-domains.constant';
+export * from './constants/bot-task-registry';
 

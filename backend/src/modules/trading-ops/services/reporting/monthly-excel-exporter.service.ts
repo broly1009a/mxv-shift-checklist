@@ -85,10 +85,9 @@ export class MonthlyExcelExporterService {
   private getGrowthCfRules(firstCell: string): any[] {
     return [
       {
-        type: 'containsText',
-        operator: 'containsText',
+        type: 'expression',
         priority: 1,
-        formulae: [`NOT(ISERROR(SEARCH(" ",${firstCell})))`],
+        formulae: [`OR(${firstCell}=" ",${firstCell}=0)`],
         style: {
           fill: {
             type: 'pattern',
@@ -119,10 +118,9 @@ export class MonthlyExcelExporterService {
         },
       },
       {
-        type: 'cellIs',
-        operator: 'greaterThan',
+        type: 'expression',
         priority: 3,
-        formulae: ['0'],
+        formulae: [`AND(ISNUMBER(${firstCell}),${firstCell}>0)`],
         style: {
           fill: {
             type: 'pattern',

@@ -39,6 +39,7 @@ import { CeLotWorker } from './workers/ce-lot.worker';
 import { IngressModule } from '../ingress/ingress.module';
 import { ShiftsModule } from '../shifts/shifts.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { SystemLogsModule } from '../system-logs/system-logs.module';
 import { AuthModule } from '../auth/auth.module';
 import { WorkingCalendarModule } from '../working-calendar/working-calendar.module';
 import { ChecklistHubModule } from '../checklist-hub/checklist-hub.module';
@@ -80,6 +81,7 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     AuthModule,
     SystemSettingsModule,
     TelegramModule,
+    SystemLogsModule,
     forwardRef(() => IngressModule),
     ShiftsModule,
     WorkingCalendarModule,

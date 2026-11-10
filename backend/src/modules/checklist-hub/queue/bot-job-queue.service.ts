@@ -33,7 +33,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
 import { SystemLogsService } from '../../system-logs/system-logs.service';
 import { parseJobPayload } from '../../../shared/helpers/file-path.helper';
 import { BotJobDedupHelper } from '../helpers/bot-job-dedup.helper';
-import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain, getRequiredJobDomains } from '../../../shared';
+import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain, getRequiredJobDomains, getBotJobDisplayName } from '../../../shared';
 import { BotAlertEmailService } from '../../notifications/bot-alert-email.service';
 import { DomainLockManagerService } from './domain-lock-manager.service';
 
@@ -674,7 +674,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   private async logFailureToSystemLog(job: any, errorMsg: string) {
     const payload = parseJobPayload(job);
     const dateStr = payload.sessionDay || new Date().toISOString().split('T')[0];
-    const message = `[Bot Đối Soát] Thất bại tác vụ ${job.jobType}: ${errorMsg}`;
+    const displayName = getBotJobDisplayName(job.jobType);
+
+    // Rút gọn lỗi để tránh message kỹ thuật/debug máy móc
+    let cleanError = errorMsg ? errorMsg.split('\n')[0].trim() : 'Có lỗi xảy ra';
+    cleanError = cleanError.replace(/^Error:\s*/i, '');
+    if (cleanError.length > 120) {
+      cleanError = cleanError.substring(0, 117) + '...';
+    }
+
+    const message = `Chưa hoàn tất ${displayName}: ${cleanError}`;
 
     await this.systemLogsService.logEvent({
       eventType: 'BOT_JOB_FAILED',
@@ -684,6 +693,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       metadata: {
         jobId: job._id?.toString(),
         jobType: job.jobType,
+        displayName,
         attempts: job.attempts,
         error: errorMsg,
       },
@@ -1003,6 +1013,17 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Emitted dashboard-updated & job-status-updated WS event for job ${job._id} (${status})`,
       );
+
+      if (status === 'COMPLETED') {
+        const displayName = getBotJobDisplayName(job.jobType);
+        await this.systemLogsService.logEvent({
+          eventType: 'BOT_JOB_COMPLETED',
+          source: 'SYSTEM',
+          status: 'SUCCESS',
+          message: `Hoàn tất ${displayName}`,
+          metadata: { jobId: job._id?.toString(), jobType: job.jobType, taskId, shiftLogId },
+        }).catch(() => {});
+      }
     } catch (err: any) {
       this.logger.error(`Lỗi phát sự kiện Realtime WebSocket: ${err.message}`);
     }

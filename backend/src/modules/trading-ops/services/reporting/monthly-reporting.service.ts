@@ -21,6 +21,8 @@ import {
 } from '../../constants/bgs-commodity-catalog.constant';
 import { MonthlyExcelExporterService } from './monthly-excel-exporter.service';
 import { MsApiAdapter } from '../../../ingress/adapters/ms-api.adapter';
+import { SystemLogsService } from '../../../system-logs/system-logs.service';
+import { ShiftsGateway } from '../../../shifts/shifts.gateway';
 
 /**
  * Danh bạ Tên Gọn / Thương Hiệu chuẩn của các TVKD theo đúng file Thống kê số lot giao dịch & Báo cáo tháng
@@ -209,6 +211,10 @@ export class MonthlyReportingService {
     private readonly settingsService?: SystemSettingsService,
     @Optional()
     private readonly msApiAdapter?: MsApiAdapter,
+    @Optional()
+    private readonly systemLogsService?: SystemLogsService,
+    @Optional()
+    private readonly shiftsGateway?: ShiftsGateway,
   ) {}
 
   /**
@@ -706,6 +712,34 @@ export class MonthlyReportingService {
     );
 
     this.logger.log(`[lockMonthlySnapshot] Đã khóa sổ thành công snapshot tháng ${monthYear} bởi ${user}`);
+
+    if (this.systemLogsService) {
+      await this.systemLogsService.logEvent({
+        eventType: 'MONTHLY_REPORT_LOCKED',
+        source: 'USER',
+        status: 'SUCCESS',
+        message: `Đã khóa sổ Báo cáo tháng ${monthYear}`,
+        metadata: { monthYear, user, note },
+      }).catch(() => {});
+    }
+
+    if (this.shiftsGateway) {
+      const todayVN = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        null,
+        null,
+        null,
+        todayVN,
+        {
+          type: 'MONTHLY_REPORT',
+          status: 'SUCCESS',
+          message: `Đã khóa sổ chính thức Báo cáo giao dịch tháng ${monthYear}`,
+          monthYear,
+        },
+      );
+    }
+
     return locked;
   }
 
@@ -1577,6 +1611,7 @@ export class MonthlyReportingService {
       // ----------------------------------------------------
       // A. KHỐI CQG: Đọc trực tiếp từ Backup MS/.../DSGD.xlsx
       // ----------------------------------------------------
+      const msAcmRows: any[] = [];
       const dsgdPath = path.join(msFolder, d, 'DSGD.xlsx');
       if (fs.existsSync(dsgdPath)) {
         try {
@@ -1585,7 +1620,20 @@ export class MonthlyReportingService {
           for (const r of rows) {
             const acc = String(r['Mã TKGD'] || '').trim().toUpperCase();
             const lot = Number(r['KL giao dịch']) || 0;
-            if (!acc || lot <= 0 || acc.endsWith('A')) continue; // Tuyệt đối loại bỏ ACM Nano khỏi CQG
+            if (!acc || lot <= 0) continue;
+
+            const hd = String(r['Mã HĐ'] || '').trim().toUpperCase();
+            const comm = String(r['Hàng hóa'] || '').trim();
+            const isAcmTrade =
+              acc.endsWith('A') ||
+              ['SI5CO', 'PL1NY', 'CP2CO'].some((c) => hd.startsWith(c)) ||
+              comm.endsWith('ACM');
+
+            if (isAcmTrade) {
+              // Lưu riêng các dòng ACM Nano từ M-System để phục vụ cơ chế Hybrid bù chuyển tiếp CoreCCP
+              msAcmRows.push(r);
+              continue; // Tuyệt đối loại bỏ ACM Nano khỏi CQG
+            }
 
             totalCqgTrades++;
             const tvkdCode = (String(r['Mã TVKD'] || '').trim() || acc.substring(0, 3)).padStart(3, '0');
@@ -1594,7 +1642,6 @@ export class MonthlyReportingService {
               tvkdNameMap.set(tvkdCode, fileTvkdName);
             }
             const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] || tvkdNameMap.get(tvkdCode) || fileTvkdName || `TVKD ${tvkdCode}`;
-            const hd = String(r['Mã HĐ'] || '').trim().toUpperCase();
             const side = String(r['Chiều mua bán'] || '').trim().toUpperCase();
 
             let root = hd;
@@ -1661,10 +1708,10 @@ export class MonthlyReportingService {
       }
 
       // ----------------------------------------------------
-      // B. KHỐI ACM (NANO): Đọc 100% từ Backup CCP (DSGD CCP.xlsx)
-      // Theo chỉ đạo mới nhất từ USER: Toàn bộ giao dịch ACM nằm trên hệ thống CoreCCP (DSGD CCP.xlsx)
-      // với đủ 100% 22 ngày và TVKD chuẩn, không lấy qua nguồn Broker ACM nữa.
+      // B. KHỐI ACM (NANO): Đọc từ Backup CCP (DSGD CCP.xlsx)
+      // kết hợp cơ chế quét bù tự động các TVKD chưa sang CoreCCP từ Backup MS
       // ----------------------------------------------------
+      const ccpTvkdsOnDay = new Set<string>();
       const dayCcpDir = path.join(ccpFolder, d);
       const ccpDsgdPath = path.join(dayCcpDir, 'DSGD CCP.xlsx');
 
@@ -1692,6 +1739,7 @@ export class MonthlyReportingService {
             const lot = Number(r['KL khớp'] || r['KL khop'] || 0);
             if (!tvkdCode || lot <= 0) continue;
 
+            ccpTvkdsOnDay.add(tvkdCode);
             totalAcmTrades++;
             let matchedComm: { stdCode: string; nameVn: string } | null = null;
             for (const [key, val] of Object.entries(acmInstrumentMap)) {
@@ -1744,6 +1792,80 @@ export class MonthlyReportingService {
         this.logger.warn(`[syncFromBackupFolders] Ngày ${d}: Không tìm thấy file DSGD CCP.xlsx trong Backup CCP`);
       }
 
+      // ----------------------------------------------------
+      // B2. QUÉT BÙ ACM NANO TỪ M-SYSTEM CHO CÁC TVKD CHƯA SANG CoreCCP
+      // Quy tắc khử trùng (Zero-Double-Counting): Chỉ bù nếu TVKD chưa có mặt trên CoreCCP trong ngày hôm đó
+      // ----------------------------------------------------
+      if (msAcmRows.length > 0) {
+        for (const r of msAcmRows) {
+          const acc = String(r['Mã TKGD'] || '').trim().toUpperCase();
+          const lot = Number(r['KL giao dịch']) || 0;
+          if (!acc || lot <= 0) continue;
+
+          const tvkdCode = (String(r['Mã TVKD'] || '').trim() || acc.substring(0, 3)).padStart(3, '0');
+          // Nếu TVKD đã hoạt động trên CoreCCP ngày hôm đó, bỏ qua để chống cộng trùng
+          if (ccpTvkdsOnDay.has(tvkdCode)) {
+            continue;
+          }
+
+          const fileTvkdName = String(r['Tên TVKD'] || '').trim();
+          if (fileTvkdName && !OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] && !tvkdNameMap.has(tvkdCode)) {
+            tvkdNameMap.set(tvkdCode, fileTvkdName);
+          }
+          const tvkdName = OFFICIAL_TVKD_SHORT_NAMES[tvkdCode] || tvkdNameMap.get(tvkdCode) || fileTvkdName || `TVKD ${tvkdCode}`;
+          const hd = String(r['Mã HĐ'] || '').trim().toUpperCase();
+          const comm = String(r['Hàng hóa'] || '').trim();
+          const side = String(r['Chiều mua bán'] || '').trim().toUpperCase();
+
+          totalAcmTrades++;
+          let matchedComm: { stdCode: string; nameVn: string } | null = null;
+          for (const [key, val] of Object.entries(acmInstrumentMap)) {
+            if (hd.includes(key) || hd.includes(val.stdCode)) {
+              matchedComm = val;
+              break;
+            }
+          }
+
+          let productCode = matchedComm?.stdCode || hd.substring(0, 5) || 'SI5CO';
+          if (hd.startsWith('PL1') || comm.includes('Bạch kim')) productCode = 'PL1NY';
+          else if (hd.startsWith('CP2') || comm.includes('Đồng')) productCode = 'CP2CO';
+
+          const productNameVi =
+            matchedComm?.nameVn ||
+            (productCode.startsWith('CP')
+              ? 'Đồng Nano ACM'
+              : productCode.startsWith('PL')
+                ? 'Bạch kim Nano ACM'
+                : 'Bạc Nano ACM');
+
+          const key = `ACM__${tvkdCode}__${productCode}__false__false__false`;
+          let item = dayAggMap.get(key);
+          if (!item) {
+            item = {
+              date: dateStr,
+              system: 'ACM',
+              tvkdCode,
+              tvkdName,
+              productCode,
+              productNameVi,
+              lotBuy: 0,
+              lotSell: 0,
+              lotTotal: 0,
+              gtgdVnd: 0,
+              isSpread: false,
+              isLme: false,
+              isOptions: false,
+            };
+            dayAggMap.set(key, item);
+          }
+
+          if (side === 'BUY' || side === 'MUA') item.lotBuy += lot;
+          else item.lotSell += lot;
+          item.lotTotal += lot;
+          totalAcmLot += lot;
+        }
+      }
+
       // C. Xóa bản ghi cũ của ngày đó và nạp bản ghi mới
       await this.dailyTradingStatModel.deleteMany({ date: dateStr });
       if (dayAggMap.size > 0) {
@@ -1789,6 +1911,33 @@ export class MonthlyReportingService {
       },
       { upsert: true, new: true },
     );
+
+    if (this.systemLogsService) {
+      await this.systemLogsService.logEvent({
+        eventType: 'MONTHLY_REPORT_GENERATED',
+        source: 'SYSTEM',
+        status: 'SUCCESS',
+        message: `Đã tổng hợp Báo cáo tháng ${monthYear} (${Math.round(totalCqgLot + totalAcmLot).toLocaleString()} lot)`,
+        metadata: { monthYear, daysProcessed: sortedDays.length, totalCqgLot, totalAcmLot },
+      }).catch(() => {});
+    }
+
+    if (this.shiftsGateway) {
+      const todayVN = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().split('T')[0];
+      this.shiftsGateway.emitEvent(
+        'DASHBOARD_UPDATED',
+        null,
+        null,
+        null,
+        todayVN,
+        {
+          type: 'MONTHLY_REPORT',
+          status: 'SUCCESS',
+          message: `Tổng hợp Báo cáo tháng ${monthYear} hoàn tất (${Math.round(totalCqgLot + totalAcmLot).toLocaleString()} lot)`,
+          monthYear,
+        },
+      );
+    }
 
     return {
       monthYear,
