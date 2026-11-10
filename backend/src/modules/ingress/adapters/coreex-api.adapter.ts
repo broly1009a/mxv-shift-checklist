@@ -153,6 +153,7 @@ export class CoreExApiAdapter implements IIngressPort {
   private readonly defaultBaseUrl = EXTERNAL_SYSTEM_COREEX.baseUrl;
   private readonly defaultClientId = EXTERNAL_SYSTEM_COREEX.clientId;
   private cachedSession: ICoreExchangeAuthSession | null = null;
+  private refreshPromise: Promise<ICoreExchangeAuthSession> | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'coreexchange_session.json');
 
   constructor(
@@ -344,7 +345,12 @@ export class CoreExApiAdapter implements IIngressPort {
       this.logger.warn('[CoreExApiAdapter] Session CoreExchange cache đã hết hạn hoặc không hợp lệ, bắt đầu đăng nhập lại...');
     }
 
-    const jar = new CookieJar();
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      const jar = new CookieJar();
     const commonHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -502,6 +508,11 @@ export class CoreExApiAdapter implements IIngressPort {
     this.saveSessionToCache(sessionData);
     this.logger.log(`[CoreExApiAdapter] Đăng nhập CoreExchange thành công cho user: ${username}`);
     return sessionData;
+    })().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
   }
 
   /**

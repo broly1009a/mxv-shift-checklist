@@ -1,7 +1,7 @@
 # ACTIVE_FIX_STATE.md - Trạng Thái Khắc Phục Lỗi Hệ Thống & Bộ Nhớ Phiên Làm Việc
 
 > **Mục đích**: Lưu trữ ngữ cảnh cố định và lộ trình kỹ thuật chuẩn xác, không phỏng đoán, không bỏ sót. Mỗi lượt làm việc mới AI bắt buộc đọc file này trước tiên để biết mình đang ở đâu và làm gì tiếp theo.  
-> **Cập nhật lần cuối**: 2026-11-10T11:22:00+07:00  
+> **Cập nhật lần cuối**: 2026-11-10T11:32:00+07:00  
 > **Server Production**: Ubuntu `10.0.0.26` (PM2 Backend PID: `2665368`, Frontend PID: `2665593`)  
 > **Nhánh Git hiện tại**: `backup-v9`
 
@@ -24,8 +24,8 @@ Chấm dứt triệt để tình trạng **hệ thống chạy 4 tháng chưa �
 | :--- | :--- | :---: | :--- | :--- |
 | **1. CQG Desktop** | Playwright Chromium (2 TK song song) | 🟢 **ĐÃ ỔN ĐỊNH** | Màn hình CAST treo selector timeout $\rightarrow$ Job fail $\rightarrow$ Scheduler retry mỗi phút $\rightarrow$ Spam login. | • Đã triển khai `CqgSafetyGate` (Mutex khóa đơn, Cooldown 120s, trần 8 lần/giờ).<br>• Đã sửa `bot-job-queue.service.ts` chặn tight-loop.<br>• Đã deploy & test live trên `10.0.0.26`. |
 | **2. M-System** | Direct REST API (Newgen) | 🟢 **ĐÃ ỔN ĐỊNH** | Lưu token cache 12h (chỉ đăng nhập 2 bước khi hết hạn). Bị gọi dồn dập do ăn theo Job `CHECK_KLGD` retry. | • Cơ chế cache RAM + File (`ms_session.json`) hoạt động chuẩn.<br>• Khi chặn được vòng lặp `CHECK_KLGD`, M-System ngừng bị spam. |
-| **3. ACM (Straits/ETP)** | Web ETP / SFTP | 🟢 **ĐÃ ỔN ĐỊNH** | Tái sử dụng session ETP hợp lệ. Bị gọi dồn dập do ăn theo Job `CHECK_KLGD` retry. | • Khi chặn được vòng lặp `CHECK_KLGD`, ACM hoạt động tuần tự đúng chu kỳ. |
-| **4. CoreCCP** | Direct REST API + Playwright Fallback | 🟢 **ĐÃ FIX XONG & PASS TEST** | 1. Direct API: Thiếu Fail-Fast URL, ném lỗi generic làm lặp vòng retry.<br>2. Scraper: Hardcode sai URL fallback `coreccp.mxv.com.vn`. | • Đã viết `discoverCcpBasicAuthFromHost` cào secret động.<br>• Loại bỏ hoàn toàn fallback URL hardcode, ném lỗi Fail-Fast.<br>• Ném `[PARTNER_SERVICE_UNAVAILABLE]` để ngắt retry ngay Attempt 1.<br>• **Full testcase PASS (TC-CCP-01, TC-CCP-02)**. |
+| **3. ACM (Straits/ETP)** | Web ETP / SFTP | 🟢 **ĐÃ FIX & PASS TEST** | Thiếu validation tham số SFTP host/username trong code scraper dẫn tới lỗi treo ngầm. | • Bổ sung Fail-Fast trong `IngressService` và `AcmScraperService` (TC-INGRESS-01, TC-INGRESS-04).<br>• Tự động ngắt với `[PARTNER_SERVICE_UNAVAILABLE]`. |
+| **4. CoreCCP** | Direct REST API + Playwright Fallback | 🟢 **ĐÃ FIX XONG & PASS TEST** | 1. Direct API: Thiếu Fail-Fast URL, ném lỗi generic làm lặp vòng retry.<br>2. Scraper: Hardcode sai URL fallback `coreccp.mxv.com.vn`. | • Đã viết `discoverCcpBasicAuthFromHost` cào secret động.<br>• Loại bỏ hoàn toàn fallback URL hardcode, ném lỗi Fail-Fast.<br>• Ném `[PARTNER_SERVICE_UNAVAILABLE]` để ngắt retry ngay Attempt 1.<br>• **Full testcase PASS (TC-CCP-01, TC-CCP-02, TC-INGRESS-02, TC-INGRESS-03)**. |
 | **5. CoreExchange** | Direct REST API | 🟢 **ĐÃ FIX XONG & PASS TEST** | 1. API ném HTTP 401 khi token hết hạn.<br>2. Tài khoản bot `anhdao` bị chuyển hướng đổi mật khẩu (`/change-password`) làm lặp vòng retry. | • Đã viết `discoverCeBasicAuthFromHost` giải mã secret động.<br>• Bắt lỗi `/change-password` và ném `[PARTNER_SERVICE_UNAVAILABLE]`.<br>• **Full testcase PASS (TC-CE-01, TC-CE-02)**. |
 
 ---
@@ -76,14 +76,16 @@ flowchart TD
 - [x] **Task 4 & 5: CoreCCP & CoreExchange Fail-Fast & Session Caching**:
   - Test suite: `backend/src/modules/ingress/adapters/coreccp-coreex-failfast.spec.ts`
   - Kết quả: **4/4 passed** (TC-CCP-01, TC-CCP-02, TC-CE-01, TC-CE-02).
-- [x] **Task 6: Xóa bỏ hoàn toàn URL hardcode fallback**:
-  - `ccp-scraper.service.ts` và `ingress.service.ts` throw Error Fail-Fast nếu thiếu URL.
+- [x] **Task 6: Xóa bỏ hoàn toàn URL hardcode fallback trong Scrapers & Ingress**:
+  - Test suite: `backend/src/modules/ingress/ingress-failfast.spec.ts`
+  - Kết quả: **4/4 passed** (TC-INGRESS-01, TC-INGRESS-02, TC-INGRESS-03, TC-INGRESS-04).
 
 ### Gói 3: Rào chắn Ingress Barrier
 - [x] **Task 7: Đánh dấu lỗi gián đoạn Ingress bằng tiền tố `[PARTNER_SERVICE_UNAVAILABLE]`**:
   - `recon-ingress-pipeline.service.ts#L250`: Cập nhật hàm `abortBarrierIfStrict()` ném mã lỗi để ngắt ngay Attempt 1.
+  - `acm-scraper.service.ts#L55` & `ccp-scraper.service.ts#L60`: Đánh dấu lỗi cấu hình đối tác.
 
 ### Gói 4: Build Gates Verification
 - [x] **Backend Build**: `npm run build` (`nest build`) thành công 100% (exit code 0).
 - [x] **Frontend Build**: `npm run build` (`next build`) thành công 100% (50/50 routes tối ưu, exit code 0).
-- [x] **Jest Test Suites**: 3/3 test suites, 14/14 test cases passed!
+- [x] **Jest Test Suites**: 4/4 test suites, 18/18 test cases passed!

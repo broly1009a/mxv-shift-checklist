@@ -54,6 +54,12 @@ export class AcmScraperService {
       targetDate = new Date(),
     } = options;
 
+    if (!host || !username) {
+      throw new Error(
+        '[PARTNER_SERVICE_UNAVAILABLE] Chưa cấu hình thông số kết nối SFTP ACM (host, username). Bắt buộc phải cấu hình trên hệ thống!',
+      );
+    }
+
     if (!fs.existsSync(localDir)) {
       fs.mkdirSync(localDir, { recursive: true });
     }

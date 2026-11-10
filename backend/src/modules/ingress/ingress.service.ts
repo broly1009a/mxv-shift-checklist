@@ -216,6 +216,12 @@ export class IngressService implements IIngressPort {
           }
         }
 
+        if (!sftpOptions.host || !sftpOptions.username) {
+          throw new Error(
+            '[PARTNER_SERVICE_UNAVAILABLE] Chưa cấu hình thông số kết nối SFTP ACM (host, username) trong bot_credentials_acm hoặc biến môi trường ACM_SFTP_*. Bắt buộc cấu hình hợp lệ (Data-Driven), không dùng fallback!',
+          );
+        }
+
         const res = await this.acmScraper.downloadStraits(sftpOptions);
         files.push({
           fileName: res.fileName,
@@ -245,6 +251,12 @@ export class IngressService implements IIngressPort {
               if (dec.url) ccpCreds.url = dec.url;
             } catch {}
           }
+        }
+
+        if (!ccpCreds.url) {
+          throw new Error(
+            '[PARTNER_SERVICE_UNAVAILABLE] Chưa cấu hình URL CoreCCP trong bot_credentials_ccp hoặc biến môi trường CCP_URL. Bắt buộc phải cấu hình URL hợp lệ (Data-Driven), không dùng fallback!',
+          );
         }
 
         const ccpResults = await this.ccpScraper.downloadAll25Reports(outputDirectory, ccpCreds);

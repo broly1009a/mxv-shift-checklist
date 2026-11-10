@@ -126,6 +126,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
   private readonly logger = new Logger(CoreCcpApiAdapter.name);
   private readonly defaultBaseUrl = EXTERNAL_SYSTEM_CORECCP.baseUrl;
   private cachedSession: ICcpSession | null = null;
+  private refreshPromise: Promise<ICcpSession> | null = null;
   private readonly sessionCachePath = path.join(process.cwd(), 'temp', 'coreccp_session.json');
 
   constructor(
@@ -225,25 +226,35 @@ export class CoreCcpApiAdapter implements IIngressPort {
       return this.cachedSession;
     }
 
-    this.logger.log(`[CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (${baseUrl}) cho user: ${username}`);
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
 
-    const loginRes = await this.performOAuth2Login(baseUrl, username, password);
-    const expiresAt = loginRes.expiresAt || Date.now() + 7200 * 1000;
+    this.refreshPromise = (async () => {
+      this.logger.log(`[CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (${baseUrl}) cho user: ${username}`);
 
-    const session: ICcpSession = {
-      accessToken: loginRes.accessToken,
-      sessionCookie: loginRes.sessionCookie,
-      userId: loginRes.userId,
-      username,
-      expiresAt,
-      baseUrl,
-    };
+      const loginRes = await this.performOAuth2Login(baseUrl, username, password);
+      const expiresAt = loginRes.expiresAt || Date.now() + 7200 * 1000;
 
-    this.saveSessionToCache(session);
-    this.logger.log(
-      `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
-    );
-    return session;
+      const session: ICcpSession = {
+        accessToken: loginRes.accessToken,
+        sessionCookie: loginRes.sessionCookie,
+        userId: loginRes.userId,
+        username,
+        expiresAt,
+        baseUrl,
+      };
+
+      this.saveSessionToCache(session);
+      this.logger.log(
+        `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
+      );
+      return session;
+    })().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
   }
 
   /**
@@ -322,6 +333,12 @@ export class CoreCcpApiAdapter implements IIngressPort {
       throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] Đăng nhập CoreCCP thất bại: URL chuyển về ${loc || postLoginRes.status}`);
     }
 
+    if (loc.includes('change-password') || loc.includes('change_password')) {
+      throw new Error(
+        `[PARTNER_SERVICE_UNAVAILABLE] Tài khoản CoreCCP ('${username}') đang bị hệ thống VNCLEAR yêu cầu đổi mật khẩu (/change-password). Vui lòng đăng nhập trực tiếp tại ${baseUrl} trên trình duyệt để hoàn tất đổi mật khẩu mới trước khi dùng API!`,
+      );
+    }
+
     // BƯỚC 3: Theo dõi chuỗi redirect bắt OAuth2 Code
     let code: string | null = null;
     let nextUrl: string | null = loc;
@@ -330,6 +347,13 @@ export class CoreCcpApiAdapter implements IIngressPort {
       hops++;
       const fullUrl: string = nextUrl.startsWith('http') ? nextUrl : `${baseUrl}${nextUrl}`;
       const urlObj = new URL(fullUrl);
+
+      if (urlObj.pathname.includes('change-password') || urlObj.pathname.includes('change_password')) {
+        throw new Error(
+          `[PARTNER_SERVICE_UNAVAILABLE] Tài khoản CoreCCP ('${username}') đang bị hệ thống VNCLEAR yêu cầu đổi mật khẩu (/change-password). Vui lòng đăng nhập trực tiếp tại ${baseUrl} trên trình duyệt để hoàn tất đổi mật khẩu mới trước khi dùng API!`,
+        );
+      }
+
       if (urlObj.searchParams.has('code')) {
         code = urlObj.searchParams.get('code');
         break;
@@ -355,7 +379,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       redirect_uri: redirectUri,
     });
 
-    const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+    let tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
       method: 'POST',
       headers: {
         Authorization: basicAuth,
@@ -367,7 +391,29 @@ export class CoreCcpApiAdapter implements IIngressPort {
       signal: AbortSignal.timeout(15000),
     });
 
-    const tokenData = await tokenRes.json();
+    let tokenData = await tokenRes.json().catch(() => ({}));
+
+    // Tự phục hồi: Nếu gặp lỗi invalid_client, tự động trích xuất Basic Auth mới từ manifest host và thử lại (mxv-account-opening standard)
+    if (!tokenData.access_token && tokenData.error === 'invalid_client') {
+      this.logger.warn(`[CoreCcpApiAdapter] Gặp lỗi invalid_client với host ${baseUrl}, đang tự động giải mã manifest host để tự phục hồi...`);
+      const dynamicAuth = await discoverCcpBasicAuthFromHost(baseUrl);
+      if (dynamicAuth && dynamicAuth !== basicAuth) {
+        this.logger.log(`[CoreCcpApiAdapter] Tự động áp dụng Basic Auth mới giải mã được, thử lại POST /oauth2/token...`);
+        tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+          method: 'POST',
+          headers: {
+            Authorization: dynamicAuth,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Cookie: jar.getCookieHeader(),
+            Origin: baseUrl,
+          },
+          body: tokenParams.toString(),
+          signal: AbortSignal.timeout(15000),
+        });
+        tokenData = await tokenRes.json().catch(() => ({}));
+      }
+    }
+
     if (!tokenData.access_token) {
       throw new Error(`[PARTNER_SERVICE_UNAVAILABLE] Đổi Access Token CoreCCP thất bại: ${JSON.stringify(tokenData)}`);
     }

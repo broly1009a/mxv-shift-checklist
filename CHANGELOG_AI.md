@@ -22,6 +22,9 @@
 - [`backend/src/modules/trading-ops/controllers/trading-recon-log.controller.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-recon-log.controller.spec.ts) *(Test file)*
 - [`backend/src/shared/helpers/crypto.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.spec.ts) *(Test file)*
 - [`backend/src/modules/ingress/adapters/coreccp-coreex-failfast.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-coreex-failfast.spec.ts) *(Test file)*
+- [`backend/src/modules/ingress/scrapers/ccp-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts)
+- [`backend/src/modules/ingress/scrapers/acm-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)
+- [`backend/src/modules/ingress/ingress-failfast.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress-failfast.spec.ts) *(Test file)*
 - [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md)
 
 ### 3. Tóm tắt Nội dung Code Đã Sửa
@@ -58,6 +61,9 @@
 
 ### 2. Danh sách File Chỉnh sửa
 - [`.agents/AGENTS.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.agents/AGENTS.md)
+- [`backend/src/modules/ingress/scrapers/ccp-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts)
+- [`backend/src/modules/ingress/scrapers/acm-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/acm-scraper.service.ts)
+- [`backend/src/modules/ingress/ingress-failfast.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress-failfast.spec.ts) *(Test file)*
 - [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md) *(Tạo mới)*
 - [`.gitignore`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/.gitignore)
 - [`backend/src/modules/ingress/scrapers/ccp-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts)

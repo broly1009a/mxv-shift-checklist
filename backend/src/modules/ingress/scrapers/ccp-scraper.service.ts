@@ -56,11 +56,11 @@ export class CcpScraperService {
   ): Promise<{ browser: Browser; page: Page; baseUrl: string }> {
     const { username, password, url } = credentials;
     if (!username || !password) {
-      throw new Error('Chưa cấu hình thông tin đăng nhập CoreCCP (username, password).');
+      throw new Error('[PARTNER_SERVICE_UNAVAILABLE] Chưa cấu hình thông tin đăng nhập CoreCCP (username, password).');
     }
     if (!url || !url.trim()) {
       throw new Error(
-        'Chưa cấu hình URL đăng nhập CoreCCP (bot_credentials_ccp.url). Vui lòng cấu hình URL hệ thống trên giao diện Quản trị (Tuyệt đối không sử dụng URL hardcode/mặc định).',
+        '[PARTNER_SERVICE_UNAVAILABLE] Chưa cấu hình URL đăng nhập CoreCCP (bot_credentials_ccp.url). Vui lòng cấu hình URL hệ thống trên giao diện Quản trị (Tuyệt đối không sử dụng URL hardcode/mặc định).',
       );
     }
 
