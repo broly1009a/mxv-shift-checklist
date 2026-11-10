@@ -1,3 +1,54 @@
+## [2026-11-10T12:08] FIX(TASK_AUDIT_AND_PREFLIGHT_FAILFAST): Hoàn Thiện Triệt Để Task 2 (Seed Service Security) & Task 7 (Pre-Flight Ingress Barrier Fail-Fast), Chuẩn Hóa Ranh Giới Module V2
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: _"bạn khắc phục các task hết chưa mà đòi rồi"_ (Nhắc nhở kiểm tra toàn bộ 10 Task bóc tách, không được bỏ sót bất kỳ task nào).
+- **Mục tiêu**:
+  1. **Task 2**: Triệt tiêu 100% mật khẩu tĩnh hardcode (`Admin@MXV123`, `Staff@MXV123`,...) trong `seed.service.ts`; chỉ cho phép Seeding khi `ALLOW_DB_SEED=true` trên môi trường non-production và có `INITIAL_ADMIN_PASSWORD` hợp lệ.
+  2. **Task 7**: Hoàn thiện Pre-Flight Ingress Barrier trong `recon-ingress-pipeline.service.ts`, đồng bộ `klgd-recon.worker.ts` và `bot-dispatcher.service.ts` chuyển thẳng sang trạng thái `ABORTED` (áp dụng cooldown 15 phút, ngắt ngay trước khi bật Chromium của CQG).
+  3. **Module Isolation Boundary**: Dọn sạch các import xuyên module (`../../trading-ops/services/...`, `shared/helpers/...`), khôi phục tính độc lập tuyệt đối giữa các module Ingress, Trading-Ops và Checklist-Hub.
+  4. **Build & Test Verification**: Toàn bộ 11 test suites (37 test cases) và cả 2 dự án Backend/Frontend build thành công exit code 0.
+
+### 2. Danh sách File Chỉnh sửa & Tạo mới
+- [`backend/src/database/seed.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/database/seed.service.ts)
+- [`backend/src/database/seed.service.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/database/seed.service.spec.ts) *(New test)*
+- [`backend/src/modules/trading-ops/workers/klgd-recon.worker.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts)
+- [`backend/src/modules/trading-ops/workers/klgd-recon.worker.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.spec.ts) *(New test)*
+- [`backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/dispatcher/bot-dispatcher.service.ts)
+- [`backend/src/shared/contracts/bot-execution.contract.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/contracts/bot-execution.contract.ts)
+- [`backend/src/modules/ingress/controllers/ingress-config.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-config.controller.ts)
+- [`backend/src/modules/ingress/controllers/ingress-download.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/controllers/ingress-download.controller.ts)
+- [`backend/src/modules/ingress/handlers/file-audit.handler.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/handlers/file-audit.handler.ts)
+- [`backend/src/modules/ingress/index.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/index.ts)
+- [`backend/src/modules/trading-ops/index.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/index.ts) *(New export barrel)*
+- [`backend/src/modules/trading-ops/handlers/verify-email.handler.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/handlers/verify-email.handler.ts)
+- [`backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/services/pipeline/recon-pipeline.service.ts)
+- [`backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts)
+- [`backend/src/tests/boundary/module-isolation.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/tests/boundary/module-isolation.spec.ts)
+- [`ACTIVE_FIX_STATE.md`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/ACTIVE_FIX_STATE.md)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Seed Service (`seed.service.ts`)**:
+   - Chặn tuyệt đối hành vi chạy seed tự phát trên Production. Bắt buộc có cờ `ALLOW_DB_SEED=true` và môi trường non-production.
+   - Xóa bỏ toàn bộ các chuỗi mật khẩu tĩnh (`Admin@MXV123`, `Staff@MXV123`). Bắt buộc đọc từ biến môi trường `INITIAL_ADMIN_PASSWORD` nếu chạy seed.
+2. **Pre-Flight Ingress Barrier (`recon-ingress-pipeline.service.ts` & `klgd-recon.worker.ts`)**:
+   - Chờ kiểm tra các kết nối nhẹ (Direct REST API MS, ETP/SFTP ACM, Direct API CoreCCP). Nếu một trong các bên lỗi $\rightarrow$ kích hoạt Fail-Fast `[PARTNER_SERVICE_UNAVAILABLE]`, hủy toàn bộ tiến trình mở Chromium CQG.
+   - Thêm trạng thái `ABORTED` vào `TaskExecutionStatus`. `KlgdReconWorker` và `BotDispatcherService` chuyển ngay sang `ABORTED` để hệ thống áp dụng Cooldown 15 phút an toàn.
+3. **Module Isolation Boundary**:
+   - Loại bỏ deep import giữa các module con, export đúng chuẩn qua barrel files (`modules/ingress`, `modules/trading-ops`, `shared`).
+   - Sửa `module-isolation.spec.ts` không nhầm lẫn thư mục `shared/helpers` với các module nghiệp vụ nội bộ.
+
+### 4. Xác nhận Build & Kiểm thử Kịch Bản
+- **Unit Tests**: **11/11 Suites Passed, 37/37 Tests Passed 100%**:
+  - `seed.service.spec.ts`: 4/4 PASS (Bỏ qua seed mặc định, chặn production, bắt lỗi thiếu password, inject dynamic password thành công).
+  - `klgd-recon.worker.spec.ts`: 3/3 PASS (Fail-Fast chuyển `ABORTED`, xử lý `WAITING`, đối chiếu `SUCCESS`).
+  - `module-isolation.spec.ts`: 2/2 PASS (Cách ly ranh giới module V2, Shared Ports & Contracts hợp lệ).
+  - Các bộ test trước đó (`crypto`, `coreccp-coreex-failfast`, `ingress-failfast`, `trading-recon-log`, `multi-instance-queue`, `modular-shift-e2e`, `twin-run-comparator`): **Đều PASS 100%**.
+- **Build Verification**:
+  - `backend`: `nest build` thành công exit code 0 (0 TypeScript errors).
+  - `frontend`: `next build` thành công exit code 0 (50/50 routes tối ưu).
+
+---
+
 ## [2026-11-10T11:22] FIX(SECURITY_HARDENING_AND_FULL_TESTCASE_GATE): Thắt Chặt Bảo Mật Toàn Diện, Loại Bỏ Hardcode Fallback & Thiết Lập Full Testcase Verification Cho 5 Phân Hệ
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

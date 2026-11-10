@@ -28,7 +28,7 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { ShiftLog } from '../../../schemas/shift-log.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { SystemLogsService } from '../../system-logs/system-logs.service';
-import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.service';
+import { OmsWatcherService } from '../../trading-ops';
 import {
   getMsBackupBase,
   resolveDailySubfolder,

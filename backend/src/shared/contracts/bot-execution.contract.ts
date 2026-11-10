@@ -9,7 +9,7 @@
  *    riêng của domain và trả về domainLogRefId. Ca trực chỉ lưu tóm tắt (summary/metrics) để tránh quá tải BSON 16MB.
  */
 
-export type TaskExecutionStatus = 'SUCCESS' | 'FAILED' | 'WARNING' | 'WAITING';
+export type TaskExecutionStatus = 'SUCCESS' | 'FAILED' | 'WARNING' | 'WAITING' | 'ABORTED';
 
 export interface TaskExecutionContext {
   taskId: string;

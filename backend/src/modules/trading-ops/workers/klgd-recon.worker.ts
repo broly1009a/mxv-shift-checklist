@@ -150,9 +150,14 @@ export class KlgdReconWorker implements IBotWorker {
       };
     } catch (err: any) {
       this.logger.error(`[KlgdReconWorker] Lỗi thực thi CHECK_KLGD: ${err.message}`);
+      const isPartnerUnavailable =
+        err.message?.includes('[PARTNER_SERVICE_UNAVAILABLE]') ||
+        err.message?.includes('[CQG_CIRCUIT_BREAKER]') ||
+        err.message?.includes('[CQG_ABORT_PREFLIGHT]');
+      const status = isPartnerUnavailable ? 'ABORTED' : 'FAILED';
       return {
-        status: 'FAILED',
-        summary: `Thất bại: ${err.message}`,
+        status,
+        summary: `${status === 'ABORTED' ? '[Tạm dừng bảo vệ]' : 'Thất bại'}: ${err.message}`,
         error: err.message,
         durationMs: Date.now() - startTime,
         executedAt: new Date(),

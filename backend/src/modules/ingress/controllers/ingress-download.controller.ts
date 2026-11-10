@@ -21,15 +21,12 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { BotJobQueueService } from '../../checklist-hub/queue/bot-job-queue.service';
 import { FileAuditJobHandler } from '../handlers/file-audit.handler';
-import { CqgMergerService } from '../../trading-ops/services/merger/cqg-merger.service';
+import { CqgMergerService } from '../../trading-ops';
 import { EmailWatcherService } from '../services/email-watcher.service';
 import { CcpCeScraperService } from '../scrapers/ccp-ce-scraper.service';
 import {
   REQUIRED_CCP_FILES,
   REQUIRED_CE_FILES,
-} from '../../../shared/constants/required-files.constant';
-import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
-import {
   getMsBackupBase,
   getCqgBackupBase,
   getAcmBackupBase,
@@ -37,8 +34,9 @@ import {
   resolveDailySubfolder,
   resolveStoragePathCrossPlatform,
   resolveTradingSessionDate,
-} from '../../../shared/helpers/file-path.helper';
-import { decrypt } from '../../../shared/helpers/crypto';
+  decrypt,
+} from '../../../shared';
+import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
 
 @Controller(['api/v1/ingress', 'api/v1/bot-engine'])
 @UseGuards(JwtAuthGuard)

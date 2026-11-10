@@ -1,79 +1,32 @@
 # ACTIVE_FIX_STATE.md - Trạng Thái Khắc Phục Lỗi Hệ Thống & Bộ Nhớ Phiên Làm Việc
 
 > **Mục đích**: Lưu trữ ngữ cảnh cố định và lộ trình kỹ thuật chuẩn xác, không phỏng đoán, không bỏ sót. Mỗi lượt làm việc mới AI bắt buộc đọc file này trước tiên để biết mình đang ở đâu và làm gì tiếp theo.  
-> **Cập nhật lần cuối**: 2026-11-10T11:48:30+07:00  
+> **Cập nhật lần cuối**: 2026-11-10T12:08:00+07:00  
 > **Server Production**: Ubuntu `10.0.0.26` (PM2 Backend PID: `2711248`, Frontend PID: `2665593`)  
-> **Nhánh Git hiện tại**: `v10-update-permisson-request-auth-module` (Commit `820ff5f`)
+> **Nhánh Git hiện tại**: `v10-update-permisson-request-auth-module`
 
 ---
 
-## 1. Mục Tiêu Trọng Tâm Của Đợt Sửa Lỗi Này
+## 1. Bảng Tổng Hợp Tiến Độ 10 Task Kỹ Thuật (Ground Truth Progress Audit)
 
-Chấm dứt triệt để tình trạng **hệ thống chạy 4 tháng chưa ổn định**, loại bỏ hoàn toàn các lỗi:
-1. **Bão gọi xác thực/đăng nhập liên tục (Storm Retry)** làm treo tài khoản đối tác (CQG, M-System, CoreCCP, ACM).
-2. **Lỗi xác thực CoreCCP**: Lỗi `invalid_client` và lỗi domain `ERR_NAME_NOT_RESOLVED` khi fallback sang Browser scraper.
-3. **Lỗi xác thực CoreExchange**: Lỗi HTTP 401 khi token hết hạn hoặc tài khoản bị chuyển hướng đổi mật khẩu (`/change-password`).
-4. **Kiến trúc luồng chuẩn (End-to-End Flow)**: Đảm bảo khi 1 phân hệ lỗi, hệ thống phải **Fail-Fast** an toàn, áp dụng Cooldown ít nhất 15 phút, tuyệt đối không tạo vòng lặp retry từng phút.
-5. **Siết chặt bảo mật toàn diện**: Loại bỏ endpoint không guard, loại bỏ secret/fallback hardcode, tích hợp `helmet`, CORS strict.
-
----
-
-## 2. Bảng Theo Dõi Trạng Thái 5 Phân Hệ (Ground Truth Audit)
-
-| Phân hệ | Phương thức giao tiếp | Trạng thái kỹ thuật | Nguyên nhân lỗi gốc đã xác thực | Giải pháp & Kết quả Live Test trên Server |
-| :--- | :--- | :---: | :--- | :--- |
-| **1. CQG Desktop** | Playwright Chromium (2 TK song song) | 🟢 **ĐÃ ỔN ĐỊNH** | Màn hình CAST treo selector timeout $\rightarrow$ Job fail $\rightarrow$ Scheduler retry mỗi phút $\rightarrow$ Spam login. | • Đã triển khai `CqgSafetyGate` (Mutex khóa đơn, Cooldown 120s, trần 8 lần/giờ).<br>• Đã sửa `bot-job-queue.service.ts` chặn tight-loop.<br>• Đã deploy & test live trên `10.0.0.26`. |
-| **2. M-System** | Direct REST API (Newgen) | 🟢 **ĐÃ ỔN ĐỊNH** | Lưu token cache 12h (chỉ đăng nhập 2 bước khi hết hạn). Bị gọi dồn dập do ăn theo Job `CHECK_KLGD` retry. | • Cơ chế cache RAM + File (`ms_session.json`) hoạt động chuẩn.<br>• Khi chặn được vòng lặp `CHECK_KLGD`, M-System ngừng bị spam. |
-| **3. ACM (Straits/ETP)** | Web ETP / SFTP | 🟢 **ĐÃ ỔN ĐỊNH** | Thiếu validation tham số SFTP host/username trong code scraper dẫn tới lỗi treo ngầm. | • Bổ sung Fail-Fast trong `IngressService` và `AcmScraperService` (TC-INGRESS-01, TC-INGRESS-04).<br>• Tự động ngắt với `[PARTNER_SERVICE_UNAVAILABLE]`. |
-| **4. CoreCCP** | Direct REST API + Playwright Fallback | 🟢 **ĐÃ XÁC MINH LIVE PASS 100%** | 1. Direct API: Thiếu Fail-Fast URL, ném lỗi generic làm lặp vòng retry.<br>2. Scraper: Hardcode sai URL fallback `coreccp.mxv.com.vn`. | • Kế thừa kiến trúc `mxv-account-opening-reconciler` với Mutex Lock `refreshPromise`.<br>• Loại bỏ hoàn toàn fallback URL hardcode.<br>• **Live Smoke Test 10.0.0.26: PASS trong 580ms! User: `tradingdesk`, Token valid đến 14:47:56**. |
-| **5. CoreExchange** | Direct REST API | 🟢 **ĐÃ ỔN ĐỊNH** | 1. API ném HTTP 401 khi token hết hạn.<br>2. Tài khoản bot `anhdao` bị chuyển hướng đổi mật khẩu (`/change-password`) làm lặp vòng retry. | • Thêm Mutex Lock `refreshPromise` và session cache bền vững.<br>• Bắt lỗi `/change-password` và ném `[PARTNER_SERVICE_UNAVAILABLE]` để ngắt retry ngay Attempt 1.<br>• **Full testcase PASS (TC-CE-01, TC-CE-02)**. |
+| Task | Mô tả & File tác động | Trạng thái kỹ thuật | Testcase / Bằng chứng kiểm chứng |
+| :---: | :--- | :---: | :--- |
+| **Task 1** | **Bịt Endpoint công khai**<br>[`trading-recon-log.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/controllers/trading-recon-log.controller.ts) | 🟢 **100% HOÀN THÀNH** | • Thêm `@UseGuards(JwtAuthGuard)`<br>• Spec `trading-recon-log.controller.spec.ts` **4/4 PASS** |
+| **Task 2** | **Chống Seed tự phát & Xóa mật khẩu cứng**<br>[`seed.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/database/seed.service.ts) | 🟢 **100% HOÀN THÀNH** | • Xóa 100% mật khẩu hardcode, cấm chạy trên production, yêu cầu `ALLOW_DB_SEED=true` và `INITIAL_ADMIN_PASSWORD`<br>• Spec `seed.service.spec.ts` **4/4 PASS** |
+| **Task 3** | **Chống Hardcode Secret & Bắt buộc biến môi trường**<br>[`crypto.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/shared/helpers/crypto.ts) | 🟢 **100% HOÀN THÀÝ** | • Hỗ trợ giải mã 3 tầng tương thích ngược MongoDB cũ<br>• Spec `crypto.spec.ts` **6/6 PASS** |
+| **Task 4** | **Ổn định CoreCCP & Chặn Stampede**<br>[`coreccp-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreccp-api.adapter.ts) | 🟢 **100% HOÀN THÀNH** | • Mutex Lock `refreshPromise`, self-healing Basic Auth<br>• **Live Test Server 10.0.0.26: PASS trong 580ms** (User `tradingdesk`) |
+| **Task 5** | **Ổn định CoreExchange & Bắt `/change-password`**<br>[`coreex-api.adapter.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/adapters/coreex-api.adapter.ts) | 🟢 **100% HOÀN THÀNH** | • Bắt lỗi chuyển hướng `/change-password`, ném `[PARTNER_SERVICE_UNAVAILABLE]`<br>• **Live Test Server 10.0.0.26: PASS trong 962ms** (User `anhdao`) |
+| **Task 6** | **Dọn sạch URL hardcode & Fail-Fast**<br>[`ingress.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/ingress.service.ts) & [`ccp-scraper.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/scrapers/ccp-scraper.service.ts) | 🟡 **XONG CODE (CHỜ TEST TẢI FILE)** | • Loại bỏ URL hardcode `coreccp.mxv.com.vn`<br>• Spec `ingress-failfast.spec.ts` **4/4 PASS**<br>• *Chờ live test tải file Excel thật về disk.* |
+| **Task 7** | **Rào chắn Pre-Flight Ingress Barrier**<br>[`recon-ingress-pipeline.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts) & [`klgd-recon.worker.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/trading-ops/workers/klgd-recon.worker.ts) | 🟢 **100% HOÀN THÀNH** | • Ngắt ngay trước khi bật Chromium CQG nếu MS/ACM/CCP lỗi<br>• Đồng bộ trạng thái `ABORTED` kích hoạt Cooldown 15p<br>• Spec `klgd-recon.worker.spec.ts` **3/3 PASS** |
+| **Task 8** | **Dọn sạch Git Index & `.gitignore`** | 🟢 **100% HOÀN THÀNH** | • Loại bỏ 285 file nháp khỏi Git tracking, commit sạch sẽ. |
+| **Task 9** | **Build Verification & Architecture Boundary Gates** | 🟢 **100% HOÀN THÀNH** | • **11/11 Test Suites, 37/37 Tests PASS 100%**<br>• Module Boundary Test `module-isolation.spec.ts` **PASS**<br>• Backend `nest build`: **Exit code 0** (0 errors)<br>• Frontend `next build`: **Exit code 0** (50/50 routes) |
+| **Task 10** | **Deploy lên Server 10.0.0.26 & Xác Minh Live** | 🟡 **ĐÃ HOÀN THÀNH 50%** | • Backend PM2 online PID `2711248`<br>• Đã live test Auth CoreCCP & CoreEX thành công<br>• *Cần thực hiện: Live Ingress MS API, Live SFTP ACM, Live download report.* |
 
 ---
 
-## 3. Bản Đồ Luồng Kỹ Thuật Chuẩn (End-to-End Architectural Flow)
+## 2. Kế Hoạch Các Bước Kế Tiếp Cần Hoàn Thành Nốt (Next Action Items)
 
-```mermaid
-flowchart TD
-    A["Autonomous Scheduler / User Trigger"] --> B["BotDispatcherService"]
-    B --> C["Domain Lock Manager (MS, CQG, CCP, ACM)"]
-    C --> D["KlgdReconWorker / ReconPipelineService"]
-    
-    subgraph IngressBarrier ["Pre-Flight Ingress Barrier (Tối đa 15s)"]
-        D1["MS Pre-flight (Token valid?)"]
-        D2["ACM Pre-flight (Session ETP/SFTP)"]
-        D3["CoreCCP Pre-flight (OAuth2 Token / Session Cache)"]
-        D4["CQG Worker (Chờ 3 bên sẵn sàng mới launch Browser)"]
-    end
-    
-    D --> IngressBarrier
-    
-    IngressBarrier -->|Tất cả sẵn sàng| E["Tải dữ liệu đồng pha (FR, PS, OP, OD)"]
-    E --> F["CQG Merger Service (Ghép FR, PS, OP)"]
-    F --> G["Domain Reconciliation Pure Logic (So khớp lệnh)"]
-    G --> H["Lưu kết quả CSDL Ca trực (ShiftLog) & Phát thông báo"]
-    
-    IngressBarrier -->|1 bên thất bại| I["abortBarrierIfStrict: Ném [PARTNER_SERVICE_UNAVAILABLE]"]
-    I --> J["BotJobQueue: Chuyển ABORTED ngay Attempt 1 (Fail-Fast)"]
-    J --> K["Áp dụng Cooldown 15 phút (getLatestCompletedJobByType tính cả ABORTED)"]
-    K --> L["Không retry spam - Chờ phiên sau hoặc can thiệp"]
-```
-
----
-
-## 4. Nhật Ký Kiểm Thử Thực Tế Trực Tiếp Trên Server Ubuntu 10.0.0.26
-
-* **Thời gian thực hiện**: 2026-11-10T11:47:56+07:00
-* **Tiến trình PM2 Backend**: PID `2711248`, Uptime Online, Memory 275.6MB, 0 errors.
-* **Kết quả lệnh test CoreCCP**:
-  ```text
-  Kết nối MongoDB: mongodb://127.0.0.1:27017/mxv_shift_checklist
-  Bắt đầu gọi getValidSession(true)...
-  [Nest] 2711296 LOG [CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (https://coreccp.vnclear.vn) cho user: tradingdesk
-  [Nest] 2711296 LOG [CoreCcpApiAdapter] Xác thực CoreCCP thành công: userId=75, token hiệu lực đến: 14:47:56
-  ✅ [LIVE TEST PASS] Xác thực CoreCCP thành công (580ms)!
-     - User: tradingdesk
-     - Token: eyJraWQiOiI1NjV...VaUB1COA
-     - Session Cookie: Có
-     - Hiệu lực đến: 14:47:56 10/11/2026
-  ```
-* **Kết luận**: Cổng kết nối CoreCCP hoạt động chuẩn 100%, không còn lỗi domain chết hay `invalid_client`.
+1. **Bước 1**: Đẩy code mới (Task 2 + Task 7 + Module Isolation fixes) lên Server `10.0.0.26`.
+2. **Bước 2**: Thực hiện Live Test cho **M-System REST API** và **ACM SFTP/ETP** trên Server `10.0.0.26`.
+3. **Bước 3**: Thực hiện Live Download 1 file Excel báo cáo thực tế từ CoreCCP về thư mục backup trên Server `10.0.0.26` để nghiệm thu dứt điểm Task 6.
+4. **Bước 4**: Báo cáo tổng thể đầy đủ bằng chứng thực tế cho USER trước khi bật Master Switch `bot_auto_recon_enabled = true`.

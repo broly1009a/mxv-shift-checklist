@@ -116,7 +116,7 @@ export class BotDispatcherService implements OnModuleInit {
    * Cơ chế chiếm khóa nguyên tử MongoDB (Atomic Lock via findOneAndUpdate)
    * Cho phép chạy song song đa instance (Horizontal Multi-Instance Concurrency) mà không bị tranh chấp Job.
    */
-  async acquireAndProcessNextJob(): Promise<{ jobId: string; status: string } | null> {
+  async acquireAndProcessNextJob(): Promise<{ jobId: string; status: string; error?: string } | null> {
     // Chiếm quyền khóa job ở trạng thái PENDING một cách nguyên tử
     const job: any = await this.botJobModel.findOneAndUpdate(
       { status: 'PENDING' },
@@ -159,7 +159,15 @@ export class BotDispatcherService implements OnModuleInit {
 
       const isWaiting = result.status === 'WAITING' || !!result.isWaitingFiles;
       let finalStatus = 'COMPLETED';
-      if (result.status === 'FAILED') {
+      const isPartnerUnavailable =
+        result.status === 'ABORTED' ||
+        result.error?.includes('[PARTNER_SERVICE_UNAVAILABLE]') ||
+        result.error?.includes('[CQG_CIRCUIT_BREAKER]') ||
+        result.error?.includes('[CQG_ABORT_PREFLIGHT]');
+
+      if (isPartnerUnavailable) {
+        finalStatus = 'ABORTED';
+      } else if (result.status === 'FAILED') {
         finalStatus = 'FAILED';
       } else if (isWaiting) {
         finalStatus = 'WAITING';
@@ -201,15 +209,21 @@ export class BotDispatcherService implements OnModuleInit {
         status: finalStatus,
       };
     } catch (dispatchErr: any) {
+      const isPartnerUnavailable =
+        dispatchErr.message?.includes('[PARTNER_SERVICE_UNAVAILABLE]') ||
+        dispatchErr.message?.includes('[CQG_CIRCUIT_BREAKER]') ||
+        dispatchErr.message?.includes('[CQG_ABORT_PREFLIGHT]');
+      const finalStatus = isPartnerUnavailable ? 'ABORTED' : 'FAILED';
+
       this.logger.error(
-        `[BotDispatcherService] Thất bại khi thực thi Job ${job._id} (${botCheckType}): ${dispatchErr.message}`,
+        `[BotDispatcherService] ${finalStatus} khi thực thi Job ${job._id} (${botCheckType}): ${dispatchErr.message}`,
       );
 
       await this.botJobModel.updateOne(
         { _id: job._id },
         {
           $set: {
-            status: 'FAILED',
+            status: finalStatus,
             error: dispatchErr.message,
             failedAt: new Date(),
           },
@@ -221,7 +235,8 @@ export class BotDispatcherService implements OnModuleInit {
 
       return {
         jobId: job._id.toString(),
-        status: 'FAILED',
+        status: finalStatus,
+        error: dispatchErr.message,
       };
     }
   }

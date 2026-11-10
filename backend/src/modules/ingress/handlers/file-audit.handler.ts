@@ -9,7 +9,7 @@ import { BotJob } from '../../../schemas/bot-job.schema';
 import { RpaScraperService } from '../scrapers/rpa-scraper.service';
 import { IngressService } from '../ingress.service';
 import { AcmEtpAdapter } from '../adapters/acm-etp.adapter';
-import { CqgMergerService } from '../../trading-ops/services/merger/cqg-merger.service';
+import { CqgMergerService } from '../../trading-ops';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   parseJobPayload,

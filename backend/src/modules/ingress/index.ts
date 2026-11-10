@@ -13,5 +13,6 @@ export { AcmSftpAdapter } from './adapters/acm-sftp.adapter';
 export { AcmEtpAdapter } from './adapters/acm-etp.adapter';
 export { MsApiAdapter } from './adapters/ms-api.adapter';
 export { ReconIngressPipelineService } from './services/recon-ingress-pipeline.service';
+export { EmailWatcherService } from './services/email-watcher.service';
 export { CastScraperService } from './scrapers/cast-scraper.service';
 

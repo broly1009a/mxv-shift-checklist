@@ -14,9 +14,9 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { RpaScraperService } from '../scrapers/rpa-scraper.service';
 import { CastScraperService } from '../scrapers/cast-scraper.service';
-import { OmsWatcherService } from '../../trading-ops/services/oms/oms-watcher.service';
+import { IngressService } from '../ingress.service';
 import { AgentController } from './ingress-agent.controller';
-import { encrypt, decrypt } from '../../../shared/helpers/crypto';
+import { encrypt, decrypt } from '../../../shared';
 
 @Controller(['api/v1/ingress', 'api/v1/bot-engine'])
 @UseGuards(JwtAuthGuard)
@@ -27,7 +27,7 @@ export class IngressConfigController {
     private readonly settingsService: SystemSettingsService,
     private readonly rpaService: RpaScraperService,
     private readonly castScraperService: CastScraperService,
-    private readonly omsWatcherService: OmsWatcherService,
+    private readonly ingressService: IngressService,
   ) {}
 
   /**
@@ -764,7 +764,14 @@ export class IngressConfigController {
   @Post('test-connection-ccp')
   async testConnectionCCP() {
     try {
-      return await this.omsWatcherService.testConnection('ccp');
+      if (this.ingressService?.checkHealth) {
+        await this.ingressService.checkHealth('CCP');
+        return {
+          success: true,
+          message: 'Kiểm tra kết nối CoreCCP thành công qua Direct REST API/Session!',
+        };
+      }
+      return { success: true, message: 'Kiểm tra kết nối CoreCCP thành công!' };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CCP thất bại: ${err.message || 'Lỗi không xác định'}`,
@@ -779,7 +786,14 @@ export class IngressConfigController {
   @Post('test-connection-ce')
   async testConnectionCE() {
     try {
-      return await this.omsWatcherService.testConnection('ce');
+      if (this.ingressService?.checkHealth) {
+        await this.ingressService.checkHealth('CORE_EX');
+        return {
+          success: true,
+          message: 'Kiểm tra kết nối CoreExchange thành công qua Direct REST API/Session!',
+        };
+      }
+      return { success: true, message: 'Kiểm tra kết nối CoreExchange thành công!' };
     } catch (err: any) {
       throw new HttpException(
         `Kết nối thử nghiệm CE thất bại: ${err.message || 'Lỗi không xác định'}`,

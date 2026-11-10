@@ -41,27 +41,35 @@ export class SeedService implements OnApplicationBootstrap {
     // Khi hệ thống đã vận hành, toàn bộ Users, Departments, ShiftSlots, Templates
     // đã được Admin cấu hình ổn định trên Web. Việc chạy lại seed mỗi lần restart
     // có nguy cơ xóa phòng ban cũ hoặc xáo trộn cấu hình người dùng.
+    // Chỉ cho phép chạy khi có biến môi trường tường minh ALLOW_DB_SEED=true
+    // và tuyệt đối KHÔNG cho phép chạy trên NODE_ENV=production.
     // =========================================================================
-    this.logger.log(
-      'Database Seeding is DISABLED for operational safety (Hệ thống đang vận hành thực tế).',
-    );
-    return;
+    const isAllowDbSeed = process.env.ALLOW_DB_SEED === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    /* ĐOẠN CODE SEED DỰ PHÒNG - CHỈ BẬT KHI KHỞI TẠO MÔI TRƯỜNG MỚI TINH
-    const isAutoSeedEnabled = process.env.ENABLE_AUTO_SEED === 'true';
-    if (!isAutoSeedEnabled) {
+    if (!isAllowDbSeed || isProduction) {
       this.logger.log(
-        'Automatic database seeding is DISABLED via ENABLE_AUTO_SEED. Skipping.',
+        'Database Seeding is DISABLED for operational safety (Hệ thống đang vận hành thực tế hoặc ALLOW_DB_SEED != true).',
       );
       return;
     }
 
-    this.logger.log('Starting database seeding...');
+    const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+    if (!initialPassword) {
+      this.logger.error(
+        '[FAIL_FAST] Biến môi trường INITIAL_ADMIN_PASSWORD chưa được thiết lập. Từ chối thực thi Seed CSDL để tránh lộ mật khẩu tĩnh.',
+      );
+      return;
+    }
+
+    this.logger.warn(
+      '⚠️ CẢNH BÁO: Bắt đầu chạy Seed CSDL theo cờ ALLOW_DB_SEED=true trong môi trường non-production...',
+    );
     try {
       await this.seedRoles();
       await this.seedExchangesAndHolidays();
       const depts = await this.seedDepartments();
-      await this.seedUsers(depts);
+      await this.seedUsers(depts, initialPassword);
       const slots = await this.seedShiftSlots();
       await this.seedWorkingCalendar();
       await this.seedTemplates(depts, slots);
@@ -69,7 +77,6 @@ export class SeedService implements OnApplicationBootstrap {
     } catch (error) {
       this.logger.error('Error seeding database', error);
     }
-    */
   }
 
 
@@ -159,12 +166,19 @@ export class SeedService implements OnApplicationBootstrap {
 
   private async seedUsers(
     depts: Record<string, string>,
+    initialPassword: string,
   ) {
-    // Chỉ hash password khi cần tạo user mới — lazy approach per user
+    if (!initialPassword) {
+      throw new Error(
+        '[FAIL_FAST] seedUsers yêu cầu initialPassword từ biến môi trường INITIAL_ADMIN_PASSWORD!',
+      );
+    }
+
+    // Lấy mật khẩu khởi tạo từ biến môi trường bảo mật, loại bỏ hoàn toàn hardcoded passwords
     const users = [
       {
         username: 'admin',
-        password: 'Admin@MXV123',
+        password: initialPassword,
         fullName: 'System Administrator',
         title: 'Quản trị viên hệ thống',
         departmentId: null,
@@ -173,7 +187,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'chairman',
-        password: 'Chairman@MXV123',
+        password: initialPassword,
         fullName: 'Chủ tịch Hội đồng',
         title: 'Chủ tịch Hội đồng',
         departmentId: null,
@@ -182,7 +196,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'ceo',
-        password: 'Ceo@MXV123',
+        password: initialPassword,
         fullName: 'Tổng Giám đốc',
         title: 'Tổng Giám đốc',
         departmentId: null,
@@ -191,7 +205,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'lead_it_ops',
-        password: 'Lead@MXV123',
+        password: initialPassword,
         fullName: 'Trưởng bộ phận Vận hành',
         title: 'Trưởng bộ phận Vận hành',
         departmentId: depts['IT_CORE'],
@@ -200,7 +214,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'sonhh',
-        password: 'Staff@MXV123',
+        password: initialPassword,
         fullName: 'Hồ Huy Sơn',
         title: 'Chuyên viên Vận hành',
         departmentId: depts['IT_CORE'],
@@ -209,7 +223,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'ops_staff',
-        password: 'Staff@MXV123',
+        password: initialPassword,
         fullName: 'Nhân viên Giao nhận',
         title: 'Chuyên viên Giám sát Giao dịch',
         departmentId: depts['QLGD_OPS'],
@@ -218,7 +232,7 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         username: 'surv_staff',
-        password: 'Staff@MXV123',
+        password: initialPassword,
         fullName: 'Nhân viên Giám sát',
         title: 'Chuyên viên Giám sát Rủi ro',
         departmentId: depts['QLRR_RISK'],

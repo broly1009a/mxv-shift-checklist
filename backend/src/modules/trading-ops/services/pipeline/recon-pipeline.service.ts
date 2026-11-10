@@ -3,11 +3,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { IReconPipelinePort } from '../../../../shared/ports/recon-pipeline.port';
 import { SystemSettingsService } from '../../../system-settings/system-settings.service';
-import { ReconIngressPipelineService } from '../../../ingress/services/recon-ingress-pipeline.service';
+import { ReconIngressPipelineService, EmailWatcherService } from '../../../ingress';
 import { KlgdReconService } from '../recon/klgd-recon.service';
 import { DsgdBeforeEodService } from '../recon/dsgd-before-eod.service';
 import { CqgMergerService } from '../merger/cqg-merger.service';
-import { EmailWatcherService } from '../../../ingress/services/email-watcher.service';
 import {
   parseJobPayload,
   resolveTradingSessionDate,

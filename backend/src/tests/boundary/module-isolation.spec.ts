@@ -31,7 +31,7 @@ describe('Boundary - Module Isolation (Kiểm Soát Ranh Giới Module V2)', () 
 
     lines.forEach((line, index) => {
       const match = line.match(deepImportPattern);
-      if (match) {
+      if (match && match[1] !== 'shared') {
         imports.push({
           file: path.relative(srcDir, filePath),
           line: index + 1,

@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { IBotJobHandler, IJobExecutionContext } from '../../checklist-hub/queue/job-handler.interface';
 import { BotJobHandlerRegistry } from '../../checklist-hub/queue/job-handler.registry';
-import { RpaScraperService } from '../../ingress/scrapers/rpa-scraper.service';
+import { RpaScraperService } from '../../ingress';
 import { TelegramService } from '../../telegram/telegram.service';
 import { parseJobPayload } from '../../../shared/helpers/file-path.helper';
 
