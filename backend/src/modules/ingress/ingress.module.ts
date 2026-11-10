@@ -36,11 +36,18 @@ import { RpaDownloadJobHandler } from './handlers/rpa-download.handler';
 import { CastDownloadJobHandler } from './handlers/cast-download.handler';
 import { CcpCeDownloadJobHandler } from './handlers/ccp-ce-download.handler';
 import { FileAuditJobHandler } from './handlers/file-audit.handler';
+import {
+  PartnerAuthTelemetry,
+  PartnerAuthTelemetrySchema,
+  PartnerAuthMonitorService,
+  PartnerAuthMonitorController,
+} from './auth-monitor';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: BotJob.name, schema: BotJobSchema },
+      { name: PartnerAuthTelemetry.name, schema: PartnerAuthTelemetrySchema },
     ]),
     SystemSettingsModule,
     NotificationsModule,
@@ -52,6 +59,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     IngressConfigController,
     AgentController,
     MsActivitiesManualController,
+    PartnerAuthMonitorController,
   ],
   providers: [
     // Playwright Scrapers
@@ -70,6 +78,8 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmEtpAdapter,
     MsApiAdapter,
     MsActivitiesManualService,
+    // Partner Auth & Rate-Limit Monitor
+    PartnerAuthMonitorService,
     // Facade Service & Pipelines
     IngressService,
     ReconIngressPipelineService,
@@ -100,6 +110,7 @@ import { FileAuditJobHandler } from './handlers/file-audit.handler';
     AcmEtpAdapter,
     MsApiAdapter,
     MsActivitiesManualService,
+    PartnerAuthMonitorService,
     FileAuditJobHandler,
   ],
 })

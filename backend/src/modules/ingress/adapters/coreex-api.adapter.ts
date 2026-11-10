@@ -18,6 +18,7 @@ import {
 } from '../../../shared';
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { PartnerAuthMonitorService } from '../auth-monitor';
 import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
 
 /**
@@ -109,16 +110,33 @@ export function getPreviousTradingDate(inputDate?: string | Date): string {
   return `${y}-${m}-${dayStr}`;
 }
 
+/** Bộ nhớ đệm runtime lưu Basic Auth CoreExchange đã giải mã được từ host */
+const hostCeBasicAuthCache = new Map<string, { clientId: string; clientSecret: string; basicAuth: string }>();
+
 /**
  * Tự động bẫy & giải mã Basic Auth trực tiếp từ /assets-manifest.js của CoreExchange host
  * (Cơ chế tự thích ứng Zero-Config / Self-Healing chống lỗi xoay secret)
  */
 export async function discoverCeBasicAuthFromHost(
   baseUrl: string,
+  forceFresh: boolean = false,
 ): Promise<{ clientId: string; clientSecret: string; basicAuth: string } | null> {
+  let origin = '';
   try {
-    const origin = new URL(baseUrl).origin;
-    const res = await fetch(`${origin}/assets-manifest.js`, { signal: AbortSignal.timeout(8000) });
+    origin = new URL(baseUrl).origin;
+  } catch {
+    return null;
+  }
+
+  if (!forceFresh && hostCeBasicAuthCache.has(origin)) {
+    return hostCeBasicAuthCache.get(origin)!;
+  }
+
+  try {
+    const res = await fetch(`${origin}/assets-manifest.js?t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return null;
     const text = await res.text();
     const match = text.match(/window\.__ASSETS_MANIFEST__\s*=\s*["']([^"']+)["']/);
@@ -137,11 +155,13 @@ export async function discoverCeBasicAuthFromHost(
     const clientId = sso.CLIENT_ID || 'web-exchange-mxv';
     const clientSecret = sso.CLIENT_SECRET;
     if (clientId && clientSecret) {
-      return {
+      const result = {
         clientId,
         clientSecret,
         basicAuth: 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
       };
+      hostCeBasicAuthCache.set(origin, result);
+      return result;
     }
   } catch {}
   return null;
@@ -159,6 +179,8 @@ export class CoreExApiAdapter implements IIngressPort {
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly authMonitor?: PartnerAuthMonitorService,
   ) {
     this.loadSessionFromCache();
   }
@@ -285,10 +307,6 @@ export class CoreExApiAdapter implements IIngressPort {
       }
     }
 
-    if (!clientSecret) {
-      clientSecret = baseUrl.includes('uat') ? 'jY3lgfDQQdJceOILsjKIxKLa0MQ7IU' : 'RyDmU4K6eiSCY2WDHbnOmCwtorSyG1';
-    }
-
     if (!baseUrl) {
       throw new Error(
         'Không tìm thấy cấu hình URL CoreExchange trong bot_credentials_ce hoặc biến môi trường COREEXCHANGE_BASE_URL. Bắt buộc phải cấu hình URL hợp lệ (Data-Driven), không dùng fallback!',
@@ -304,11 +322,19 @@ export class CoreExApiAdapter implements IIngressPort {
       );
     }
 
-    // Tự động phân giải Client ID & Secret từ host /assets-manifest.js (Self-Healing)
-    const discoveredSso = await discoverCeBasicAuthFromHost(baseUrl);
-    if (discoveredSso) {
-      if (discoveredSso.clientId) clientId = discoveredSso.clientId;
-      if (discoveredSso.clientSecret) clientSecret = discoveredSso.clientSecret;
+    // Tự động phân giải Client ID & Secret từ host /assets-manifest.js nếu chưa được cấu hình trong CSDL
+    if (!clientSecret) {
+      const discoveredSso = await discoverCeBasicAuthFromHost(baseUrl);
+      if (discoveredSso) {
+        if (discoveredSso.clientId) clientId = discoveredSso.clientId;
+        if (discoveredSso.clientSecret) clientSecret = discoveredSso.clientSecret;
+      }
+    }
+
+    if (!clientSecret) {
+      throw new Error(
+        `[PARTNER_SERVICE_UNAVAILABLE] Không thể xác thực với CoreExchange (${baseUrl}): Máy chủ đối tác không phản hồi hoặc thông tin phiên làm việc không hợp lệ.`,
+      );
     }
 
     // 1. Kiểm tra session cache nếu còn hiệu lực (chưa hết hạn accessToken, buffer 5 phút)
@@ -350,7 +376,9 @@ export class CoreExApiAdapter implements IIngressPort {
     }
 
     this.refreshPromise = (async () => {
-      const jar = new CookieJar();
+      const startTime = Date.now();
+      try {
+        const jar = new CookieJar();
     const commonHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -363,7 +391,7 @@ export class CoreExApiAdapter implements IIngressPort {
       redirectUri,
     )}&scope=openid%20profile`;
 
-    this.logger.log(`[CoreExApiAdapter] Khởi tạo phiên OAuth2: ${authUrl}`);
+    this.logger.log(`[CoreExApiAdapter] Khởi tạo phiên đăng nhập CoreExchange (${baseUrl}) cho user: ${username}`);
     const initRes = await fetch(authUrl, {
       headers: { ...commonHeaders, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CoreEX-Ingress/1.0' },
       redirect: 'manual',
@@ -375,7 +403,6 @@ export class CoreExApiAdapter implements IIngressPort {
     if (!loginUrl.startsWith('http')) loginUrl = `${baseUrl}${loginUrl}`;
 
     // BƯỚC 2: Truy cập trang đăng nhập với Cookie SESSION bẫy từ Authorize để lấy _csrf token
-    this.logger.log(`[CoreExApiAdapter] Truy cập ${loginUrl} để bẫy _csrf token...`);
     const loginPageRes = await fetch(loginUrl, {
       headers: { ...commonHeaders, Cookie: jar.getCookieHeader(), Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
       redirect: 'manual',
@@ -457,7 +484,7 @@ export class CoreExApiAdapter implements IIngressPort {
     tokenParams.append('redirect_uri', redirectUri);
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-    const tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+    let tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${basicAuth}`,
@@ -468,18 +495,39 @@ export class CoreExApiAdapter implements IIngressPort {
       signal: AbortSignal.timeout(15000),
     });
 
-    const tokenJson: any = await tokenRes.json().catch(() => ({}));
-    const accessToken = tokenJson.access_token || '';
+    let tokenJson: any = await tokenRes.json().catch(() => ({}));
+    let accessToken = tokenJson.access_token || '';
+
+    // Tự phục hồi: Nếu gặp lỗi invalid_client, tự động trích xuất Basic Auth mới từ manifest host và thử lại
+    if (!accessToken && tokenJson.error === 'invalid_client') {
+      this.logger.warn(`[CoreExApiAdapter] Thông tin xác thực ứng dụng CoreExchange (${baseUrl}) đã thay đổi, đang tự động đồng bộ lại...`);
+      const dynamicSso = await discoverCeBasicAuthFromHost(baseUrl, true);
+      if (dynamicSso && dynamicSso.basicAuth) {
+        tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
+          method: 'POST',
+          headers: {
+            Authorization: dynamicSso.basicAuth,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Cookie: sessionCookie,
+          },
+          body: tokenParams.toString(),
+          signal: AbortSignal.timeout(15000),
+        });
+        tokenJson = await tokenRes.json().catch(() => ({}));
+        accessToken = tokenJson.access_token || '';
+      }
+    }
+
     if (!tokenRes.ok || !accessToken) {
       throw new Error(
-        `Đổi Access Token CoreExchange thất bại: ${JSON.stringify(tokenJson)} (HTTP: ${tokenRes.status})`,
+        `[PARTNER_SERVICE_UNAVAILABLE] Đổi Access Token CoreExchange thất bại: ${JSON.stringify(tokenJson)} (HTTP: ${tokenRes.status})`,
       );
     }
 
     const expiresIn = Number(tokenJson.expires_in) || 10800;
     const expiresAt = Date.now() + expiresIn * 1000;
     this.logger.log(
-      `[CoreExApiAdapter] Đổi OAuth2 Token thành công (Bearer length: ${accessToken.length}, hiệu lực: ${expiresIn}s)`,
+      `[CoreExApiAdapter] Xác thực OAuth2 CoreExchange thành công (hiệu lực: ${expiresIn}s)`,
     );
 
     let userId = 9;
@@ -507,7 +555,28 @@ export class CoreExApiAdapter implements IIngressPort {
 
     this.saveSessionToCache(sessionData);
     this.logger.log(`[CoreExApiAdapter] Đăng nhập CoreExchange thành công cho user: ${username}`);
+
+    this.authMonitor?.recordEvent({
+      partner: 'COREEX',
+      eventType: 'LOGIN',
+      success: true,
+      durationMs: Date.now() - startTime,
+      account: username,
+      metadata: { userId },
+    });
+
     return sessionData;
+    } catch (loginErr: any) {
+      this.authMonitor?.recordEvent({
+        partner: 'COREEX',
+        eventType: 'LOGIN',
+        success: false,
+        durationMs: Date.now() - startTime,
+        account: username,
+        errorMessage: loginErr.message,
+      });
+      throw loginErr;
+    }
     })().finally(() => {
       this.refreshPromise = null;
     });
@@ -565,11 +634,21 @@ export class CoreExApiAdapter implements IIngressPort {
       page: { pageIndex: 1, pageSize: query.pageSize || 200000 },
     };
 
+    const reqStart = Date.now();
     let res = await fetch(fullUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30000),
+    });
+
+    this.authMonitor?.recordEvent({
+      partner: 'COREEX',
+      eventType: 'API_REQUEST',
+      success: res.ok,
+      statusCode: res.status,
+      durationMs: Date.now() - reqStart,
+      metadata: { searchCode, endpoint },
     });
 
     // Tự động hồi phục khi token bị 401: xóa cache, đăng nhập lại và thử lại request
@@ -777,7 +856,6 @@ export class CoreExApiAdapter implements IIngressPort {
 
       const userId = session.userId || 9;
       const wsUrl = `wss://${parsed.hostname}/notisocket/socket.io/?ticket=${wsTicket}&userId=${userId}&EIO=4&transport=websocket`;
-      this.logger.log(`[CoreExApiAdapter] wsTicket="${wsTicket}", userId=${userId}, wsUrl=${wsUrl}`);
 
       let WebSocketClass: any;
       try {
@@ -867,19 +945,12 @@ export class CoreExApiAdapter implements IIngressPort {
     targetPath: string,
   ): Promise<Buffer> {
     const fekey = `${searchCode}_${Date.now()}`;
-    this.logger.log(
-      `[CoreExApiAdapter] Khởi động WebSocket NotiSocket chờ xuất ${searchCode} (fekey=${fekey})...`,
-    );
-
     const reportId = await this.waitForReportIdViaSocket(
       session,
       baseUrl,
       fekey,
       50000,
       async () => {
-        this.logger.log(
-          `[CoreExApiAdapter] NotiSocket đã Subscribe sẵn sàng phòng REPORT. Đang kích hoạt tạo export ${searchCode}...`,
-        );
         await this.createExportJob(
           session,
           searchCode,
@@ -890,10 +961,6 @@ export class CoreExApiAdapter implements IIngressPort {
         );
       },
       searchCode,
-    );
-
-    this.logger.log(
-      `[CoreExApiAdapter] Server hoàn tất xuất file ${searchCode} (reportId=${reportId}). Đang tải file nhị phân nguyên bản...`,
     );
 
     const buffer = await this.downloadReportBinary(session, reportId, baseUrl, refererRoute);
@@ -1032,7 +1099,7 @@ export class CoreExApiAdapter implements IIngressPort {
               const candidate = path.join(ccpDir, 'DSTKGD ACM.xlsx');
               if (fs.existsSync(candidate) && fs.statSync(candidate).size > 0 && candidate !== targetPath) {
                 fs.copyFileSync(candidate, targetPath);
-                this.logger.log(`[CoreExApiAdapter] 📄 Tự động đồng bộ DSTKGD ACM.xlsx từ CCP (${candidate}) sang CE`);
+                this.logger.log(`[CoreExApiAdapter] Tự động đồng bộ DSTKGD ACM.xlsx từ CCP (${candidate}) sang CE`);
                 downloadSuccess = true;
                 usedServerExport = true;
                 break;
@@ -1100,7 +1167,7 @@ export class CoreExApiAdapter implements IIngressPort {
           if (!downloadSuccess && isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreExApiAdapter] 🚀 [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.name} (${effectiveExportCode})...`,
+                `[CoreExApiAdapter] Đang xuất báo cáo ${reportDef.name} (${effectiveExportCode})...`,
               );
               await this.downloadServerExport(
                 session,
@@ -1114,7 +1181,7 @@ export class CoreExApiAdapter implements IIngressPort {
               usedServerExport = true;
             } catch (wsErr: any) {
               this.logger.warn(
-                `[CoreExApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
+                `[CoreExApiAdapter] Server Export gặp sự cố (${wsErr.message}), chuyển sang Direct JSON Search...`,
               );
             }
           }
@@ -1179,7 +1246,7 @@ export class CoreExApiAdapter implements IIngressPort {
                       if (extracted.length > 0) {
                         exportRows = extracted;
                         this.logger.log(
-                          `[CoreExApiAdapter] 📄 Đã trích xuất ${extracted.length} dòng cho ${reportDef.fileName} từ file tổng DSL`,
+                          `[CoreExApiAdapter] Đã trích xuất ${extracted.length} dòng cho ${reportDef.fileName} từ file tổng DSL`,
                         );
                       }
                     }
@@ -1208,7 +1275,7 @@ export class CoreExApiAdapter implements IIngressPort {
                 fileSize: stat.size,
               },
             });
-            const logSuccess = `[CoreEX API] ✓ Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB) qua ${usedServerExport ? 'Server Export (File gốc)' : 'Direct JSON'}`;
+            const logSuccess = `[CoreEX API] Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB)`;
             this.logger.log(logSuccess);
             if (options?.onLog) options.onLog(logSuccess);
 
@@ -1272,18 +1339,18 @@ export class CoreExApiAdapter implements IIngressPort {
             }
           }
         } catch (searchErr: any) {
-          this.logger.error(`[CoreExApiAdapter] ❌ Lỗi gọi API cho ${reportDef.name}: ${searchErr.message}`);
+          this.logger.error(`[CoreExApiAdapter] Lỗi gọi API cho ${reportDef.name}: ${searchErr.message}`);
           errors.push(`${reportDef.name}: ${searchErr.message}`);
         }
       }
 
       if (errors.length > 0) {
         const errorSummary = `Tải báo cáo CoreExchange thất bại (${errors.length}/${targets.length} lỗi): ${errors.join('; ')}`;
-        this.logger.error(`[CoreExApiAdapter] ❌ ${errorSummary}`);
+        this.logger.error(`[CoreExApiAdapter] ${errorSummary}`);
         throw new Error(errorSummary);
       }
 
-      const downloadSummary = `[CoreEX API] ✓ Hoàn tất tải ${files.length} báo cáo CoreExchange (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+      const downloadSummary = `[CoreEX API] Hoàn tất tải ${files.length} báo cáo CoreExchange (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
       this.logger.log(downloadSummary);
       if (options?.onLog) options.onLog(downloadSummary);
 
@@ -1297,7 +1364,7 @@ export class CoreExApiAdapter implements IIngressPort {
         summary: `Đã tải thành công ${files.length}/${targets.length} báo cáo CoreExchange.`,
       };
     } catch (err: any) {
-      this.logger.error(`[CoreExApiAdapter] ❌ Thất bại khi tải báo cáo CoreExchange: ${err.message}`);
+      this.logger.error(`[CoreExApiAdapter] Thất bại khi tải báo cáo CoreExchange: ${err.message}`);
       return {
         success: false,
         source: 'CORE_EX',

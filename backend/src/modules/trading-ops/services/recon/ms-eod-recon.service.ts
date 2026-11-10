@@ -291,10 +291,12 @@ export class MsEodReconService {
         if (r.isNegativeIMR) {
           if (negativeDetailsMap.has(accUpper)) {
             const existing = negativeDetailsMap.get(accUpper);
-            existing.negativeType = 'BOTH';
-            existing.availableMargin = r.availableMargin;
-            existing.additionalMargin = r.additionalMargin;
-            existing.initialRequiredMargin = r.initialRequiredMargin;
+            if (existing) {
+              existing.negativeType = 'BOTH';
+              existing.availableMargin = r.availableMargin;
+              existing.additionalMargin = r.additionalMargin;
+              existing.initialRequiredMargin = r.initialRequiredMargin;
+            }
           } else {
             negativeDetailsMap.set(accUpper, {
               account: r.investorCode,
@@ -307,9 +309,11 @@ export class MsEodReconService {
           }
         } else if (negativeDetailsMap.has(accUpper)) {
           const existing = negativeDetailsMap.get(accUpper);
-          existing.availableMargin = r.availableMargin;
-          existing.additionalMargin = r.additionalMargin;
-          existing.initialRequiredMargin = r.initialRequiredMargin;
+          if (existing) {
+            existing.availableMargin = r.availableMargin;
+            existing.additionalMargin = r.additionalMargin;
+            existing.initialRequiredMargin = r.initialRequiredMargin;
+          }
         }
       }
 

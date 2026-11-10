@@ -13,6 +13,7 @@ import {
   EXTERNAL_SYSTEM_ACM,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { PartnerAuthMonitorService } from '../auth-monitor';
 
 @Injectable()
 export class AcmSftpAdapter implements IIngressPort {
@@ -21,6 +22,8 @@ export class AcmSftpAdapter implements IIngressPort {
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly authMonitor?: PartnerAuthMonitorService,
   ) {}
 
   private async getSftpCredentials() {
@@ -64,6 +67,7 @@ export class AcmSftpAdapter implements IIngressPort {
    * Kiểm tra kết nối nhanh tới máy chủ SFTP (Pre-flight check)
    */
   public async testConnection(): Promise<boolean> {
+    const testStart = Date.now();
     const creds = await this.getSftpCredentials();
     if (!creds.host) {
       throw new Error('Chưa cấu hình SFTP host cho ACM');
@@ -75,17 +79,37 @@ export class AcmSftpAdapter implements IIngressPort {
       const conn = new Client();
       const timeoutTimer = setTimeout(() => {
         conn.end();
+        this.authMonitor?.recordEvent({
+          partner: 'ACM',
+          eventType: 'SFTP_CONNECT',
+          success: false,
+          durationMs: Date.now() - testStart,
+          errorMessage: 'Timeout 4000ms',
+        });
         reject(new Error(`SFTP connection timeout sau 4000ms tới ${creds.host}:${creds.port}`));
       }, 4000);
 
       conn.on('ready', () => {
         clearTimeout(timeoutTimer);
         conn.end();
+        this.authMonitor?.recordEvent({
+          partner: 'ACM',
+          eventType: 'SFTP_CONNECT',
+          success: true,
+          durationMs: Date.now() - testStart,
+        });
         resolve(true);
       });
       conn.on('error', (err) => {
         clearTimeout(timeoutTimer);
         conn.end();
+        this.authMonitor?.recordEvent({
+          partner: 'ACM',
+          eventType: 'SFTP_CONNECT',
+          success: false,
+          durationMs: Date.now() - testStart,
+          errorMessage: err.message,
+        });
         reject(err);
       });
       conn.connect({
@@ -282,6 +306,13 @@ export class AcmSftpAdapter implements IIngressPort {
     }
 
     const totalDurationMs = Date.now() - startTime;
+    this.authMonitor?.recordEvent({
+      partner: 'ACM',
+      eventType: 'API_REQUEST',
+      success: sftpSuccess,
+      durationMs: totalDurationMs,
+      metadata: { filesDownloaded: files.length, targetDate: yyyy_mm_dd },
+    });
     if (files.length === 0) {
       const msg = `[AcmSftpAdapter] Chưa có file Straits CSV/XLS thuộc phiên ${yyyy_mm_dd} trên máy chủ SFTP ${creds.host}:${creds.port} (Sàn chưa chốt/upload phiên này). Đã bỏ qua, không tải file T-1.`;
       this.logger.log(msg);

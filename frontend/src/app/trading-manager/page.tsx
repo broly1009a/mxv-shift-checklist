@@ -239,6 +239,29 @@ export default function TradingManagerPage() {
               </div> */}
             </div>
 
+            {/* Auth & Rate-Limit Monitor Navigation Button */}
+            <Link
+              href="/trading-manager/auth-monitor"
+              className="btn btn-secondary"
+              style={{
+                fontSize: '0.8rem',
+                padding: '9px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                borderColor: 'rgba(59, 130, 246, 0.35)',
+                color: '#3b82f6',
+                cursor: 'pointer',
+                borderRadius: '8px',
+                textDecoration: 'none',
+              }}
+              title="Giám sát tần suất đăng nhập & yêu cầu 5 phân hệ đối tác"
+            >
+              <ShieldCheck size={15} />
+              Auth Monitor
+            </Link>
+
             {/* Fullscreen Button */}
             <button
               type="button"

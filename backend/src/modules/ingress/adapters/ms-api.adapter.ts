@@ -14,6 +14,7 @@ import {
   resolveMsReport,
 } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { PartnerAuthMonitorService } from '../auth-monitor';
 
 
 export interface IMsCredentials {
@@ -48,6 +49,8 @@ export class MsApiAdapter implements IIngressPort {
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly authMonitor?: PartnerAuthMonitorService,
   ) {}
 
 
@@ -190,6 +193,7 @@ export class MsApiAdapter implements IIngressPort {
     }
 
     this.activeLoginPromise = (async () => {
+      const startTime = Date.now();
       try {
         // 3. Tiến hành đăng nhập 2 bước Password + PIN
         this.logger.log(`[MsApiAdapter] Bắt đầu đăng nhập 2 bước vào M-System Newgen API cho user: ${creds.username}...`);
@@ -267,7 +271,26 @@ export class MsApiAdapter implements IIngressPort {
         this.saveSessionToFile(newSession);
         this.logger.log(`[MsApiAdapter] Đăng nhập 2 bước M-System thành công! Token có hiệu lực đến: ${jwtInfo?.expiresAt}`);
 
+        this.authMonitor?.recordEvent({
+          partner: 'MS',
+          eventType: 'LOGIN',
+          success: true,
+          durationMs: Date.now() - startTime,
+          account: creds.username,
+          metadata: { userId: newSession.userId },
+        });
+
         return { token: finalToken, baseUrl, adminUrl };
+      } catch (loginErr: any) {
+        this.authMonitor?.recordEvent({
+          partner: 'MS',
+          eventType: 'LOGIN',
+          success: false,
+          durationMs: Date.now() - startTime,
+          account: creds.username,
+          errorMessage: loginErr.message,
+        });
+        throw loginErr;
       } finally {
         this.activeLoginPromise = null;
       }
@@ -454,6 +477,15 @@ export class MsApiAdapter implements IIngressPort {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
       signal: AbortSignal.timeout(effectiveTimeoutMs),
+    });
+
+    this.authMonitor?.recordEvent({
+      partner: 'MS',
+      eventType: 'API_REQUEST',
+      success: res.ok,
+      statusCode: res.status,
+      durationMs: Date.now() - startTime,
+      metadata: { reportKey: reportDef.key, name: reportDef.name },
     });
 
     if (!res.ok) {

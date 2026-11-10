@@ -3,8 +3,10 @@ import { Browser, BrowserContext, Page, chromium } from 'playwright-core';
 import * as path from 'path';
 import * as fs from 'fs';
 import { BrowserLauncherHelper } from '../helpers/browser-launcher.helper';
+import { CqgSafetyGate } from './cqg-safety-gate';
 import { decrypt } from '../../../shared';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { PartnerAuthMonitorService } from '../auth-monitor';
 
 export interface ICqgLoginCredentials {
   url?: string;
@@ -26,6 +28,8 @@ export class CqgScraperService {
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly authMonitor?: PartnerAuthMonitorService,
   ) {}
 
   /**
@@ -171,6 +175,20 @@ export class CqgScraperService {
       throw new Error('Chưa cấu hình tài khoản CQG (username, password).');
     }
 
+    const gateCheck = CqgSafetyGate.canLogin(username);
+    if (!gateCheck.allowed) {
+      this.authMonitor?.recordEvent({
+        partner: 'CQG',
+        eventType: 'CIRCUIT_BREAKER',
+        success: false,
+        durationMs: 0,
+        account: username,
+        errorMessage: gateCheck.reason,
+      });
+      throw new Error(gateCheck.reason);
+    }
+
+    const loginStart = Date.now();
     const cqgUrl = credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
     const profileSuffix = options?.profileSuffix || '1';
     const profileDir = path.join(process.cwd(), 'temp', `cqg_profile_${profileSuffix}`);
@@ -300,8 +318,27 @@ export class CqgScraperService {
       }
 
       await this.waitForCqgNotLoading(page, 30000);
+
+      this.authMonitor?.recordEvent({
+        partner: 'CQG',
+        eventType: 'LOGIN',
+        success: true,
+        durationMs: Date.now() - loginStart,
+        account: username,
+        metadata: { profileSuffix },
+      });
+
       return { browser: context as any, page };
     } catch (err: any) {
+      this.authMonitor?.recordEvent({
+        partner: 'CQG',
+        eventType: 'LOGIN',
+        success: false,
+        durationMs: Date.now() - loginStart,
+        account: username,
+        errorMessage: err.message,
+      });
+
       this.logger.error(`Đăng nhập CQG thất bại (${username}): ${err.message}`);
       await context.close().catch(() => {});
       throw err;
@@ -538,6 +575,14 @@ export class CqgScraperService {
 
     const widgetDurationSec = ((Date.now() - widgetStart) / 1000).toFixed(1);
     this.logger.log(`[CQG] Hoàn tất ${path.basename(destFile)} trong: ${widgetDurationSec}s`);
+
+    this.authMonitor?.recordEvent({
+      partner: 'CQG',
+      eventType: 'API_REQUEST',
+      success: true,
+      durationMs: Date.now() - widgetStart,
+      metadata: { destFile: path.basename(destFile), searchTerm, tabLabel },
+    });
   }
 
   async downloadFR(page: Page, destFile: string): Promise<void> {

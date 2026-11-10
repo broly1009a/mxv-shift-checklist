@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
+import * as crypto from 'crypto';
 import * as ExcelJS from 'exceljs';
 import {
   IIngressPort,
@@ -20,6 +21,7 @@ import {
 
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { getEffectiveReportTargets } from '../helpers/ingress-backup-targets.helper';
+import { PartnerAuthMonitorService } from '../auth-monitor';
 
 export interface ICcpSession {
   accessToken: string;
@@ -76,28 +78,32 @@ export class CookieJar {
   }
 }
 
-import * as crypto from 'crypto';
-
-export const CCP_UAT_BASIC_AUTH =
-  'Basic d2ViLWNjcC1teHY6VWtXVDU2eHZCa1pPcmt6M21UWTZ0empmdWhuMkdU';
-export const CCP_PROD_BASIC_AUTH =
-  'Basic d2ViLWNjcC1teHY6OTk4ZTk4d2t1OHY3UU91bHN1Qmtyc0Jkb3RBeFBO';
-
-export function resolveCcpBasicAuth(baseUrl?: string): string {
-  const clean = (baseUrl || '').toLowerCase();
-  return clean.includes('coreccp.vnclear.vn') || clean.includes('vnclear.vn')
-    ? CCP_PROD_BASIC_AUTH
-    : CCP_UAT_BASIC_AUTH;
-}
+/** Bộ nhớ đệm runtime lưu Basic Auth đã tự động bẫy được theo từng host origin (Zero-Hardcode) */
+const hostBasicAuthCache = new Map<string, string>();
 
 /**
  * Tự động bẫy & giải mã Basic Auth trực tiếp từ /assets-manifest.js của CoreCCP host
  * (Cơ chế tự thích ứng Zero-Config / Self-Healing kế thừa từ mxv-account-opening standard)
+ * @param baseUrl URL của máy chủ CoreCCP
+ * @param forceFresh Bỏ qua cache bộ nhớ, tải lại bản manifest mới nhất với cache-buster
  */
-export async function discoverCcpBasicAuthFromHost(baseUrl: string): Promise<string | null> {
+export async function discoverCcpBasicAuthFromHost(baseUrl: string, forceFresh: boolean = false): Promise<string | null> {
+  let origin = '';
   try {
-    const origin = new URL(baseUrl).origin;
-    const res = await fetch(`${origin}/assets-manifest.js`, { signal: AbortSignal.timeout(8000) });
+    origin = new URL(baseUrl).origin;
+  } catch {
+    return null;
+  }
+
+  if (!forceFresh && hostBasicAuthCache.has(origin)) {
+    return hostBasicAuthCache.get(origin)!;
+  }
+
+  try {
+    const res = await fetch(`${origin}/assets-manifest.js?t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return null;
     const text = await res.text();
     const match = text.match(/window\.__ASSETS_MANIFEST__\s*=\s*["']([^"']+)["']/);
@@ -115,7 +121,9 @@ export async function discoverCcpBasicAuthFromHost(baseUrl: string): Promise<str
     const clientId = config.api?.sso?.CLIENT_ID || config.api?.CLIENT_ID || 'web-ccp-mxv';
     const clientSecret = config.api?.sso?.CLIENT_SECRET || config.api?.CLIENT_SECRET;
     if (clientId && clientSecret) {
-      return 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+      const basic = 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+      hostBasicAuthCache.set(origin, basic);
+      return basic;
     }
   } catch {}
   return null;
@@ -132,6 +140,8 @@ export class CoreCcpApiAdapter implements IIngressPort {
   constructor(
     @Optional()
     private readonly settingsService?: SystemSettingsService,
+    @Optional()
+    private readonly authMonitor?: PartnerAuthMonitorService,
   ) {
     this.loadSessionFromCache();
   }
@@ -232,24 +242,47 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     this.refreshPromise = (async () => {
       this.logger.log(`[CoreCcpApiAdapter] Thực hiện xác thực OAuth2 CoreCCP (${baseUrl}) cho user: ${username}`);
+      const startTime = Date.now();
 
-      const loginRes = await this.performOAuth2Login(baseUrl, username, password);
-      const expiresAt = loginRes.expiresAt || Date.now() + 7200 * 1000;
+      try {
+        const loginRes = await this.performOAuth2Login(baseUrl, username, password);
+        const expiresAt = loginRes.expiresAt || Date.now() + 7200 * 1000;
 
-      const session: ICcpSession = {
-        accessToken: loginRes.accessToken,
-        sessionCookie: loginRes.sessionCookie,
-        userId: loginRes.userId,
-        username,
-        expiresAt,
-        baseUrl,
-      };
+        const session: ICcpSession = {
+          accessToken: loginRes.accessToken,
+          sessionCookie: loginRes.sessionCookie,
+          userId: loginRes.userId,
+          username,
+          expiresAt,
+          baseUrl,
+        };
 
-      this.saveSessionToCache(session);
-      this.logger.log(
-        `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
-      );
-      return session;
+        this.saveSessionToCache(session);
+        this.logger.log(
+          `[CoreCcpApiAdapter]  Xác thực CoreCCP thành công: userId=${session.userId}, token hiệu lực đến: ${new Date(expiresAt).toLocaleTimeString('vi-VN')}`,
+        );
+
+        this.authMonitor?.recordEvent({
+          partner: 'CORECCP',
+          eventType: 'LOGIN',
+          success: true,
+          durationMs: Date.now() - startTime,
+          account: username,
+          metadata: { userId: session.userId },
+        });
+
+        return session;
+      } catch (loginErr: any) {
+        this.authMonitor?.recordEvent({
+          partner: 'CORECCP',
+          eventType: 'LOGIN',
+          success: false,
+          durationMs: Date.now() - startTime,
+          account: username,
+          errorMessage: loginErr.message,
+        });
+        throw loginErr;
+      }
     })().finally(() => {
       this.refreshPromise = null;
     });
@@ -264,6 +297,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     baseUrl: string,
     username: string,
     password: string,
+    isRetry: boolean = false,
   ): Promise<{ accessToken: string; sessionCookie: string; userId?: number; expiresAt: number }> {
     if (!username || !password) {
       throw new Error('Chưa cấu hình tài khoản CoreCCP (username hoặc password rỗng)!');
@@ -271,8 +305,30 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     const jar = new CookieJar();
     const redirectUri = `${baseUrl}/validate_code`;
-    const discoveredAuth = await discoverCcpBasicAuthFromHost(baseUrl);
-    const basicAuth = discoveredAuth || resolveCcpBasicAuth(baseUrl);
+    let basicAuth = await discoverCcpBasicAuthFromHost(baseUrl);
+
+    // Nếu chưa có từ manifest, kiểm tra cấu hình CSDL bot_credentials_ccp hoặc env
+    if (!basicAuth && this.settingsService) {
+      const rawCred = await this.settingsService.getSetting('bot_credentials_ccp', '');
+      if (rawCred) {
+        try {
+          const decrypted = JSON.parse(decrypt(rawCred));
+          if (decrypted.basicAuth) basicAuth = decrypted.basicAuth;
+          if (decrypted.clientId && decrypted.clientSecret) {
+            basicAuth = 'Basic ' + Buffer.from(`${decrypted.clientId}:${decrypted.clientSecret}`).toString('base64');
+          }
+        } catch {}
+      }
+    }
+    if (!basicAuth && process.env.CORECCP_BASIC_AUTH) {
+      basicAuth = process.env.CORECCP_BASIC_AUTH;
+    }
+
+    if (!basicAuth) {
+      throw new Error(
+        `[PARTNER_SERVICE_UNAVAILABLE] Không thể xác thực với CoreCCP (${baseUrl}): Máy chủ đối tác không phản hồi hoặc thông tin phiên làm việc không hợp lệ.`,
+      );
+    }
     const authUrl = `${baseUrl}/oauth2/authorize?client_id=web-ccp-mxv&response_type=code&redirect_uri=${encodeURIComponent(
       redirectUri,
     )}&scope=openid%20profile`;
@@ -395,10 +451,9 @@ export class CoreCcpApiAdapter implements IIngressPort {
 
     // Tự phục hồi: Nếu gặp lỗi invalid_client, tự động trích xuất Basic Auth mới từ manifest host và thử lại (mxv-account-opening standard)
     if (!tokenData.access_token && tokenData.error === 'invalid_client') {
-      this.logger.warn(`[CoreCcpApiAdapter] Gặp lỗi invalid_client với host ${baseUrl}, đang tự động giải mã manifest host để tự phục hồi...`);
-      const dynamicAuth = await discoverCcpBasicAuthFromHost(baseUrl);
-      if (dynamicAuth && dynamicAuth !== basicAuth) {
-        this.logger.log(`[CoreCcpApiAdapter] Tự động áp dụng Basic Auth mới giải mã được, thử lại POST /oauth2/token...`);
+      this.logger.warn(`[CoreCcpApiAdapter] Thông tin xác thực ứng dụng CoreCCP (${baseUrl}) đã thay đổi, đang tự động đồng bộ lại...`);
+      const dynamicAuth = await discoverCcpBasicAuthFromHost(baseUrl, true);
+      if (dynamicAuth) {
         tokenRes = await fetch(`${baseUrl}/oauth2/token`, {
           method: 'POST',
           headers: {
@@ -411,6 +466,12 @@ export class CoreCcpApiAdapter implements IIngressPort {
           signal: AbortSignal.timeout(15000),
         });
         tokenData = await tokenRes.json().catch(() => ({}));
+      }
+
+      // Nếu mã code đã bị hủy sau khi lỗi invalid_client và chưa retry, tự động khởi động lại toàn bộ chu trình đăng nhập 4 bước
+      if (!tokenData.access_token && !isRetry) {
+        this.logger.warn(`[CoreCcpApiAdapter] Khởi tạo lại phiên đăng nhập CoreCCP với cấu hình xác thực mới...`);
+        return this.performOAuth2Login(baseUrl, username, password, true);
       }
     }
 
@@ -633,6 +694,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     const cookieHeader = session.sessionCookie
       ? (session.sessionCookie.startsWith('SESSION=') ? session.sessionCookie : `SESSION=${session.sessionCookie}`)
       : '';
+    const startTime = Date.now();
     const res = await fetch(`${baseUrl}/ccp/report/download/${reportId}`, {
       method: 'GET',
       headers: {
@@ -644,6 +706,15 @@ export class CoreCcpApiAdapter implements IIngressPort {
         Referer: `${baseUrl}${refererRoute || '/'}`,
       },
       signal: AbortSignal.timeout(30000),
+    });
+
+    this.authMonitor?.recordEvent({
+      partner: 'CORECCP',
+      eventType: 'API_REQUEST',
+      success: res.ok,
+      statusCode: res.status,
+      durationMs: Date.now() - startTime,
+      metadata: { reportId, refererRoute },
     });
 
     if (res.status === 401 && !isRetry) {
@@ -676,19 +747,12 @@ export class CoreCcpApiAdapter implements IIngressPort {
     targetPath: string,
   ): Promise<Buffer> {
     const fekey = `${searchCode}_${Date.now()}`;
-    this.logger.log(
-      `[CoreCcpApiAdapter] Khởi động WebSocket NotiSocket chờ xuất ${searchCode} (fekey=${fekey})...`,
-    );
-
     const reportId = await this.waitForReportIdViaSocket(
       session,
       baseUrl,
       fekey,
       50000,
       async () => {
-        this.logger.log(
-          `[CoreCcpApiAdapter] NotiSocket đã Subscribe sẵn sàng phòng REPORT. Đang kích hoạt tạo export ${searchCode}...`,
-        );
         await this.createExportJob(
           session,
           searchCode,
@@ -701,7 +765,6 @@ export class CoreCcpApiAdapter implements IIngressPort {
       searchCode,
     );
 
-    this.logger.log(`[CoreCcpApiAdapter] Bắt được reportId=${reportId}, đang tải file nhị phân...`);
     const buffer = await this.downloadReportBinary(session, reportId, baseUrl, refererRoute);
 
     const dir = path.dirname(targetPath);
@@ -869,6 +932,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
     isRetry = false,
   ): Promise<{ status: number; data: any }> {
     return new Promise(async (resolve, reject) => {
+      const startTime = Date.now();
       const parsedUrl = new URL(baseUrl);
       const postData = JSON.stringify(payload);
 
@@ -922,6 +986,15 @@ export class CoreCcpApiAdapter implements IIngressPort {
               this.logger.error(`[CoreCcpApiAdapter] Tái đăng nhập CoreCCP thất bại: ${reloginErr.message}`);
             }
           }
+
+          this.authMonitor?.recordEvent({
+            partner: 'CORECCP',
+            eventType: 'API_REQUEST',
+            success: res.statusCode ? res.statusCode >= 200 && res.statusCode < 400 : false,
+            statusCode: res.statusCode,
+            durationMs: Date.now() - startTime,
+            metadata: { endpoint },
+          });
 
           resolve({ status: res.statusCode || 200, data });
         });
@@ -1109,7 +1182,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
             category,
             metadata: { transport: 'DERIVED_EXPORT', source: path.basename(sourceFilePath) },
           });
-          this.logger.log(`[CoreCcpApiAdapter] 📄 Tự động tạo bản sao phái sinh: ${destFileName} (${stat.size} bytes)`);
+          this.logger.log(`[CoreCcpApiAdapter] Tự động tạo bản sao phái sinh: ${destFileName} (${stat.size} bytes)`);
         }
       };
 
@@ -1190,7 +1263,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 to: toDmy,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter] Tự động áp dụng bộ lọc SESSION_DATE dải ngày: ${fromDmy} -> ${toDmy} cho ${reportDef.searchCode}`,
               );
             } else if (formattedDateForSearch) {
               const sessionDateToUse =
@@ -1202,7 +1275,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 to: sessionDateToUse,
               };
               this.logger.log(
-                `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
+                `[CoreCcpApiAdapter] Tự động áp dụng bộ lọc SESSION_DATE: ${sessionDateToUse} cho ${reportDef.searchCode}`,
               );
             }
           }
@@ -1223,7 +1296,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               to: txDate,
             };
             this.logger.log(
-              `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc TXDATE T-1: ${txDate} cho ${reportDef.searchCode} (Phiên ca trực: ${formattedDateForSearch})`,
+              `[CoreCcpApiAdapter] Tự động áp dụng bộ lọc TXDATE T-1: ${txDate} cho ${reportDef.searchCode} (Phiên ca trực: ${formattedDateForSearch})`,
             );
           }
 
@@ -1238,7 +1311,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               to: formattedDateForSearch,
             };
             this.logger.log(
-              `[CoreCcpApiAdapter]  Tự động áp dụng bộ lọc CHECKERDT trong ngày: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
+              `[CoreCcpApiAdapter] Tự động áp dụng bộ lọc CHECKERDT trong ngày: ${formattedDateForSearch} cho ${reportDef.searchCode}`,
             );
           }
 
@@ -1270,7 +1343,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
           if (isServerExportEligible) {
             try {
               this.logger.log(
-                `[CoreCcpApiAdapter]  [Kiểu 2: Server Export + WebSocket] Kích hoạt xuất ${reportDef.key} (${effectiveExportCode})...`,
+                `[CoreCcpApiAdapter] Đang xuất báo cáo ${reportDef.key} (${effectiveExportCode})...`,
               );
               await this.downloadServerExport(
                 session,
@@ -1284,7 +1357,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
               usedServerExport = true;
             } catch (wsErr: any) {
               this.logger.warn(
-                `[CoreCcpApiAdapter] Server Export WebSocket gặp sự cố (${wsErr.message}), tự động fallback sang Direct JSON Search...`,
+                `[CoreCcpApiAdapter] Server Export gặp sự cố (${wsErr.message}), chuyển sang Direct JSON Search...`,
               );
             }
           }
@@ -1318,7 +1391,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                 fileSize: stat.size,
               },
             });
-            const logSuccess = `[CoreCCP API] ✓ Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB)`;
+            const logSuccess = `[CoreCCP API] Tải thành công ${outFileName} (${(stat.size / 1024).toFixed(1)} KB)`;
             this.logger.log(logSuccess);
             if (options?.onLog) options.onLog(logSuccess);
 
@@ -1358,7 +1431,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
                       rowCount: contractResult.totalCount,
                     },
                   });
-                  this.logger.log(`[CoreCcpApiAdapter]  Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
+                  this.logger.log(`[CoreCcpApiAdapter] Đã xuất hợp đồng động ${hdFileName} (${contractResult.totalCount} dòng, ${hdStat.size} bytes)`);
                 } catch (hdErr: any) {
                   this.logger.error(`[CoreCcpApiAdapter] Lỗi tải hợp đồng cho hàng hóa ${uacode}: ${hdErr.message}`);
                   errors.push(`HĐ ${uacode}: ${hdErr.message}`);
@@ -1386,7 +1459,7 @@ export class CoreCcpApiAdapter implements IIngressPort {
       }
 
       const isSuccess = files.length > 0;
-      const downloadSummary = `[CoreCCP API] ✓ Hoàn tất tải ${files.length} báo cáo CoreCCP qua Direct REST API (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+      const downloadSummary = `[CoreCCP API] Hoàn tất tải ${files.length} báo cáo CoreCCP (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
       this.logger.log(downloadSummary);
       if (options?.onLog) options.onLog(downloadSummary);
 

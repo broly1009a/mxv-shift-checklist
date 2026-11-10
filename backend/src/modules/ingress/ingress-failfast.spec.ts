@@ -96,7 +96,7 @@ describe('Ingress Service & Scrapers (Fail-Fast & Zero-Hardcode Gates)', () => {
 
   describe('AcmScraperService Gates', () => {
     it('TC-INGRESS-04: AcmScraperService.downloadStraitsViaSftp ném [PARTNER_SERVICE_UNAVAILABLE] khi host/username rỗng', async () => {
-      const acmScraper = new AcmScraperService({} as any);
+      const acmScraper = new AcmScraperService();
       await expect(
         acmScraper.downloadStraitsViaSftp({
           host: '',

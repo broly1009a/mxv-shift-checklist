@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CoreCcpApiAdapter } from './coreccp-api.adapter';
-import { CoreExApiAdapter } from './coreex-api.adapter';
+import * as crypto from 'crypto';
+import { CoreCcpApiAdapter, discoverCcpBasicAuthFromHost } from './coreccp-api.adapter';
+import { CoreExApiAdapter, discoverCeBasicAuthFromHost } from './coreex-api.adapter';
 
 describe('CoreCCP & CoreExchange Ingress Adapters (Zero-Hardcode & Fail-Fast Gates)', () => {
   const originalEnv = process.env;
@@ -76,6 +77,51 @@ describe('CoreCCP & CoreExchange Ingress Adapters (Zero-Hardcode & Fail-Fast Gat
       // Dọn dẹp cache test
       freshAdapter.clearSessionCache();
     });
+
+    it('TC-CCP-03: Tự động trích xuất Basic Auth từ manifest và bẫy lỗi invalid_client để tự phục hồi', async () => {
+      // 1. Giả lập /assets-manifest.js mã hóa với secret mới
+      const aesKey = crypto.randomBytes(32);
+      const aesIv = crypto.randomBytes(16);
+      const testSecret = 'BarmwFbm75KV8WEmhUhti1Nvqu3GDD';
+      const rawConfig = JSON.stringify({
+        api: {
+          CLIENT_ID: 'web-ccp-mxv',
+          CLIENT_SECRET: testSecret,
+        },
+      });
+
+      const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, aesIv);
+      let encrypted = cipher.update(rawConfig, 'utf8');
+      encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+      const payloadObj = {
+        iv: aesIv.toString('base64'),
+        data: encrypted.toString('base64'),
+      };
+      const manifestPayload = `${aesKey.toString('base64')}fss${Buffer.from(JSON.stringify(payloadObj)).toString('base64')}`;
+      const manifestFileContent = `window.__ASSETS_MANIFEST__ = "${manifestPayload}";`;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockImplementation(async (url: any) => {
+        const urlStr = String(url);
+        if (urlStr.includes('/assets-manifest.js')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => manifestFileContent,
+          };
+        }
+        return { ok: false, status: 404 };
+      }) as any;
+
+      try {
+        const discovered = await discoverCcpBasicAuthFromHost('https://uat-coreccp.mxv.com.vn', true);
+        const expectedBasic = 'Basic ' + Buffer.from(`web-ccp-mxv:${testSecret}`).toString('base64');
+        expect(discovered).toBe(expectedBasic);
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
   });
 
   describe('CoreExApiAdapter', () => {
@@ -106,6 +152,7 @@ describe('CoreCCP & CoreExchange Ingress Adapters (Zero-Hardcode & Fail-Fast Gat
               url: 'https://coreexchange.mxv.com.vn',
               username: 'anhdao',
               password: 'ExpiringPassword123',
+              clientSecret: 'mock_test_secret',
             });
           }
           return defVal;
@@ -157,6 +204,54 @@ describe('CoreCCP & CoreExchange Ingress Adapters (Zero-Hardcode & Fail-Fast Gat
       } finally {
         global.fetch = originalFetch;
         adapter.clearSessionCache();
+      }
+    });
+
+    it('TC-CE-03: Tự động trích xuất Basic Auth CoreExchange từ manifest và bẫy lỗi invalid_client để tự phục hồi', async () => {
+      const aesKey = crypto.randomBytes(32);
+      const aesIv = crypto.randomBytes(16);
+      const testSecret = 'OhPfMYUE4ZqiqLQOFfMEqiBAYAhQEw';
+      const rawConfig = JSON.stringify({
+        api: {
+          sso: {
+            CLIENT_ID: 'web-exchange-mxv',
+            CLIENT_SECRET: testSecret,
+          },
+        },
+      });
+
+      const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, aesIv);
+      let encrypted = cipher.update(rawConfig, 'utf8');
+      encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+      const payloadObj = {
+        iv: aesIv.toString('base64'),
+        data: encrypted.toString('base64'),
+      };
+      const manifestPayload = `${aesKey.toString('base64')}fss${Buffer.from(JSON.stringify(payloadObj)).toString('base64')}`;
+      const manifestFileContent = `window.__ASSETS_MANIFEST__ = "${manifestPayload}";`;
+
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockImplementation(async (url: any) => {
+        const urlStr = String(url);
+        if (urlStr.includes('/assets-manifest.js')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => manifestFileContent,
+          };
+        }
+        return { ok: false, status: 404 };
+      }) as any;
+
+      try {
+        const discovered = await discoverCeBasicAuthFromHost('https://uat-coreexchange.mxv.com.vn', true);
+        const expectedBasic = 'Basic ' + Buffer.from(`web-exchange-mxv:${testSecret}`).toString('base64');
+        expect(discovered).toBeDefined();
+        expect(discovered?.basicAuth).toBe(expectedBasic);
+        expect(discovered?.clientSecret).toBe(testSecret);
+      } finally {
+        global.fetch = originalFetch;
       }
     });
   });
