@@ -211,7 +211,7 @@ export class ShiftScannerService {
             // Đồng bộ trạng thái nếu Task đang WAITING nhưng Job đã hoàn tất trước đó
             if (
               task.status === 'WAITING' &&
-              ['COMPLETED', 'FAILED'].includes(existingJob.status)
+              ['COMPLETED', 'FAILED', 'ABORTED', 'CANCELLED'].includes(existingJob.status)
             ) {
               await this.syncJobResultToShift(
                 log._id.toString(),
@@ -418,7 +418,7 @@ export class ShiftScannerService {
       return true;
     }
 
-    if (['COMPLETED', 'FAILED'].includes(existingJob.status)) {
+    if (['COMPLETED', 'FAILED', 'ABORTED', 'CANCELLED'].includes(existingJob.status)) {
       if (task.status === 'PENDING' || task.status === 'WAITING') {
         const cooldownMinutes =
           task.frequencyMinutesSnapshot && task.frequencyMinutesSnapshot > 0

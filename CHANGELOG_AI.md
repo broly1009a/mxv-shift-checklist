@@ -1,3 +1,33 @@
+## [2026-11-10T08:35] FIX(CQG_LOGIN_PROTECTION_AND_SCHEDULER_COOLDOWN): Điều Tra Sự Cố Đăng Nhập Dồn Dập CQG Ngày 09/11 & Thiết Lập Bộ Lọc Bảo Vệ Pre-Flight Guard Cùng Trạng Thái ABORTED Cho Cooldown
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Điều tra phản ánh từ USER và Quản lý: _"lát nữa nhờ a Trương Hoàng Hiệp kiểm tra giúp em phiên 9/11 tool vận hành có đang đăng nhập liên tục vào CQG thời điểm 08:10 không nhé ạ, do đăng nhập quá nhiều trong thời gian ngắn nên giờ CQG đang không vào được trong phiên này nữa anh ạ"_.
+- **Kết quả điều tra thực tế**:
+  1. IP trong lịch sử xác thực CQG (`14.162.147.113`) chính là IP Public của Server Ubuntu `10.0.0.26`.
+  2. Múi giờ trong ảnh lịch sử CQG là giờ CDT (US Central Daylight Time - UTC-5), mốc `8:10 AM CDT` tương ứng chính xác `20:10 (8:10 PM)` giờ Việt Nam ngày 09/11/2026.
+  3. Log server ghi nhận các mốc đăng nhập: `19:53`, `19:54`, `19:57`, `20:07`, `20:08`, `20:10` trùng khớp 100% từng giây với ảnh của CQG.
+  4. **Nguyên nhân kép**:
+     - Phân hệ CoreCCP gặp lỗi xác thực (`invalid_client` / 401) lúc 19:40 - 20:10 khiến Ingress Pipeline bị hủy (`ABORTED`).
+     - Hàm `getLatestCompletedJobByType` trong `BotJobQueueService` chỉ tìm các trạng thái `COMPLETED, WAITING, FAILED, CANCELLED` mà **bỏ sót trạng thái `ABORTED`**, dẫn tới việc `AutonomousSchedulerService` tưởng rằng chưa có Job nào chạy, liên tục tạo Job mới mỗi 1 phút trên cron `* * * * *`.
+     - Mỗi Job mới lại mở đồng thời 2 tài khoản CQG (`mxvtradingdesk1` & `mxvtradingdesk3`) và retry 3 lần trước khi CoreCCP pre-flight kịp báo lỗi, tạo ra hàng chục lượt đăng nhập dồn dập trong 25 phút.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts)
+- [`backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts)
+- [`backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts)
+
+### 3. Tóm tắt Nội dung Code Đã Sửa
+1. **Bổ sung trạng thái `ABORTED` vào Cooldown Tra Cứu Job**:
+   - [`bot-job-queue.service.ts#L1032`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/queue/bot-job-queue.service.ts#L1032): Thêm `'ABORTED'` vào truy vấn `getLatestCompletedJobByType`. Đảm bảo khi Job bị hủy do bất kỳ bên thứ 3 nào, thời gian cooldown (15-60 phút) vẫn được áp dụng chặt chẽ, chấm dứt hoàn toàn việc enqueue lặp lại mỗi 1 phút.
+   - [`shift-scanner.service.ts#L214, L421`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/checklist-hub/scheduler/shift-scanner.service.ts#L214): Thêm `'ABORTED'` và `'CANCELLED'` vào danh sách kiểm tra cooldown của `shouldEnqueueNewJob`.
+2. **Thiết lập Pre-Flight Barrier Guard Bảo vệ Tuyệt đối CQG**:
+   - [`recon-ingress-pipeline.service.ts#L845-L860`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-modular-refactor/backend/src/modules/ingress/services/recon-ingress-pipeline.service.ts#L845-L860): Trước khi khởi động trình duyệt Playwright và đăng nhập tài khoản CQG, Worker CQG sẽ kiểm tra các bên REST API (MS, CoreCCP, ACM). Nếu một trong các bên này chưa vượt qua pre-flight hoặc gặp lỗi xác thực (`barrierAborted === true`), Worker CQG hủy ngay lập tức, không mở trình duyệt và không thực hiện bất kỳ hành động đăng nhập nào lên CQG.
+
+### 4. Xác nhận Build & Kiểm thử
+- **Typecheck**: Chạy `node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.build.json` thành công 100% (Exit code: 0).
+
+---
+
 ## [2026-11-09T16:26] FEAT(MONTHLY_REPORT_DYNAMIC_CATALOG_AND_DSTKGD): Tích Hợp API Danh Mục M-System (`/market/commodity` & `/am/admin/members`) Và Đồng Bộ 5 File `DSTKGD-*.xlsx` Từ Backup MS
 
 ### 1. Mục tiêu Thay đổi & Chỉ đạo từ USER

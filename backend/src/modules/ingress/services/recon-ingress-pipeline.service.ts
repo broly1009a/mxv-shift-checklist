@@ -842,6 +842,21 @@ export class ReconIngressPipelineService {
           filesToDownload.PS2 = true;
         }
 
+        // Pre-Flight Barrier Guard: Chờ các phân hệ REST API (MS, CoreCCP, ACM) hoàn tất pre-flight trước khi mở trình duyệt CQG
+        // Bảo vệ tài khoản CQG tuyệt đối: Không mở trình duyệt và không đăng nhập CQG nếu bất kỳ bên nào lỗi kết nối/xác thực
+        const preflightStart = Date.now();
+        while (!barrierAborted && Date.now() - preflightStart < 15000) {
+          if (readyState.ms && readyState.acm && readyState.ccp) break;
+          await new Promise((r) => setTimeout(r, 200));
+        }
+
+        if (barrierAborted) {
+          log(`CQG  Hủy mở trình duyệt CQG do hệ thống khác gặp sự cố: ${abortReason}`);
+          readyState.cqg1 = true;
+          readyState.cqg2 = true;
+          return;
+        }
+
         log(`CQG  [Bước 1: Chuẩn bị] Mở đồng thời 2 tài khoản CQG1 & CQG2 chuẩn bị tải: ${Object.keys(filesToDownload).join(', ')}...`);
 
         const onReadyBarrierCqg1 = async () => {

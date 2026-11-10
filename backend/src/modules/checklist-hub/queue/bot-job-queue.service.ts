@@ -1029,7 +1029,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   ): Promise<BotJob | null> {
     const query: Record<string, any> = {
       jobType,
-      status: { $in: ['COMPLETED', 'WAITING', 'FAILED', 'CANCELLED'] },
+      status: { $in: ['COMPLETED', 'WAITING', 'FAILED', 'CANCELLED', 'ABORTED'] },
     };
     if (withinMinutes && withinMinutes > 0) {
       const cutoff = new Date(Date.now() - withinMinutes * 60 * 1000);
