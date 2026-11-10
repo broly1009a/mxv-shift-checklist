@@ -413,7 +413,8 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
   }
 
   /**
-   * Lấy danh sách sự kiện gần nhất (phục vụ Audit Log Table)
+   * Lấy danh sách sự kiện gần nhất từ CSDL MongoDB (phục vụ Audit Log Table).
+   * Chuẩn Single Source of Truth: Truy vấn trực tiếp từ CSDL, không fallback RAM chắp vá.
    */
   async getRecentEvents(
     partner?: PartnerSubsystem,
@@ -432,20 +433,10 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
         .lean()
         .exec();
 
-      if (docs && docs.length > 0) {
-        return docs as PartnerAuthTelemetry[];
-      }
+      return (docs || []) as PartnerAuthTelemetry[];
     } catch (err: any) {
-      this.logger.warn(`Lỗi truy vấn MongoDB Telemetry: ${err.message}`);
+      this.logger.error(`Lỗi truy vấn MongoDB Telemetry: ${err.message}`);
+      throw new Error(`Không thể lấy danh sách sự kiện xác thực: ${err.message}`);
     }
-
-    // Fallback sang RAM events nếu MongoDB chưa có hoặc đang khởi động
-    let ramEvents = Array.from(this.recentEvents.values()).flat();
-    if (partner) {
-      ramEvents = ramEvents.filter((e) => e.partner === partner);
-    }
-    ramEvents.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
-
-    return ramEvents.slice(0, limit) as unknown as PartnerAuthTelemetry[];
   }
 }
