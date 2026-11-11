@@ -23,7 +23,7 @@ import {
   IPartnerMonitorConfig,
 } from './partner-auth-monitor.interface';
 
-@Controller('ingress/auth-monitor')
+@Controller(['api/v1/ingress/auth-monitor', 'ingress/auth-monitor'])
 @UseGuards(JwtAuthGuard)
 export class PartnerAuthMonitorController {
   constructor(private readonly monitorService: PartnerAuthMonitorService) {}

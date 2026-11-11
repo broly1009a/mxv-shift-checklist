@@ -42,7 +42,7 @@ interface IAlertState {
 
 const DEFAULT_CONFIG: IPartnerMonitorConfig = {
   enabled: true,
-  recipients: ['it.support@mxv.vn'],
+  recipients: [],
   cooldownMinutes: 15,
   thresholds: {
     CORECCP: { maxLoginsPerMinute: 3, consecutiveFailures: 3, maxRpm: 60 },

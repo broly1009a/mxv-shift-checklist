@@ -296,8 +296,10 @@ export class DashboardService {
     // Nếu trong ngày hôm nay chưa có sự kiện nào (đầu ngày hoặc không có ca trực hôm nay):
     // Fallback lấy các sự kiện gần nhất (trong 7 ngày gần đây) để khay thông báo không bị trống rỗng
     if (auditLogs.length === 0 && systemLogs.length === 0) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const fallbackQuery: any = {
         eventType: { $ne: 'TASK_UPDATED' },
+        createdAt: { $gte: sevenDaysAgo },
       };
       if (systemQuery.$or) {
         fallbackQuery.$or = systemQuery.$or;

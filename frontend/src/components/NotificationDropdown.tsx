@@ -189,8 +189,8 @@ export default function NotificationDropdown() {
                     router.push('/trading-manager/monthly-report');
                   } else if (latest.type === 'CQG_SYNC' || latest.type === 'CCP_EOD' || latest.type === 'RECON_MISMATCH' || latest.type === 'BOT_FAILED' || latest.type === 'BOT_COMPLETED') {
                     router.push('/trading-manager');
-                  } else if (latest.jobId) {
-                    router.push(`/shifts/${latest.jobId}`);
+                  } else {
+                    router.push('/checklist');
                   }
                 }}
                 style={{
@@ -467,8 +467,8 @@ export default function NotificationDropdown() {
                     router.push('/trading-manager/monthly-report');
                   } else if (act.type === 'CQG_SYNC' || act.type === 'CCP_EOD' || act.type === 'RECON_MISMATCH' || act.type === 'BOT_FAILED' || act.type === 'BOT_COMPLETED') {
                     router.push('/trading-manager');
-                  } else if (act.jobId) {
-                    router.push(`/shifts/${act.jobId}`);
+                  } else {
+                    router.push('/checklist');
                   }
                 };
 
