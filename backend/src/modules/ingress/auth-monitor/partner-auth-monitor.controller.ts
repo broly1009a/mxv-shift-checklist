@@ -29,11 +29,11 @@ export class PartnerAuthMonitorController {
   constructor(private readonly monitorService: PartnerAuthMonitorService) {}
 
   /**
-   * Lấy tổng quan trạng thái sức khỏe (Health Summary) của 5 phân hệ đối tác
+   * Lấy tổng quan trạng thái sức khỏe (Health Summary) của 5 phân hệ đối tác có lọc theo ngày
    */
   @Get('health')
-  async getHealth() {
-    const data = await this.monitorService.getHealthSummaries();
+  async getHealth(@Query('date') date?: string) {
+    const data = await this.monitorService.getHealthSummaries(date);
     return {
       success: true,
       timestamp: new Date(),
@@ -42,19 +42,41 @@ export class PartnerAuthMonitorController {
   }
 
   /**
-   * Lấy danh sách sự kiện Telemetry gần nhất (Audit log)
+   * Lấy danh sách sự kiện xác thực & kết nối (Audit Log) có hỗ trợ bộ lọc và phân trang
    */
   @Get('events')
   async getEvents(
     @Query('partner') partner?: string,
+    @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+    @Query('eventType') eventType?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
-    const data = await this.monitorService.getRecentEvents(partner as PartnerSubsystem, parsedLimit);
+    const parsedPage = Math.max(1, page ? parseInt(page, 10) : 1);
+    const parsedLimit = Math.min(1000, Math.max(1, limit ? parseInt(limit, 10) : 50));
+    const result = await this.monitorService.queryEvents({
+      partner: partner as PartnerSubsystem,
+      date,
+      startDate,
+      endDate,
+      status: status as any,
+      eventType,
+      search,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
     return {
       success: true,
-      count: data.length,
-      data,
+      count: result.data.length,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+      data: result.data,
     };
   }
 

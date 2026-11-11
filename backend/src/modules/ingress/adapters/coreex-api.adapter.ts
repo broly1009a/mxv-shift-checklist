@@ -560,9 +560,24 @@ export class CoreExApiAdapter implements IIngressPort {
       partner: 'COREEX',
       eventType: 'LOGIN',
       success: true,
+      statusCode: 200,
       durationMs: Date.now() - startTime,
       account: username,
-      metadata: { userId },
+      metadata: {
+        endpoint: `${baseUrl}/oauth2/token`,
+        method: 'POST',
+        request: {
+          grant_type: 'authorization_code',
+          client_id: clientId,
+          username,
+        },
+        response: {
+          status: 200,
+          userId,
+          message: 'Đăng nhập CoreExchange thành công',
+          expiresAt,
+        },
+      },
     });
 
     return sessionData;
@@ -571,9 +586,20 @@ export class CoreExApiAdapter implements IIngressPort {
         partner: 'COREEX',
         eventType: 'LOGIN',
         success: false,
+        statusCode: (loginErr as any)?.status || 401,
         durationMs: Date.now() - startTime,
         account: username,
         errorMessage: loginErr.message,
+        metadata: {
+          endpoint: `${baseUrl}/oauth2/token`,
+          method: 'POST',
+          request: {
+            username,
+          },
+          response: {
+            error: loginErr.message,
+          },
+        },
       });
       throw loginErr;
     }
@@ -648,7 +674,17 @@ export class CoreExApiAdapter implements IIngressPort {
       success: res.ok,
       statusCode: res.status,
       durationMs: Date.now() - reqStart,
-      metadata: { searchCode, endpoint },
+      account: session.username,
+      metadata: {
+        endpoint,
+        method: 'POST',
+        request: payload,
+        response: {
+          status: res.status,
+          statusText: res.statusText,
+          searchCode,
+        },
+      },
     });
 
     // Tự động hồi phục khi token bị 401: xóa cache, đăng nhập lại và thử lại request

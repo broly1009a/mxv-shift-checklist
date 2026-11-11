@@ -54,5 +54,9 @@ export interface IPartnerHealthSummary {
   totalRequestsLastHour: number;
   lastSeenAt: Date | null;
   lastError?: string;
+  configuredAccount?: string; // Tài khoản bot được lưu cấu hình trong CSDL
+  totalRequestsToday?: number; // Tổng số yêu cầu trong ngày theo bộ lọc
+  totalLoginsToday?: number; // Tổng số lượt đăng nhập trong ngày theo bộ lọc
+  failedRequestsToday?: number; // Số lượt lỗi trong ngày theo bộ lọc
 }
 

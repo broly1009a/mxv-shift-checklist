@@ -266,9 +266,25 @@ export class CoreCcpApiAdapter implements IIngressPort {
           partner: 'CORECCP',
           eventType: 'LOGIN',
           success: true,
+          statusCode: 200,
           durationMs: Date.now() - startTime,
           account: username,
-          metadata: { userId: session.userId },
+          metadata: {
+            endpoint: `${baseUrl}/sso/oauth/token`,
+            method: 'POST',
+            request: {
+              grant_type: 'password',
+              client_id: 'VNX_CLIENT',
+              username,
+              auth_type: 'Basic + ConnectKey',
+            },
+            response: {
+              status: 200,
+              userId: session.userId,
+              expiresAt: new Date(expiresAt).toISOString(),
+              message: 'Xác thực tài khoản CoreCCP thành công',
+            },
+          },
         });
 
         return session;
@@ -277,9 +293,22 @@ export class CoreCcpApiAdapter implements IIngressPort {
           partner: 'CORECCP',
           eventType: 'LOGIN',
           success: false,
+          statusCode: (loginErr as any)?.status || 401,
           durationMs: Date.now() - startTime,
           account: username,
           errorMessage: loginErr.message,
+          metadata: {
+            endpoint: `${baseUrl}/sso/oauth/token`,
+            method: 'POST',
+            request: {
+              grant_type: 'password',
+              client_id: 'VNX_CLIENT',
+              username,
+            },
+            response: {
+              error: loginErr.message,
+            },
+          },
         });
         throw loginErr;
       }
@@ -714,7 +743,20 @@ export class CoreCcpApiAdapter implements IIngressPort {
       success: res.ok,
       statusCode: res.status,
       durationMs: Date.now() - startTime,
-      metadata: { reportId, refererRoute },
+      account: session.username,
+      metadata: {
+        endpoint: `/report/download/${reportId}`,
+        method: 'GET',
+        request: {
+          reportId,
+          refererRoute: refererRoute || '/',
+        },
+        response: {
+          status: res.status,
+          statusText: res.statusText,
+          contentType: res.headers.get('content-type') || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      },
     });
 
     if (res.status === 401 && !isRetry) {
@@ -991,9 +1033,20 @@ export class CoreCcpApiAdapter implements IIngressPort {
             partner: 'CORECCP',
             eventType: 'API_REQUEST',
             success: res.statusCode ? res.statusCode >= 200 && res.statusCode < 400 : false,
-            statusCode: res.statusCode,
+            statusCode: res.statusCode || 200,
             durationMs: Date.now() - startTime,
-            metadata: { endpoint },
+            account: session.username,
+            metadata: {
+              endpoint,
+              method: 'POST',
+              request: payload,
+              response: {
+                statusCode: res.statusCode,
+                statusMessage: res.statusMessage,
+                totalCount: (data as any)?.totalCount ?? (Array.isArray((data as any)?.data) ? (data as any).data.length : undefined),
+                preview: typeof data === 'object' ? data : String(data).slice(0, 300),
+              },
+            },
           });
 
           resolve({ status: res.statusCode || 200, data });

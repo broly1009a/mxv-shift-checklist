@@ -83,8 +83,16 @@ export class AcmSftpAdapter implements IIngressPort {
           partner: 'ACM',
           eventType: 'SFTP_CONNECT',
           success: false,
+          statusCode: 408,
           durationMs: Date.now() - testStart,
+          account: creds.username,
           errorMessage: 'Timeout 4000ms',
+          metadata: {
+            endpoint: `sftp://${creds.host}:${creds.port}`,
+            method: 'SFTP_CONNECT',
+            request: { host: creds.host, port: creds.port, username: creds.username },
+            response: { error: 'Timeout 4000ms khi kết nối SFTP' },
+          },
         });
         reject(new Error(`SFTP connection timeout sau 4000ms tới ${creds.host}:${creds.port}`));
       }, 4000);
@@ -96,7 +104,15 @@ export class AcmSftpAdapter implements IIngressPort {
           partner: 'ACM',
           eventType: 'SFTP_CONNECT',
           success: true,
+          statusCode: 200,
           durationMs: Date.now() - testStart,
+          account: creds.username,
+          metadata: {
+            endpoint: `sftp://${creds.host}:${creds.port}`,
+            method: 'SFTP_CONNECT',
+            request: { host: creds.host, port: creds.port, username: creds.username },
+            response: { status: 200, message: 'Kết nối SFTP thành công' },
+          },
         });
         resolve(true);
       });
@@ -107,8 +123,16 @@ export class AcmSftpAdapter implements IIngressPort {
           partner: 'ACM',
           eventType: 'SFTP_CONNECT',
           success: false,
+          statusCode: 500,
           durationMs: Date.now() - testStart,
+          account: creds.username,
           errorMessage: err.message,
+          metadata: {
+            endpoint: `sftp://${creds.host}:${creds.port}`,
+            method: 'SFTP_CONNECT',
+            request: { host: creds.host, port: creds.port, username: creds.username },
+            response: { error: err.message },
+          },
         });
         reject(err);
       });
@@ -310,8 +334,23 @@ export class AcmSftpAdapter implements IIngressPort {
       partner: 'ACM',
       eventType: 'API_REQUEST',
       success: sftpSuccess,
+      statusCode: sftpSuccess ? 200 : 404,
       durationMs: totalDurationMs,
-      metadata: { filesDownloaded: files.length, targetDate: yyyy_mm_dd },
+      account: creds.username,
+      metadata: {
+        endpoint: `sftp://${creds.host}:${creds.port}/reports`,
+        method: 'SFTP_GET',
+        request: {
+          targetDate: yyyy_mm_dd,
+          outputDirectory,
+          filePattern: 'Straits*.csv, *.xlsx',
+        },
+        response: {
+          filesDownloaded: files.length,
+          fileNames: files.map((f) => f.fileName),
+          status: sftpSuccess ? 'Tải tệp tin thành công' : 'Không có tệp tin phiên',
+        },
+      },
     });
     if (files.length === 0) {
       const msg = `[AcmSftpAdapter] Chưa có file Straits CSV/XLS thuộc phiên ${yyyy_mm_dd} trên máy chủ SFTP ${creds.host}:${creds.port} (Sàn chưa chốt/upload phiên này). Đã bỏ qua, không tải file T-1.`;
