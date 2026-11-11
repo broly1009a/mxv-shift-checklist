@@ -24,7 +24,8 @@ import {
   Clock,
   GripVertical,
   User,
-  Code2
+  Code2,
+  ClipboardList
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -976,7 +977,9 @@ export default function AdminTemplatesPage() {
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
           >
-            📋 Danh sách mẫu ({templates.length})
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <ClipboardList size={14} /> Danh sách mẫu ({templates.length})
+            </span>
           </button>
           <button
             type="button"

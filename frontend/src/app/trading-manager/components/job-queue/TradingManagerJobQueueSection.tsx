@@ -17,7 +17,6 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   UserCheck,
   Code2,
   Copy,
@@ -69,12 +68,12 @@ export default function TradingManagerJobQueueSection({
   const [loadingLogs, setLoadingLogs] = useState(false);
 
   // Filters
-  const [jobScope, setJobScope] = useState<'ALL' | 'TRADING'>('ALL');
+  // Mặc định hiển thị toàn bộ tác vụ của hệ thống (phân quyền vai trò Trading/Admin sẽ cấu hình sau)
+  const jobScope = 'ALL';
   const [domainFilter, setDomainFilter] = useState<string>('ALL');
   const [selectedJobTypeFilter, setSelectedJobTypeFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PENDING'>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const [filterTodayOnly, setFilterTodayOnly] = useState<boolean>(false);
 
   // Chế độ xem: 'USER' (Người dùng / Nghiệp vụ) vs 'TECHNICAL' (Kỹ thuật / Console)
   const [viewMode, setViewMode] = useState<'USER' | 'TECHNICAL'>('USER');
@@ -108,16 +107,19 @@ export default function TradingManagerJobQueueSection({
     return Array.from(set).sort();
   }, [jobs]);
 
-  // Fetch jobs list (mặc định lấy toàn bộ hệ thống hoặc lọc theo Trading Manager)
+  // Fetch jobs list (mặc định lấy toàn bộ tác vụ của hệ thống trong phiên làm việc)
   const fetchJobs = useCallback(async (silent: boolean = false) => {
     if (!token) return;
     if (!silent) setLoadingJobs(true);
     try {
-      const params = jobScope === 'ALL' ? {} : { jobTypes: TRADING_JOB_TYPES.join(',') };
+      const params: Record<string, any> = {
+        limit: 500,
+      };
+      if (selectedDate) {
+        params.date = selectedDate;
+      }
       const rawData = await api.checklistHub.getJobs(params, token);
-      const data = Array.isArray(rawData)
-        ? (jobScope === 'ALL' ? (rawData as any[]) : (rawData as any[]).filter((j) => TRADING_JOB_TYPES.includes(j.jobType)))
-        : [];
+      const data = Array.isArray(rawData) ? (rawData as any[]) : [];
       setJobs(data);
 
       // Update active jobs count to parent
@@ -132,7 +134,7 @@ export default function TradingManagerJobQueueSection({
     } finally {
       if (!silent) setLoadingJobs(false);
     }
-  }, [token, jobScope, onActiveCountChange]);
+  }, [token, selectedDate, onActiveCountChange]);
 
   // Fetch job detail (logs & payload)
   const fetchJobDetail = useCallback(async (jobId: string, silent: boolean = false) => {
@@ -491,9 +493,6 @@ export default function TradingManagerJobQueueSection({
 
   // Filter jobs
   const filteredJobs = jobs.filter((job) => {
-    // Phạm vi tác vụ (Chỉ Trading vs Toàn bộ)
-    if (jobScope === 'TRADING' && !TRADING_JOB_TYPES.includes(job.jobType)) return false;
-
     // Lọc theo Phân Hệ Tài Nguyên (Domain Filter)
     if (domainFilter !== 'ALL') {
       const d = job.domain || resolveFrontendDomain(job.jobType);
@@ -518,19 +517,13 @@ export default function TradingManagerJobQueueSection({
       if (!matchType && !matchLabel && !matchId) return false;
     }
 
-    // Filter Today Only
-    if (filterTodayOnly && selectedDate) {
-      const jobDate = new Date(job.createdAt).toISOString().split('T')[0];
-      if (jobDate !== selectedDate) return false;
-    }
-
     return true;
   });
 
   const selectedJob = jobs.find((j) => j._id === selectedJobId) || null;
 
-  // Counter stats
-  const scopedJobs = jobScope === 'ALL' ? jobs : jobs.filter((j) => TRADING_JOB_TYPES.includes(j.jobType));
+  // Counter stats (mặc định toàn bộ tác vụ hệ thống)
+  const scopedJobs = jobs;
   const processingCount = scopedJobs.filter((j) => j.status === 'PROCESSING' || j.status === 'AWAITING_CAPTCHA').length;
   const completedCount = scopedJobs.filter((j) => j.status === 'COMPLETED').length;
   const failedCount = scopedJobs.filter((j) => j.status === 'FAILED' || j.status === 'CANCELLED' || j.status === 'ABORTED').length;
@@ -550,56 +543,6 @@ export default function TradingManagerJobQueueSection({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Bộ chọn Phạm Vi: Toàn Bộ Hệ Thống vs Chỉ Trading */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '2px',
-              borderRadius: '6px',
-              backgroundColor: 'var(--bg-input, #0f172a)',
-              border: '1px solid var(--border-color)',
-              marginRight: '4px',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setJobScope('ALL')}
-              style={{
-                padding: '4px 10px',
-                fontSize: '0.72rem',
-                fontWeight: jobScope === 'ALL' ? 800 : 500,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: jobScope === 'ALL' ? '#3b82f6' : 'transparent',
-                color: jobScope === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              title="Hiển thị tất cả tác vụ hệ thống (Checklist ca trực, RPA, EOD MS, CoreCCP, SOD, Macro...)"
-            >
-              Toàn bộ hệ thống
-            </button>
-            <button
-              type="button"
-              onClick={() => setJobScope('TRADING')}
-              style={{
-                padding: '4px 10px',
-                fontSize: '0.72rem',
-                fontWeight: jobScope === 'TRADING' ? 800 : 500,
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: jobScope === 'TRADING' ? '#3b82f6' : 'transparent',
-                color: jobScope === 'TRADING' ? '#ffffff' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              title="Chỉ hiển thị các tác vụ thuộc phân hệ Trading Manager"
-            >
-              Chỉ Trading
-            </button>
-          </div>
-
           {/* Dropdown Lọc Phân Hệ Tài Nguyên (Domain Filter) */}
           <select
             value={domainFilter}
@@ -660,16 +603,6 @@ export default function TradingManagerJobQueueSection({
               {item.label}
             </button>
           ))}
-
-          {/* Checkbox lọc ngày hiện tại */}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-            <input
-              type="checkbox"
-              checked={filterTodayOnly}
-              onChange={(e) => setFilterTodayOnly(e.target.checked)}
-            />
-            <span>Chỉ ngày làm việc ({selectedDate || 'Hôm nay'})</span>
-          </label>
         </div>
 
         {/* BỘ CHUYỂN ĐỔI CHẾ ĐỘ XEM: NGƯỜI DÙNG vs KỸ THUẬT */}
@@ -753,28 +686,6 @@ export default function TradingManagerJobQueueSection({
             <RefreshCw size={12} className={loadingJobs ? 'animate-spin' : ''} />
             <span>Làm mới</span>
           </button>
-
-          {/* Nút Xem Toàn Bộ Hàng Đợi Hệ Thống (admin/bot-config) */}
-          <a
-            href="/admin/bot-config"
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-secondary"
-            title="Mở Cấu hình Bot để quản lý toàn bộ tác vụ hệ thống (Checklist ca trực, RPA Crawler, GTT...)"
-            style={{
-              height: '32px',
-              padding: '0 12px',
-              fontSize: '0.75rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              textDecoration: 'none',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <ExternalLink size={12} />
-            <span>Toàn bộ Bot & Hàng đợi</span>
-          </a>
         </div>
       </div>
 
@@ -1092,16 +1003,51 @@ export default function TradingManagerJobQueueSection({
                 </div>
 
                 {/* Hướng Dẫn Vận Hành Ca Trực */}
-                <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Info size={14} color="#0284c7" />
-                    Lưu ý vận hành cho chuyên viên ca trực:
+                <div
+                  style={{
+                    padding: '14px 18px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <Info size={15} color="#0284c7" />
+                    Hướng dẫn vận hành ca trực:
                   </span>
-                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    <li>Nhấp chuột vào một tác vụ ở <strong>cột Hàng đợi bên phải</strong> để xem chi tiết tiến trình hoặc bấm <strong>"Tải ZIP"</strong> để lấy file báo cáo.</li>
-                    <li>Tác vụ đối chiếu khớp lệnh (KLGD) tự động kiểm tra định kỳ 1 giờ/lần và cập nhật trực tiếp tại Tab 1.</li>
-                    <li>Khi bot tải báo cáo M-System yêu cầu giải Captcha, hệ thống sẽ tự động bật thông báo và khung nhập mã ngay trên màn hình.</li>
-                    <li>Chuyên viên có thể bấm <strong>"Chế độ Kỹ thuật (Console)"</strong> ở thanh công cụ phía trên để theo dõi chi tiết dòng lệnh realtime hoặc sao chép log gửi đội ngũ IT.</li>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: '18px',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    <li>
+                      Chọn tác vụ ở danh sách bên phải để theo dõi tiến trình hoặc bấm <strong>"Tải ZIP"</strong> lấy file kết quả.
+                    </li>
+                    <li>
+                      Khớp lệnh (KLGD) tự động chạy định kỳ mỗi giờ và đồng bộ kết quả sang Tab 1.
+                    </li>
+                    <li>
+                      Nếu bot gặp Captcha M-System, màn hình sẽ hiển thị ngay ô nhập mã để xử lý.
+                    </li>
+                    <li>
+                      Chuyển sang <strong>"Chế độ Kỹ thuật (Console)"</strong> khi cần kiểm tra log chi tiết hoặc gửi hỗ trợ IT.
+                    </li>
                   </ul>
                 </div>
               </div>

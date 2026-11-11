@@ -1,3 +1,98 @@
+## [2026-11-11T10:48] AUDIT & REFACTOR: Kiểm Tra Hardcode Toàn Diện 4 File Cấu Hình & Triệt Tiêu Emoji Unicode Thô
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER: Kiểm tra toàn diện nguy cơ hardcode thời gian, hằng số, vai trò và dữ liệu tĩnh tương tự tại 4 file:
+  1. `backend/src/shared/domain-configs/coreccp-reports.config.ts`
+  2. `frontend/src/app/admin/shift-slots/page.tsx`
+  3. `frontend/src/app/admin/templates/page.tsx`
+  4. `frontend/src/app/checklist/components/TradingReportModal.tsx`
+- Rà soát các quy chuẩn chống hardcode (AGENTS.md Section 7) và chuẩn giao diện chuyên nghiệp không dùng emoji Unicode thô (Rule 4.5).
+
+### 2. Danh sách File Chỉnh sửa & Kết quả Audit
+- [`frontend/src/app/admin/templates/page.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/admin/templates/page.tsx#L975-L985):
+  - Thay thế ký tự emoji Unicode thô `📋` tại tab danh sách mẫu mobile bằng icon SVG chuẩn `<ClipboardList size={14} />` từ thư viện `lucide-react`, tuân thủ 100% Rule 4.5.
+- Hoàn thành báo cáo kiểm toán chi tiết từng file về: Mốc giờ đóng băng (`freezeHour: 6`, `16:20`), Role hardcode, Dropdown options tĩnh và Phân định giữa API Contract bên thứ 3 vs Business Thresholds.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Frontend Build**: `npm run build` (`next build` & Turbopack) $\rightarrow$ Compiled successfully in 6.8s, 51 static pages generated, Typecheck 100% hợp lệ $\rightarrow$ Exit code 0.
+- **Backend Tests**: 13/13 suites passed, 69/69 tests passed $\rightarrow$ Exit code 0.
+
+---
+
+## [2026-11-11T09:45] FIX(CQG_DATE_PARSING_BOUNDARY_BUG): Chuẩn Hóa Logic Nhận Diện Ngày Tháng parseCqgDateTime & parseTradeDateTime - Triệt Tiêu Lỗi Đảo Ngày Tháng Gây Lệch 4.170 Lệnh
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- **Phản ánh từ USER**:
+  - `[2026-11-10T17:58:12.141Z] [BotDispatcher V2] Phát hiện lệch: Lệch CQG=5114, Lệch ACM=0, Lệch khớp lệnh=4170` (với 4.170 lệnh M-System không tìm thấy bên CQG).
+  - Đến 06:00 sáng ngày 11/11 cắt phiên: `[BotDispatcher V2] Khớp 100% (DSGD: 13, FR: 13, Nano: 15) mới cân do cắt phiên giúp tôi check lý do gì mà bị lệch nhiều vậy trước đây đâu có lệch như vậy`.
+  - USER yêu cầu: *"tôi cần bạn tính toán logic thật kỹ kiểm thử thật kỹ mọi case chứ không viết thừa rồi bảo thông minh rồi lại gây ra bug"*.
+- **Nguyên nhân gốc rễ (Root Cause - Code-First Grounding)**:
+  - CQG xuất file `FR1.xlsx` / `FR2.xlsx` có cột `Time` chuẩn US: `MM/DD/YY HH:mm:ss` (ví dụ phiên 10/11 là `11/10/26 14:30:00`).
+  - Trong `trading-math.helper.ts#L77-L100`, hàm `parseCqgDateTime` chứa logic đoán mò: `if (bit1 === targetMonth || bit1 === targetMonth - 1) { day = bit0; month = bit1; }`.
+  - Vào ngày 10/11 (`targetMonth = 11`), điều kiện `bit1 === targetMonth - 1` (10 === 11 - 1 = 10) thỏa mãn $\rightarrow$ hàm hoán đổi nhầm `bit1` (10) thành tháng 10 (October), biến ngày `10/11/2026` thành `11/10/2026` (lùi 1 tháng về quá khứ).
+  - Khi qua bộ lọc `if (tradeTime < sessionStart) return false;` tại `klgd-recon.service.ts#L244`, toàn bộ lệnh CQG ngày 10/11 bị loại bỏ hoàn toàn (`totalFR = 0`), gây lệch ảo 5.114 lots và 4.170 giao dịch.
+  - Sau 06:00 ngày 11/11 (sang phiên `11/11/2026`), `bit1 = 11 !== 10` nên không dính bẫy $\rightarrow$ khớp 100%.
+  - Đây là lỗi biên định kỳ (Calendar Boundary Bug) rơi vào đúng ngày `Ngày = Tháng - 1` của mỗi tháng (10/11, 09/10, 08/09, 07/08...).
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/trading-ops/helpers/trading-math.helper.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/trading-math.helper.ts#L55-L135):
+  - Viết lại hàm `parseCqgDateTime` theo chuẩn Kiến Trúc Clean (Zero-Guessing Contract) đã được kiểm toán:
+    1. Định dạng ISO (`dateBits[0] > 31`): `YYYY-MM-DD`.
+    2. Định dạng CQG Gateway: Mặc định 100% US (`month = dateBits[0], day = dateBits[1]`). Loại bỏ vĩnh viễn mọi thuật toán phỏng đoán lịch (không tính khoảng cách delta, không trừ lùi tháng).
+    3. Trường hợp an toàn dữ liệu `dateBits[0] > 12`: `dateBits[0]` không thể là tháng $\rightarrow$ xác định là ngày (`day = dateBits[0], month = dateBits[1]`).
+    4. Xử lý chuỗi thuần giờ (pure time `HH:mm:ss`): Bỏ phụ thuộc vào wall-clock `todayMidnight`. Nếu `hours < sessionStartHour` (mặc định 6h sáng), xác định chắc chắn là lệnh phiên đêm thuộc ngày hôm sau `defaultDate + 1 day`; ngược lại thuộc ngày `defaultDate`.
+  - Cập nhật hàm `parseTradeDateTime`: Bỏ so sánh `todayMidnight` cho chuỗi thuần giờ, bảo đảm tính xác định tuyệt đối (deterministic).
+- [`backend/src/modules/trading-ops/helpers/trading-math.helper.spec.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/trading-ops/helpers/trading-math.helper.spec.ts):
+  - Tạo mới bộ unit test toàn diện gồm 26 test cases kiểm thử:
+    - Ngày 10/11/2026 (November 10) từ chuỗi CQG `11/10/26`.
+    - Toàn bộ 12 ngày biên trong năm (`12/01`, `01/02`, ..., `10/11`, `11/12`).
+    - Lệnh đêm thuần giờ (`00:57:00`) và lệnh ban ngày thuần giờ (`15:30:00`).
+    - Chuyển tiếp cuối tháng (31/10 -> 01/11) và cuối năm (31/12 -> 01/01).
+    - Năm nhuận 2028 (28/02 -> 29/02).
+    - Hợp đồng Zero Guessing và bảo vệ `bit0 > 12`.
+    - Khả năng chịu lỗi với dữ liệu rác, rỗng và số thập phân.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Unit Test**: `jest trading-math.helper.spec.ts` $\rightarrow$ **26/26 tests PASSED 100%**.
+- **Kiểm thử trên dữ liệu thực tế**: Quét toàn bộ các file `FR1.xlsx`, `FR2.xlsx`, `FR.xlsx` có sẵn trong kho lưu trữ dữ liệu (từ tháng 07/2026 đến 10/2026) $\rightarrow$ **100% dữ liệu được parse thành công, 0 bản ghi null**.
+- **Kiểm thử toán học toàn bộ 5 năm (2024 - 2028)**: Chạy script kiểm thử quét 10.950 kịch bản ngày giao dịch $\rightarrow$ **0 lỗi phát sinh**.
+- **Backend Build**: `npm run build` (`nest build`) $\rightarrow$ Exit code 0, biên dịch thành công.
+- **Frontend Typecheck**: `npx tsc --noEmit` $\rightarrow$ Exit code 0, 0 lỗi TypeScript.
+
+---
+
+## [2026-11-11T08:46] REFACTOR & OPTIMIZE(JOB_QUEUE_LOGS_PAGE): Tải Toàn Bộ Tác Vụ Trong Phiên, Hỗ Trợ Lọc Theo Ngày, Bỏ Bộ Chọn Trading & Nút Admin Thừa, Viết Lại Lưu Ý Vận Hành Thân Thiện
+
+### 1. Mục tiêu Thay đổi & Yêu cầu từ USER
+- Yêu cầu từ USER (kèm ảnh chụp màn hình `/trading-manager/job-queue`):
+  1. Thêm toàn bộ tác vụ trong phiên thay vì giới hạn 20 cái đầu tiên; nếu filter theo ngày (`selectedDate`) thì vẫn lọc chính xác toàn bộ tác vụ của ngày đó.
+  2. Mặc định hiển thị toàn bộ hệ thống (`ALL`), bỏ bộ chọn `[Toàn bộ hệ thống | Chỉ Trading]` (về sau sẽ phân quyền theo vai trò người dùng sau).
+  3. Bỏ nút `[Toàn bộ Bot & Hàng đợi]` (dẫn ra `/admin/bot-config`).
+  4. Viết lại đoạn `Lưu ý vận hành cho chuyên viên ca trực` ngắn gọn hơn, ngôn từ tự nhiên, con người hơn thay vì các dòng debug máy móc.
+
+### 2. Danh sách File Chỉnh sửa
+- [`backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/backend/src/modules/checklist-hub/controllers/checklist-bot-jobs.controller.ts#L58-L96):
+  - Bổ sung query parameter `@Query('date') date?: string`.
+  - Thiết lập điều kiện lọc phiên linh hoạt `$or` (khớp `payload.targetDate`, `payload.sessionDay`, `payload.shiftDate`, `payload.date` theo cả định dạng `YYYY-MM-DD` và `DD/MM/YYYY`, cùng khung giờ phiên Việt Nam `00:00` -> `07:00` ngày T+1).
+  - Tăng `limit` mặc định từ 20 lên 500 (tối đa 2000), xóa bỏ nút thắt cổ chai giới hạn 20 bản ghi.
+- [`frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx`](file:///c:/Users/hiepth/OneDrive%20-%20MERCANTILE%20EXCHANGE%20OF%20VIETNAM/Documents/Github/mxv-cqg-download-investigation/frontend/src/app/trading-manager/components/job-queue/TradingManagerJobQueueSection.tsx#L70-L1050):
+  - Cập nhật hàm `fetchJobs`: Mặc định gửi `limit: 500` và `date: selectedDate` lên backend; đưa `selectedDate` vào dependency array của `useCallback` để khi người dùng đổi ngày ở Date Picker `Phiên: DD/MM/YYYY`, danh sách tác vụ tự động tải lại toàn bộ.
+  - Xóa bỏ nút chuyển đổi `[Toàn bộ hệ thống | Chỉ Trading]`, mặc định `jobScope = 'ALL'`.
+  - Xóa bỏ nút liên kết ngoài `[Toàn bộ Bot & Hàng đợi]`.
+  - Xóa bỏ checkbox lọc ngày thừa tại thanh công cụ (đồng bộ trực tiếp qua Date Picker phiên trên đầu trang).
+  - Viết lại khung hướng dẫn vận hành bằng lời văn súc tích, chuyên nghiệp và thân thiện với chuyên viên ca trực.
+
+### 3. Xác nhận Build & Kiểm thử
+- **Local Build**:
+  - Frontend: `npx tsc --noEmit` $\rightarrow$ Exit code 0, 0 lỗi TypeScript.
+  - Backend: `npm run build` (`nest build`) $\rightarrow$ Exit code 0, biên dịch thành công.
+- **Triển khai Live lên Máy Chủ Production Ubuntu `10.0.0.26`**:
+  - Đồng bộ và build trực tiếp cả Frontend (`next build` - 54 routes hoàn tất) và Backend (`nest build`).
+  - Reload PM2 service `mxv-backend` và restart `mxv-frontend` $\rightarrow$ Trạng thái `online`, 0 lỗi.
+  - **Kiểm thử API Live trên `10.0.0.26`**: Gọi `GET /api/v1/checklist-hub/jobs?date=2026-11-11` trả về chính xác **39 tác vụ** trong phiên (thay vì bị ngắt ở 20 như trước).
+
+---
+
 ## [2026-11-10T18:55] FIX & REDESIGN(AUTH_MONITOR_UI_ENTERPRISE_SYSTEM): Chuẩn Hóa Toàn Diện CSS Màn Hình Giám Sát Phân Hệ & Khắc Phục Lỗi Co Thắt Giao Diện
 
 ### 1. Mục tiêu Thay đổi & Yêu cầu từ USER

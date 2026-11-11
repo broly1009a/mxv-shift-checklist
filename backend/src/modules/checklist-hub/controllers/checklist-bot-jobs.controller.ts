@@ -52,7 +52,7 @@ export class ChecklistBotJobsController {
     private readonly omsWatcherService?: OmsWatcherService,
   ) {}
   /**
-   * Lấy danh sách background jobs (hỗ trợ lọc theo jobTypes, status, phân trang limit)
+   * Lấy danh sách background jobs (hỗ trợ lọc theo jobTypes, status, phiên làm việc date, phân trang limit)
    * GET /api/v1/checklist-hub/jobs & GET /api/v1/bot-engine/jobs
    */
   @Get('jobs')
@@ -61,6 +61,7 @@ export class ChecklistBotJobsController {
     @Query('status') status?: string,
     @Query('limit') limit?: string,
     @Query('includeDeleted') includeDeleted?: string,
+    @Query('date') date?: string,
   ) {
     const filter: Record<string, any> = {};
     if (includeDeleted !== 'true') {
@@ -75,7 +76,24 @@ export class ChecklistBotJobsController {
     if (status) {
       filter.status = status;
     }
-    const maxLimit = Math.min(parseInt(limit || '20', 10) || 20, 100);
+    if (date) {
+      const parts = date.split('-');
+      const slashDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : date;
+      const sessionStartVN = new Date(`${date}T00:00:00.000+07:00`);
+      const nextDayDate = new Date(new Date(date).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0];
+      const sessionEndVN = new Date(`${nextDayDate}T07:00:00.000+07:00`);
+
+      filter.$or = [
+        { 'payload.targetDate': { $in: [date, slashDate] } },
+        { 'payload.sessionDay': { $in: [date, slashDate] } },
+        { 'payload.shiftDate': { $in: [date, slashDate] } },
+        { 'payload.date': { $in: [date, slashDate] } },
+        { createdAt: { $gte: sessionStartVN, $lte: sessionEndVN } },
+      ];
+    }
+    const parsedLimit = parseInt(limit || '', 10);
+    const defaultLimit = date ? 500 : 100;
+    const maxLimit = Math.min(parsedLimit || defaultLimit, 2000);
     return this.botJobModel
       .find(filter)
       .sort({ createdAt: -1 })

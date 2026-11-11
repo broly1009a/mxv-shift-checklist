@@ -52,9 +52,14 @@ export function parseCqgNumber(val: any): number {
 /**
  * Phân tích chuỗi ngày giờ từ CQG theo ca trực.
  */
-export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | null {
+export function parseCqgDateTime(
+  timeStr: string,
+  defaultDate: Date,
+  sessionStartHour: number = 6,
+): Date | null {
   if (!timeStr) return null;
-  timeStr = timeStr.trim();
+  timeStr = String(timeStr).trim();
+  if (!timeStr) return null;
 
   if (timeStr.includes('/') || timeStr.includes('-')) {
     const parts = timeStr.split(/\s+/);
@@ -70,36 +75,24 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     let day = 0;
 
     if (dateBits[0] > 31) {
+      // Định dạng ISO: YYYY-MM-DD hoặc YYYY/MM/DD
       year = dateBits[0];
       month = dateBits[1];
       day = dateBits[2];
     } else {
-      const targetMonth = defaultDate.getMonth() + 1;
-      const bit0 = dateBits[0];
-      const bit1 = dateBits[1];
-
-      if (
-        bit1 === targetMonth ||
-        bit1 === targetMonth - 1 ||
-        (targetMonth === 1 && bit1 === 12)
-      ) {
-        day = bit0;
-        month = bit1;
-      } else if (
-        bit0 === targetMonth ||
-        bit0 === targetMonth - 1 ||
-        (targetMonth === 1 && bit0 === 12)
-      ) {
-        month = bit0;
-        day = bit1;
-      } else {
-        month = bit0;
-        day = bit1;
-      }
       year = dateBits[2];
-    }
+      if (year < 100) year += 2000;
 
-    if (year < 100) year += 2000;
+      // Chuẩn CQG Gateway: Mặc định 100% US (MM/DD/YY) theo hợp đồng dữ liệu chuẩn Clean Architecture (Zero-Guessing).
+      // Trường hợp bit0 > 12: bit0 không thể là tháng, bắt buộc là Day (DD/MM/YY).
+      if (dateBits[0] > 12) {
+        day = dateBits[0];
+        month = dateBits[1];
+      } else {
+        month = dateBits[0];
+        day = dateBits[1];
+      }
+    }
 
     const timeBits = timePart.split(':');
     const hours = Number(timeBits[0]) || 0;
@@ -107,8 +100,9 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     // Bỏ mili-giây, giống C# TransactionCheckingService.cs#L140 (TimeSpan.FromSeconds((int)TotalSeconds))
     const seconds = Math.floor(parseFloat(timeBits[2] || '0') || 0);
 
-    return new Date(year, month - 1, day, hours, minutes, seconds);
-  } else {
+    const d = new Date(year, month - 1, day, hours, minutes, seconds, 0);
+    return isNaN(d.getTime()) ? null : d;
+  } else if (timeStr.includes(':')) {
     const timeBits = timeStr.split(':');
     if (timeBits.length < 2) return null;
     const hours = Number(timeBits[0]) || 0;
@@ -116,18 +110,19 @@ export function parseCqgDateTime(timeStr: string, defaultDate: Date): Date | nul
     // Bỏ mili-giây, giống C# TransactionCheckingService.cs#L140 (TimeSpan.FromSeconds((int)TotalSeconds))
     const seconds = Math.floor(parseFloat(timeBits[2] || '0') || 0);
 
-    const result = new Date(defaultDate);
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
-    const defMidnight = new Date(defaultDate);
-    defMidnight.setHours(0, 0, 0, 0);
-
-    if (defMidnight.getTime() < todayMidnight.getTime() && hours < 6) {
-      result.setDate(result.getDate() + 1);
-    }
-    result.setHours(hours, minutes, seconds, 0);
-    return result;
+    // Lệnh không kèm ngày: Nếu giờ < sessionStartHour (ví dụ < 6h sáng), lệnh thuộc phiên đêm (ngày hôm sau D+1)
+    const d = new Date(
+      defaultDate.getFullYear(),
+      defaultDate.getMonth(),
+      defaultDate.getDate() + (hours < sessionStartHour ? 1 : 0),
+      hours,
+      minutes,
+      seconds,
+      0,
+    );
+    return isNaN(d.getTime()) ? null : d;
   }
+  return null;
 }
 
 /**
@@ -196,13 +191,7 @@ export function parseTradeDateTime(dateTimeStr: string, defaultDate?: Date): Dat
 
   const result = new Date(year, month - 1, day, hr, min, sec);
   if (parts.length === 1 && str.includes(':') && defaultDate && hr < 6) {
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
-    const defMidnight = new Date(defaultDate);
-    defMidnight.setHours(0, 0, 0, 0);
-    if (defMidnight.getTime() < todayMidnight.getTime()) {
-      result.setDate(result.getDate() + 1);
-    }
+    result.setDate(result.getDate() + 1);
   }
   return isNaN(result.getTime()) ? null : result;
 }
