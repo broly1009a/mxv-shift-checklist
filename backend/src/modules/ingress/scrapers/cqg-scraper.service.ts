@@ -175,22 +175,29 @@ export class CqgScraperService {
       throw new Error('Chưa cấu hình tài khoản CQG (username, password).');
     }
 
+    const cqgUrl = credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
+    const profileSuffix = options?.profileSuffix || '1';
     const gateCheck = CqgSafetyGate.canLogin(username);
     if (!gateCheck.allowed) {
       this.authMonitor?.recordEvent({
         partner: 'CQG',
         eventType: 'CIRCUIT_BREAKER',
         success: false,
+        statusCode: 429,
         durationMs: 0,
         account: username,
         errorMessage: gateCheck.reason,
+        metadata: {
+          endpoint: cqgUrl,
+          method: 'RPA_GATE',
+          request: { username, safetyGate: 'CqgSafetyGate' },
+          response: { error: gateCheck.reason },
+        },
       });
       throw new Error(gateCheck.reason);
     }
 
     const loginStart = Date.now();
-    const cqgUrl = credentials.url || 'https://m.cqg.com/cqg/desktop/logon?ref=forced';
-    const profileSuffix = options?.profileSuffix || '1';
     const profileDir = path.join(process.cwd(), 'temp', `cqg_profile_${profileSuffix}`);
     if (!fs.existsSync(profileDir)) fs.mkdirSync(profileDir, { recursive: true });
 
@@ -323,20 +330,38 @@ export class CqgScraperService {
         partner: 'CQG',
         eventType: 'LOGIN',
         success: true,
+        statusCode: 200,
         durationMs: Date.now() - loginStart,
         account: username,
-        metadata: { profileSuffix },
+        metadata: {
+          endpoint: cqgUrl,
+          method: 'RPA_LOGIN',
+          request: { username, profileSuffix },
+          response: {
+            status: 200,
+            message: 'Đăng nhập và sẵn sàng trên phiên làm việc CQG Web',
+            profileSuffix,
+          },
+        },
       });
 
+      (page as any)._cqgUsername = username;
       return { browser: context as any, page };
     } catch (err: any) {
       this.authMonitor?.recordEvent({
         partner: 'CQG',
         eventType: 'LOGIN',
         success: false,
+        statusCode: 401,
         durationMs: Date.now() - loginStart,
         account: username,
         errorMessage: err.message,
+        metadata: {
+          endpoint: cqgUrl,
+          method: 'RPA_LOGIN',
+          request: { username, profileSuffix },
+          response: { error: err.message },
+        },
       });
 
       this.logger.error(`Đăng nhập CQG thất bại (${username}): ${err.message}`);
@@ -580,8 +605,24 @@ export class CqgScraperService {
       partner: 'CQG',
       eventType: 'API_REQUEST',
       success: true,
+      statusCode: 200,
       durationMs: Date.now() - widgetStart,
-      metadata: { destFile: path.basename(destFile), searchTerm, tabLabel },
+      account: (page as any)?._cqgUsername,
+      metadata: {
+        endpoint: `/cqg/desktop/export/${path.basename(destFile)}`,
+        method: 'RPA_EXPORT',
+        request: {
+          tabLabel,
+          searchTerm,
+          destFile: path.basename(destFile),
+        },
+        response: {
+          status: 200,
+          destFile: path.basename(destFile),
+          durationSec: widgetDurationSec,
+          message: 'Xuất và tải file báo cáo thành công',
+        },
+      },
     });
   }
 

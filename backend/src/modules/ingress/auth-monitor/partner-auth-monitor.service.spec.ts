@@ -20,8 +20,12 @@ describe('PartnerAuthMonitorService (Telemetry & Alert Monitor)', () => {
   beforeEach(() => {
     mockModel = {
       insertMany: jest.fn().mockResolvedValue([]),
+      countDocuments: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue(0),
+      }),
       find: jest.fn().mockReturnValue({
         sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
         lean: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue([]),

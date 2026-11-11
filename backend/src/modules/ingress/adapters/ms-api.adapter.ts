@@ -275,9 +275,23 @@ export class MsApiAdapter implements IIngressPort {
           partner: 'MS',
           eventType: 'LOGIN',
           success: true,
+          statusCode: 200,
           durationMs: Date.now() - startTime,
           account: creds.username,
-          metadata: { userId: newSession.userId },
+          metadata: {
+            endpoint: `${baseUrl}/auth/login`,
+            method: 'POST',
+            request: {
+              username: creds.username,
+              auth_type: '2-Factor (Password + OTP/Session)',
+            },
+            response: {
+              status: 200,
+              userId: newSession.userId,
+              expiresAt: jwtInfo?.expiresAt,
+              message: 'Đăng nhập M-System 2 bước thành công',
+            },
+          },
         });
 
         return { token: finalToken, baseUrl, adminUrl };
@@ -286,9 +300,20 @@ export class MsApiAdapter implements IIngressPort {
           partner: 'MS',
           eventType: 'LOGIN',
           success: false,
+          statusCode: (loginErr as any)?.status || 401,
           durationMs: Date.now() - startTime,
           account: creds.username,
           errorMessage: loginErr.message,
+          metadata: {
+            endpoint: `${baseUrl}/auth/login`,
+            method: 'POST',
+            request: {
+              username: creds.username,
+            },
+            response: {
+              error: loginErr.message,
+            },
+          },
         });
         throw loginErr;
       } finally {
@@ -485,7 +510,20 @@ export class MsApiAdapter implements IIngressPort {
       success: res.ok,
       statusCode: res.status,
       durationMs: Date.now() - startTime,
-      metadata: { reportKey: reportDef.key, name: reportDef.name },
+      account: this.currentSession?.username,
+      metadata: {
+        endpoint: reportDef.endpoint,
+        method: reportDef.method,
+        request: {
+          reportKey: reportDef.key,
+          reportName: reportDef.name,
+          queryParams,
+        },
+        response: {
+          status: res.status,
+          statusText: res.statusText,
+        },
+      },
     });
 
     if (!res.ok) {

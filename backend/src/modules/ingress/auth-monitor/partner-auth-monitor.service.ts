@@ -30,6 +30,7 @@ import {
 } from './partner-auth-telemetry.schema';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { BotAlertEmailService } from '../../notifications/bot-alert-email.service';
+import { decrypt } from '../../../shared';
 
 const CONFIG_KEY = 'partner_auth_monitor_config';
 const MAX_BUFFER_SIZE = 2000;
@@ -357,13 +358,122 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
   }
 
   /**
-   * Tính toán Health Summary cho 5 phân hệ đối tác
+   * Lấy tài khoản bot được cấu hình trong CSDL cho từng phân hệ đối tác
    */
-  async getHealthSummaries(): Promise<IPartnerHealthSummary[]> {
+  async getConfiguredAccount(partner: PartnerSubsystem): Promise<string> {
+    if (!this.settingsService) return '';
+    try {
+      let settingKey = '';
+      switch (partner) {
+        case 'CORECCP':
+          settingKey = 'bot_credentials_ccp';
+          break;
+        case 'COREEX':
+          settingKey = 'bot_credentials_ce';
+          break;
+        case 'MS':
+          settingKey = 'bot_credentials_msystem';
+          break;
+        case 'CQG':
+          settingKey = 'bot_credentials_cqg';
+          break;
+        case 'ACM':
+          settingKey = 'bot_credentials_acm_sftp';
+          break;
+      }
+
+      let raw = await this.settingsService.getSetting(settingKey, '');
+      if (!raw && partner === 'MS') {
+        raw = await this.settingsService.getSetting('bot_credentials_ms', '');
+      }
+      if (!raw && partner === 'ACM') {
+        raw = await this.settingsService.getSetting('bot_credentials_acm', '');
+      }
+
+      if (raw) {
+        const decrypted = JSON.parse(decrypt(raw));
+        return decrypted.username || decrypted.account || '';
+      }
+    } catch (err: any) {
+      this.logger.debug(`Không thể giải mã tài khoản bot cho ${partner}: ${err.message}`);
+    }
+    return '';
+  }
+
+  /**
+   * Tính toán Health Summary cho 5 phân hệ đối tác có hỗ trợ thống kê chính xác theo ngày từ MongoDB
+   */
+  async getHealthSummaries(targetDate?: string): Promise<IPartnerHealthSummary[]> {
+    // 1. Flush bộ nhớ đệm xuống MongoDB trước để bảo đảm dữ liệu truy vấn mới nhất
+    await this.flushBufferToDatabase();
+
     const partners: PartnerSubsystem[] = ['CORECCP', 'COREEX', 'MS', 'CQG', 'ACM'];
     const now = Date.now();
     const oneMinuteAgo = now - 60 * 1000;
     const oneHourAgo = now - 60 * 60 * 1000;
+
+    // 2. Xác định khoảng thời gian ngày cần tổng hợp (mặc định hôm nay nếu không truyền)
+    const effectiveDateStr = targetDate || new Date().toISOString().slice(0, 10);
+    const dayStart = new Date(`${effectiveDateStr}T00:00:00.000Z`);
+    const dayEnd = new Date(`${effectiveDateStr}T23:59:59.999Z`);
+
+    // 3. Thực hiện MongoDB Aggregation gom nhóm theo phân hệ trong ngày
+    const dbStatsMap = new Map<
+      string,
+      {
+        totalRequests: number;
+        totalLogins: number;
+        successCount: number;
+        failureCount: number;
+        lastSeenAt: Date | null;
+      }
+    >();
+
+    try {
+      if (this.telemetryModel && typeof this.telemetryModel.aggregate === 'function') {
+        const stats = await this.telemetryModel.aggregate([
+          {
+            $match: {
+              timestamp: { $gte: dayStart, $lte: dayEnd },
+            },
+          },
+          {
+            $group: {
+              _id: '$partner',
+              totalRequests: { $sum: 1 },
+              totalLogins: {
+                $sum: {
+                  $cond: [{ $in: ['$eventType', ['LOGIN', 'REFRESH_TOKEN']] }, 1, 0],
+                },
+              },
+              successCount: {
+                $sum: {
+                  $cond: ['$success', 1, 0],
+                },
+              },
+              failureCount: {
+                $sum: {
+                  $cond: ['$success', 0, 1],
+                },
+              },
+              lastSeenAt: { $max: '$timestamp' },
+            },
+          },
+        ]);
+
+        for (const item of stats) {
+          dbStatsMap.set(item._id, {
+            totalRequests: item.totalRequests || 0,
+            totalLogins: item.totalLogins || 0,
+            successCount: item.successCount || 0,
+            failureCount: item.failureCount || 0,
+            lastSeenAt: item.lastSeenAt ? new Date(item.lastSeenAt) : null,
+          });
+        }
+      }
+    } catch (aggErr: any) {
+      this.logger.error(`Lỗi khi tổng hợp thống kê CSDL theo ngày: ${aggErr.message}`);
+    }
 
     const summaries: IPartnerHealthSummary[] = [];
 
@@ -384,16 +494,31 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
       const consecutiveFails = this.consecutiveFailures.get(partner) || 0;
       const totalLastHour = eventsLastHour.length;
       const successfulLastHour = eventsLastHour.filter((e) => e.success).length;
-      const successRate = totalLastHour > 0
+      const hourSuccessRate = totalLastHour > 0
         ? Math.round((successfulLastHour / totalLastHour) * 100)
         : 100;
 
+      // Lấy số liệu tổng hợp trong ngày từ MongoDB
+      const dbStat = dbStatsMap.get(partner);
+      const totalRequestsToday = dbStat?.totalRequests || 0;
+      const totalLoginsToday = dbStat?.totalLogins || 0;
+      const failedRequestsToday = dbStat?.failureCount || 0;
+      const daySuccessRate = totalRequestsToday > 0
+        ? Math.round(((dbStat?.successCount || 0) / totalRequestsToday) * 100)
+        : 100;
+
+      // Ưu tiên tỷ lệ thành công theo ngày đã chọn
+      const effectiveSuccessRate = totalRequestsToday > 0 ? daySuccessRate : hourSuccessRate;
+
       let health: HealthStatus = 'HEALTHY';
-      if (consecutiveFails >= 3 || (totalLastHour >= 3 && successRate < 50)) {
+      if (consecutiveFails >= 3 || (totalRequestsToday >= 3 && effectiveSuccessRate < 50)) {
         health = 'CRITICAL';
-      } else if (consecutiveFails > 0 || (totalLastHour >= 3 && successRate < 90) || rpm > 30) {
+      } else if (consecutiveFails > 0 || (totalRequestsToday >= 3 && effectiveSuccessRate < 90) || rpm > 30) {
         health = 'WARNING';
       }
+
+      // Lấy tài khoản bot cấu hình trong CSDL
+      const configuredAccount = await this.getConfiguredAccount(partner);
 
       summaries.push({
         partner,
@@ -402,14 +527,97 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
         rpm,
         loginsLastMinute,
         consecutiveFailures: consecutiveFails,
-        successRate,
+        successRate: effectiveSuccessRate,
         totalRequestsLastHour: totalLastHour,
-        lastSeenAt: this.lastSeen.get(partner) || null,
+        lastSeenAt: dbStat?.lastSeenAt || this.lastSeen.get(partner) || null,
         lastError: this.lastErrors.get(partner),
+        configuredAccount: configuredAccount || undefined,
+        totalRequestsToday,
+        totalLoginsToday,
+        failedRequestsToday,
       });
     }
 
     return summaries;
+  }
+
+  /**
+   * Truy vấn danh sách sự kiện từ CSDL MongoDB có hỗ trợ lọc theo ngày, trạng thái, thao tác và phân trang.
+   */
+  async queryEvents(options: {
+    partner?: PartnerSubsystem;
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: 'ALL' | 'SUCCESS' | 'FAILED';
+    eventType?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: PartnerAuthTelemetry[]; total: number; page: number; limit: number; totalPages: number }> {
+    const query: any = {};
+    if (options.partner && options.partner !== ('ALL' as any)) {
+      query.partner = options.partner;
+    }
+
+    if (options.status === 'SUCCESS') {
+      query.success = true;
+    } else if (options.status === 'FAILED') {
+      query.success = false;
+    }
+
+    if (options.eventType && options.eventType !== 'ALL') {
+      query.eventType = options.eventType;
+    }
+
+    if (options.date) {
+      const start = new Date(`${options.date}T00:00:00.000Z`);
+      const end = new Date(`${options.date}T23:59:59.999Z`);
+      query.timestamp = { $gte: start, $lte: end };
+    } else if (options.startDate || options.endDate) {
+      query.timestamp = {};
+      if (options.startDate) {
+        query.timestamp.$gte = new Date(`${options.startDate}T00:00:00.000Z`);
+      }
+      if (options.endDate) {
+        query.timestamp.$lte = new Date(`${options.endDate}T23:59:59.999Z`);
+      }
+    }
+
+    if (options.search) {
+      const escaped = options.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      query.$or = [{ account: regex }, { errorMessage: regex }];
+    }
+
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(1000, Math.max(1, options.limit || 50));
+    const skip = (page - 1) * limit;
+
+    try {
+      const [total, docs] = await Promise.all([
+        this.telemetryModel.countDocuments(query).exec(),
+        this.telemetryModel
+          .find(query)
+          .sort({ timestamp: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean()
+          .exec(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit) || 1;
+      return {
+        data: (docs || []) as PartnerAuthTelemetry[],
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+    } catch (err: any) {
+      this.logger.error(`Lỗi truy vấn MongoDB Telemetry: ${err.message}`);
+      throw new Error(`Không thể lấy danh sách sự kiện xác thực: ${err.message}`);
+    }
   }
 
   /**
@@ -420,23 +628,7 @@ export class PartnerAuthMonitorService implements OnModuleInit, OnModuleDestroy 
     partner?: PartnerSubsystem,
     limit: number = 50,
   ): Promise<PartnerAuthTelemetry[]> {
-    const query: any = {};
-    if (partner) {
-      query.partner = partner;
-    }
-
-    try {
-      const docs = await this.telemetryModel
-        .find(query)
-        .sort({ timestamp: -1 })
-        .limit(Math.min(limit, 200))
-        .lean()
-        .exec();
-
-      return (docs || []) as PartnerAuthTelemetry[];
-    } catch (err: any) {
-      this.logger.error(`Lỗi truy vấn MongoDB Telemetry: ${err.message}`);
-      throw new Error(`Không thể lấy danh sách sự kiện xác thực: ${err.message}`);
-    }
+    const res = await this.queryEvents({ partner, limit });
+    return res.data;
   }
 }
