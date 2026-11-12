@@ -1,5 +1,6 @@
 import { Model } from 'mongoose';
 import { BotJob } from '../../../schemas/bot-job.schema';
+import { expandJobTypeAliases } from '../../../shared';
 
 export interface IDedupCheckResult {
   canEnqueue: boolean;
@@ -42,8 +43,9 @@ export class BotJobDedupHelper {
     // Ngưỡng 30 phút để loại bỏ zombie job bị kẹt trong quá khứ do sập nguồn/restart
     const freshThreshold = new Date(Date.now() - this.MAX_JOB_ACTIVE_AGE_MS);
 
+    const types = expandJobTypeAliases([jobType]);
     const query: any = {
-      jobType,
+      jobType: types.length === 1 ? types[0] : { $in: types },
       status: { $in: ['PENDING', 'PROCESSING'] },
       createdAt: { $gte: freshThreshold },
     };

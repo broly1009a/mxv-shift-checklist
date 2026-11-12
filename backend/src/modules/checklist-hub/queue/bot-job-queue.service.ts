@@ -32,6 +32,7 @@ import { ShiftsGateway } from '../../shifts/shifts.gateway';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { SystemLogsService } from '../../system-logs/system-logs.service';
 import { parseJobPayload } from '../../../shared/helpers/file-path.helper';
+import { expandJobTypeAliases } from '../../../shared';
 import { BotJobDedupHelper } from '../helpers/bot-job-dedup.helper';
 import { isAuditJobType, JobResourceDomain, resolveJobResourceDomain, getRequiredJobDomains, getBotJobDisplayName } from '../../../shared';
 import { BotAlertEmailService } from '../../notifications/bot-alert-email.service';
@@ -425,15 +426,26 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
           };
           job.payload = { ...contextPayload, result: enrichedResult };
 
-          let finalStatus = 'COMPLETED';
+          let finalStatus: 'COMPLETED' | 'WAITING' | 'ABORTED' = 'COMPLETED';
+          let finalError: string | undefined;
           if (dispatchRes.status === 'FAILED') {
             const errorMsg =
               dispatchRes.error ||
               dispatchRes.summary ||
               'Thất bại không rõ nguyên nhân từ BotDispatcher V2';
             throw new Error(errorMsg);
+          } else if (dispatchRes.status === 'ABORTED') {
+            finalStatus = 'ABORTED';
+            finalError =
+              dispatchRes.error ||
+              dispatchRes.summary ||
+              'Tạm dừng bảo vệ do dịch vụ đối tác không khả dụng.';
+            job.error = finalError;
           } else if (isWaiting) {
             finalStatus = 'WAITING';
+            job.error = undefined;
+          } else {
+            job.error = undefined;
           }
           await job.save();
 
@@ -443,10 +455,16 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             return;
           }
 
-          await this.syncJobToChecklist(job, finalStatus as any);
-          this.logger.log(
-            `Job ${job.jobType} (ID: ${job._id}) hoàn thành (${finalStatus}) qua BotDispatcher V2.`,
-          );
+          await this.syncJobToChecklist(job, finalStatus, finalError);
+          if (finalStatus === 'ABORTED') {
+            this.logger.warn(
+              `Job ${job.jobType} (ID: ${job._id}) tạm dừng bảo vệ (${finalStatus}) qua BotDispatcher V2: ${finalError}`,
+            );
+          } else {
+            this.logger.log(
+              `Job ${job.jobType} (ID: ${job._id}) hoàn thành (${finalStatus}) qua BotDispatcher V2.`,
+            );
+          }
           return;
         }
 
@@ -550,7 +568,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException(`Không tìm thấy Job với ID: ${jobId}`);
     }
 
-    if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) {
+    if (['COMPLETED', 'FAILED', 'CANCELLED', 'ABORTED', 'WAITING'].includes(job.status)) {
       throw new BadRequestException(`Không thể hủy tác vụ đã ở trạng thái kết thúc (${job.status}).`);
     }
 
@@ -746,8 +764,11 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
 
     job.status = status;
     const now = new Date();
-    if (status === 'COMPLETED') {
-      job.completedAt = now;
+    if (status === 'COMPLETED' || status === 'WAITING' || status === 'PROCESSING') {
+      if (status === 'COMPLETED') {
+        job.completedAt = now;
+      }
+      job.error = undefined;
     } else if (status === 'FAILED') {
       job.failedAt = now;
       job.error = error;
@@ -770,6 +791,7 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
             status: job.status,
             completedAt: job.completedAt,
             failedAt: job.failedAt,
+            error: job.error ?? null,
             attempts: job.attempts,
             logs: job.logs,
             payload: job.payload,
@@ -1058,8 +1080,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
     jobType: string,
     withinMinutes?: number,
   ): Promise<BotJob | null> {
+    const types = expandJobTypeAliases([jobType]);
     const query: Record<string, any> = {
-      jobType,
+      jobType: types.length === 1 ? types[0] : { $in: types },
       status: { $in: ['COMPLETED', 'WAITING', 'FAILED', 'CANCELLED', 'ABORTED'] },
     };
     if (withinMinutes && withinMinutes > 0) {
@@ -1076,8 +1099,9 @@ export class BotJobQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async hasActiveJobByType(jobType: string): Promise<boolean> {
+    const types = expandJobTypeAliases([jobType]);
     const count = await this.botJobModel.countDocuments({
-      jobType,
+      jobType: types.length === 1 ? types[0] : { $in: types },
       status: { $in: ['PENDING', 'PROCESSING'] },
     });
     return count > 0;

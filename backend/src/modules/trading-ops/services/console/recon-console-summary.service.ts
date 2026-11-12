@@ -14,7 +14,7 @@ import { CcpCeScraperService, MsApiAdapter } from '../../../ingress';
 import { BotJobQueueService } from '../../../checklist-hub/queue/bot-job-queue.service';
 import { TelegramService } from '../../../telegram/telegram.service';
 import { findBotTasksInShift } from '../../../../shared/constants/bot-task-registry';
-import { decrypt, EXTERNAL_SYSTEM_MSYSTEM } from '../../../../shared';
+import { decrypt, EXTERNAL_SYSTEM_MSYSTEM, expandJobTypeAliases } from '../../../../shared';
 
 import {
   findHeaderIndex,
@@ -706,7 +706,7 @@ export class ReconConsoleSummaryService {
           dsgdBeforeEodPromise,
           marginPromise,
           eodPromise,
-          this.botJobModel.findOne({ jobType: 'CHECK_CQG_SYNC', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
+          this.botJobModel.findOne({ jobType: { $in: expandJobTypeAliases(['CHECK_CQG_SYNC']) }, ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           this.botJobModel.findOne({ jobType: 'DOWNLOAD_CCP_REPORT', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           this.botJobModel.findOne({ jobType: 'CHECK_EOD_CCP', ...dateFilterCondition }).sort({ createdAt: -1 }).lean().exec(),
           pastRunsPromise,
@@ -918,8 +918,10 @@ export class ReconConsoleSummaryService {
     const cqgSyncResult = cqgSyncPayload.result || {};
     const resolvedCqgResult =
       cqgSyncResult.cqgResult ||
+      cqgSyncResult.discrepancies ||
       cqgSyncResult.mismatched ||
       cqgSyncResult.details?.cqgResult ||
+      cqgSyncResult.details?.discrepancies ||
       cqgSyncResult.details?.mismatched ||
       [];
 
@@ -1222,13 +1224,8 @@ export class ReconConsoleSummaryService {
         mismatchedPositions: dsgdBeforeEodResult.mismatchedPositions || [],
         mismatchedEODCount: resolvedMismatchedEOD.length,
         mismatchedEOD: resolvedMismatchedEOD,
-        cqgResultCount: (
-          cqgSyncJob?.payload?.result?.cqgResult ||
-          []
-        ).length,
-        cqgResult:
-          cqgSyncJob?.payload?.result?.cqgResult ||
-          [],
+        cqgResultCount: resolvedCqgResult.length,
+        cqgResult: resolvedCqgResult,
       },
       eod: {
         jobId: latestEodJob?._id?.toString() || null,
@@ -1382,7 +1379,7 @@ export class ReconConsoleSummaryService {
     const [y, m, d] = parts.length === 3 ? parts : ['', '', ''];
     const slashDate = parts.length === 3 ? `${d}/${m}/${y}` : targetDate;
 
-    const targetJobType = (jobType === 'CHECK_CQG_SYNC')
+    const targetJobType = (['CHECK_CQG_SYNC', 'CQG_SYNC'].includes(String(jobType || '').toUpperCase()))
       ? 'CHECK_CQG_SYNC'
       : (jobType === 'CHECK_EOD_CCP')
         ? 'CHECK_EOD_CCP'

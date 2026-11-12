@@ -96,7 +96,7 @@ export default function BotLogViewerModal({
 
     let type = '';
     if (selectedJob.jobType === 'CHECK_KLGD') type = 'KLGD';
-    else if (selectedJob.jobType === 'AUTO_CHECK_SOD') type = 'CQG';
+    else if (['CHECK_CQG_SYNC', 'CQG_SYNC'].includes(selectedJob.jobType)) type = 'CQG';
     else if (selectedJob.jobType === 'CHECK_DSGD_BEFORE_EOD') type = 'DSGD_BEFORE_EOD';
     else if (selectedJob.jobType === 'CHECK_EOD_MS') type = 'EOD';
 
@@ -139,6 +139,10 @@ export default function BotLogViewerModal({
       jsonResult = json.result || null;
     } catch (e) {
       // Not JSON
+    }
+
+    if (['CHECK_CQG_SYNC', 'CQG_SYNC'].includes(jsonType)) {
+      jsonType = 'CQG';
     }
 
     const titleUpper = (taskTitle || '').toUpperCase();
@@ -285,15 +289,15 @@ export default function BotLogViewerModal({
       };
     }
 
-    // Parsing for CQG mode (SOD Balance Check)
+    // Parsing for CQG mode (SOD / CQG Sync Balance Check)
     if (jsonType === 'CQG') {
       let cqgDiscrepancies: any[] = Array.isArray(jsonResult)
         ? jsonResult
-        : (jsonResult?.result || jsonResult?.discrepancies || []);
+        : (jsonResult?.cqgResult || jsonResult?.result || jsonResult?.discrepancies || []);
 
       let totalCount = (Array.isArray(cqgDiscrepancies) && cqgDiscrepancies.length > 0)
         ? cqgDiscrepancies.length
-        : (jsonResult?.totalCount || 0);
+        : (jsonResult?.totalCount ?? jsonResult?.differCount ?? 0);
 
       const totalMatch = text.match(/Số tài khoản (?:chênh lệch|lệch).*?:\s*(\d+)/i);
       if (totalMatch && !totalCount) {
@@ -841,7 +845,7 @@ export default function BotLogViewerModal({
   const isFailed =
     activeStatus === 'FAILED' ||
     (parsedData.isJson && !parsedData.jsonResult?.passed && (parsedData.jsonType === 'KLGD' || parsedData.jsonType === 'DSGD_BEFORE_EOD')) ||
-    (parsedData.jsonType === 'CQG' && parsedData.jsonResult?.length > 0);
+    (parsedData.jsonType === 'CQG' && (parsedData.jsonResult?.passed === false || (parsedData.jsonResult?.discrepancies?.length ?? 0) > 0 || (parsedData.jsonResult?.cqgDiscrepancies?.length ?? 0) > 0 || (parsedData.jsonResult?.totalCount ?? 0) > 0));
 
   return (
     <div

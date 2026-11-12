@@ -373,21 +373,6 @@ export default function LegacyReconSection({
     return () => clearInterval(fastPollInterval);
   }, [countdownSeconds === 0, checkPeriodic, autoReconActive, selectedDate, fetchConsoleSummary]);
 
-  // Khi đếm ngược chạm 0 (đến lịch quét định kỳ): Kích hoạt fetchConsoleSummary ngay lập tức
-  // và thực hiện fast-polling mỗi 5 giây cho đến khi Job mới xuất hiện và countdownSeconds > 0
-  useEffect(() => {
-    if (!checkPeriodic || !autoReconActive) return;
-    if (countdownSeconds > 0) return;
-    if (selectedRunJobIdRef.current) return;
-
-    fetchConsoleSummary(selectedDate, true);
-    const fastPollInterval = setInterval(() => {
-      fetchConsoleSummary(selectedDate, true);
-    }, 5000);
-
-    return () => clearInterval(fastPollInterval);
-
-  }, []);
 
   // Trình xử lý hoàn tất bot job dùng chung cho cả WebSocket Real-time & Fallback Polling
   const handleJobFinished = useCallback(

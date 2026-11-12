@@ -8,7 +8,7 @@ import { ShiftsService } from '../../shifts/shifts.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { BotDispatcherService } from '../dispatcher/bot-dispatcher.service';
 import { BotJobQueueService } from '../queue/bot-job-queue.service';
-import { isMarketWeekendClosed } from '../../../shared';
+import { isMarketWeekendClosed, isReconMasterSwitchJob } from '../../../shared';
 
 @Injectable()
 export class ShiftScannerService {
@@ -45,14 +45,17 @@ export class ShiftScannerService {
     this.isProcessing = true;
 
     try {
-      // 1. Kiểm tra Master Switch: bot_auto_recon_enabled
-      const autoReconSetting = await this.settingsService.getSetting(
-        'bot_auto_recon_enabled',
-        'true',
-      );
-      if (autoReconSetting === 'false') {
+      // 1. Kiểm tra Master Switches:
+      // - bot_auto_recon_enabled: kiểm soát các tác vụ đối chiếu (KLGD, DSGD before EOD, SOD/CQG Sync, GTT...)
+      // - bot_auto_backup_enabled: kiểm soát các tác vụ tải backup và macro thống kê
+      const [autoBackupSetting, autoReconSetting] = await Promise.all([
+        this.settingsService.getSetting('bot_auto_backup_enabled', 'true'),
+        this.settingsService.getSetting('bot_auto_recon_enabled', 'true'),
+      ]);
+
+      if (autoBackupSetting === 'false' && autoReconSetting === 'false') {
         this.logger.debug(
-          '[ShiftScanner] Quét ca trực tự động đang tạm dừng bởi Master Switch (bot_auto_recon_enabled=false).',
+          '[ShiftScanner] Quét ca trực tự động đang tạm dừng bởi Master Switches (bot_auto_backup_enabled=false & bot_auto_recon_enabled=false).',
         );
         return;
       }
@@ -99,6 +102,21 @@ export class ShiftScannerService {
             task.isBotCheckSnapshot &&
             (task.status === 'PENDING' || task.status === 'WAITING');
           if (!needsCheck) continue;
+
+          // Phân loại Master Switch theo Năng lực nghiệp vụ (Data-driven)
+          const isRecon = isReconMasterSwitchJob(task.botCheckTypeSnapshot || '');
+          if (isRecon && autoReconSetting === 'false') {
+            this.logger.debug(
+              `[ShiftScanner] Tác vụ đối chiếu [${task.taskId}] (${task.botCheckTypeSnapshot}) tạm dừng do bot_auto_recon_enabled=false.`,
+            );
+            continue;
+          }
+          if (!isRecon && autoBackupSetting === 'false') {
+            this.logger.debug(
+              `[ShiftScanner] Tác vụ sao lưu/thống kê [${task.taskId}] (${task.botCheckTypeSnapshot}) tạm dừng do bot_auto_backup_enabled=false.`,
+            );
+            continue;
+          }
 
           // Market Weekend Guard: Không chạy kiểm tra khớp lệnh khi thị trường đóng cửa cuối tuần
           const isKlgdTask = task.botCheckTypeSnapshot === 'CHECK_KLGD';
@@ -173,39 +191,49 @@ export class ShiftScannerService {
               `[ShiftScanner] Tạo Job mới cho Task [${task.taskId}] (${checkType}) trong ca [${log._id}].`,
             );
 
-            // Tạo Job mới trong MongoDB
-            const newJob = await this.botJobModel.create({
-              jobType: checkType,
-              status: 'PENDING',
-              payload: {
-                taskId: task.taskId,
-                shiftLogId: log._id.toString(),
-                sessionDay: log.shiftDate,
-                targetDate: log.shiftDate,
-                botCheckType: checkType,
-                frequencyMinutes: task.frequencyMinutesSnapshot,
-                triggeredBy: 'SHIFT_SCANNER_V2',
-              },
-              attempts: 0,
-              logs: [
-                `[${new Date().toISOString()}] ShiftScanner V2 enqueued job for Task [${task.taskId}]`,
-              ],
-            });
-
-            // Nếu V2 Dispatcher có Worker chuyên trách, thực thi ngay lập tức qua V2!
-            if (this.botDispatcher.hasWorker(checkType)) {
-              await this.botDispatcher.acquireAndProcessNextJob();
-              await this.syncJobResultToShift(
-                log._id.toString(),
-                task.taskId,
-                newJob._id.toString(),
-                systemUser,
+            // Đưa Job mới vào hàng đợi (ưu tiên qua BotJobQueueService để đảm bảo Domain Lock & Deduplication)
+            if (this.botJobQueueService) {
+              await this.botJobQueueService.enqueue(
+                checkType,
+                {
+                  taskId: task.taskId,
+                  shiftLogId: log._id.toString(),
+                  sessionDay: log.shiftDate,
+                  targetDate: log.shiftDate,
+                  botCheckType: checkType,
+                  frequencyMinutes: task.frequencyMinutesSnapshot,
+                  triggeredBy: 'SHIFT_SCANNER_V2',
+                },
+                3,
               );
-            } else if (this.botJobQueueService) {
-              // Fallback an toàn cho các tác vụ legacy chưa chuyển đổi (RPA, Email, etc.)
-              this.logger.debug(
-                `[ShiftScanner] Năng lực [${checkType}] chưa có V2 Worker, ủy quyền xử lý cho Legacy Queue.`,
-              );
+            } else {
+              // Fallback khi BotJobQueueService chưa khởi tạo
+              const newJob = await this.botJobModel.create({
+                jobType: checkType,
+                status: 'PENDING',
+                payload: {
+                  taskId: task.taskId,
+                  shiftLogId: log._id.toString(),
+                  sessionDay: log.shiftDate,
+                  targetDate: log.shiftDate,
+                  botCheckType: checkType,
+                  frequencyMinutes: task.frequencyMinutesSnapshot,
+                  triggeredBy: 'SHIFT_SCANNER_V2',
+                },
+                attempts: 0,
+                logs: [
+                  `[${new Date().toISOString()}] ShiftScanner V2 enqueued job for Task [${task.taskId}]`,
+                ],
+              });
+              if (this.botDispatcher.hasWorker(checkType)) {
+                await this.botDispatcher.acquireAndProcessNextJob();
+                await this.syncJobResultToShift(
+                  log._id.toString(),
+                  task.taskId,
+                  newJob._id.toString(),
+                  systemUser,
+                );
+              }
             }
           } else if (existingJob) {
             // Đồng bộ trạng thái nếu Task đang WAITING nhưng Job đã hoàn tất trước đó
@@ -359,6 +387,25 @@ export class ShiftScannerService {
             true,
           );
         }
+      } else if (job.status === 'WAITING') {
+        const res = job.payload?.result || {};
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          'WAITING',
+          systemUser,
+          res.message || job.payload?.summary || 'Đang chờ file hệ thống...',
+          true,
+        );
+      } else if (job.status === 'ABORTED') {
+        await this.shiftsService.updateTaskStatus(
+          shiftLogId,
+          taskId,
+          'NEEDS_ATTENTION',
+          systemUser,
+          job.error || job.payload?.summary || 'Tạm dừng đối soát do dịch vụ đối tác không khả dụng.',
+          true,
+        );
       } else if (job.status === 'FAILED') {
         await this.shiftsService.updateTaskStatus(
           shiftLogId,
@@ -383,7 +430,7 @@ export class ShiftScannerService {
     existingJob: any,
     cooldownMinutes: number = 15,
   ): boolean {
-    if (!existingJob || existingJob.status !== 'COMPLETED') {
+    if (!existingJob || (existingJob.status !== 'COMPLETED' && existingJob.status !== 'WAITING')) {
       return false;
     }
 
@@ -393,7 +440,7 @@ export class ShiftScannerService {
       const payload = jobObj.payload || {};
       const result = payload.result || {};
 
-      if (!result.isWaitingFiles && result.status !== 'WAITING') {
+      if (existingJob.status !== 'WAITING' && !result.isWaitingFiles && result.status !== 'WAITING') {
         return false;
       }
 
@@ -418,7 +465,7 @@ export class ShiftScannerService {
       return true;
     }
 
-    if (['COMPLETED', 'FAILED', 'ABORTED', 'CANCELLED'].includes(existingJob.status)) {
+    if (['COMPLETED', 'FAILED', 'ABORTED', 'CANCELLED', 'WAITING'].includes(existingJob.status)) {
       if (task.status === 'PENDING' || task.status === 'WAITING') {
         const cooldownMinutes =
           task.frequencyMinutesSnapshot && task.frequencyMinutesSnapshot > 0

@@ -14,15 +14,20 @@ import {
 } from '../../../shared/helpers/file-path.helper';
 
 /**
- * RpaDownloadJobHandler — Điều phối Job tải báo cáo từ M-System.
+ * RpaDownloadJobHandler — Điều phối Job tải báo cáo từ M-System (Direct REST API / Playwright).
  *
- * Trigger qua BotJob với jobType: 'RPA_DOWNLOAD_REPORTS'.
+ * Trigger qua BotJob với jobType chuẩn: 'DOWNLOAD_MS'
+ * Đồng thời hỗ trợ backwards compatibility cho: 'RPA_DOWNLOAD_REPORTS', 'RPA_DOWNLOAD'.
  * Hoàn toàn Data-driven và ủy quyền 100% cho IngressService (fail-fast, zero silent swallow, zero fallback).
  */
 @Injectable()
 export class RpaDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(RpaDownloadJobHandler.name);
-  readonly jobTypes = ['RPA_DOWNLOAD_REPORTS'];
+  readonly jobTypes = [
+    'DOWNLOAD_MS',
+    'RPA_DOWNLOAD_REPORTS',
+    'RPA_DOWNLOAD',
+  ];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,

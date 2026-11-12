@@ -1014,7 +1014,7 @@
         "priority": "HIGH",
         "sortOrder": 28,
         "isBotCheck": true,
-        "botCheckType": "AUTO_CHECK_SOD",
+        "botCheckType": "CHECK_CQG_SYNC",
         "botTriggerTime": "",
         "botCheckTarget": "",
         "botSuccessCondition": "",

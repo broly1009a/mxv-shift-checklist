@@ -10,7 +10,7 @@ import { parseJobPayload, getCqgBackupBase } from '../../../shared/helpers/file-
 @Injectable()
 export class CastDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(CastDownloadJobHandler.name);
-  readonly jobTypes = ['DOWNLOAD_CAST'];
+  readonly jobTypes = ['DOWNLOAD_CAST', 'RPA_DOWNLOAD_CAST'];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,

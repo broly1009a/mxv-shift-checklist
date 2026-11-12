@@ -29,18 +29,31 @@ export async function seedBotSchedulerConfig(
   settingsService: SystemSettingsService,
   logger?: LoggerLike,
 ): Promise<void> {
+  // VẬN HÀNH THỰC TẾ: TẮT HOÀN TOÀN AUTO-SEED SCHEDULER CONFIG
+  // Tránh việc tự ý chèn lại hoặc ghi đè bot_scheduler_config đã được Admin thiết lập trên Web.
+  // Chỉ cho phép chạy khi có biến môi trường tường minh ALLOW_DB_SEED=true ở môi trường non-production.
+  const isAllowDbSeed = process.env.ALLOW_DB_SEED === 'true';
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (!isAllowDbSeed || isProduction) {
+    logger?.log(
+      '[SchedulerConfigSeeder] Auto-seeding bot_scheduler_config is DISABLED for operational safety (Hệ thống đang vận hành thực tế hoặc ALLOW_DB_SEED != true).',
+    );
+    return;
+  }
+
   const backupTime = (await settingsService.getSetting('bot_backup_time')).trim();
   const statTime = (await settingsService.getSetting('bot_stat_time')).trim();
   const existing = await settingsService.getSetting('bot_scheduler_config', '');
 
   if (!existing) {
     if (!backupTime) {
-      logger?.warn(
+      logger?.warn?.(
         '[SchedulerConfigSeeder] Chưa cấu hình bot_backup_time trong CSDL SystemSettings. Các tác vụ sao lưu cần được người dùng cấu hình mốc giờ trên giao diện Quản trị.',
       );
     }
     if (!statTime) {
-      logger?.warn(
+      logger?.warn?.(
         '[SchedulerConfigSeeder] Chưa cấu hình bot_stat_time trong CSDL SystemSettings. Tác vụ thống kê cần được người dùng cấu hình mốc giờ trên giao diện Quản trị.',
       );
     }
@@ -88,11 +101,11 @@ export async function seedBotSchedulerConfig(
         jobType: 'DOWNLOAD_CAST',
       },
       {
-        id: 'AUTO_CHECK_SOD',
-        name: 'Đối chiếu số dư đầu ngày (SOD)',
-        enabled: true,
+        id: 'CHECK_CQG_SYNC',
+        name: 'Đối Chiếu Số Dư CQG (SOD)',
+        enabled: false,
         time: '',
-        jobType: 'AUTO_CHECK_SOD',
+        jobType: 'CHECK_CQG_SYNC',
       },
       {
         id: 'RPA_DOWNLOAD_CCP_PHASE1',
@@ -236,13 +249,13 @@ export async function seedBotSchedulerConfig(
           updated = true;
         }
 
-        if (!tasks.some((t) => t.id === 'AUTO_CHECK_SOD')) {
+        if (!tasks.some((t) => ['CHECK_CQG_SYNC', 'CQG_SYNC'].includes(t.id) || ['CHECK_CQG_SYNC', 'CQG_SYNC'].includes(t.jobType))) {
           tasks.push({
-            id: 'AUTO_CHECK_SOD',
-            name: 'Đối chiếu số dư đầu ngày (SOD)',
-            enabled: true,
+            id: 'CHECK_CQG_SYNC',
+            name: 'Đối Chiếu Số Dư CQG (SOD)',
+            enabled: false,
             time: '',
-            jobType: 'AUTO_CHECK_SOD',
+            jobType: 'CHECK_CQG_SYNC',
           });
           updated = true;
         }

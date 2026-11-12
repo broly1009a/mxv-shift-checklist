@@ -1,5 +1,6 @@
 import { TRADING_FILE_PATTERNS } from '../../modules/trading-ops/constants/trading-file-patterns.constant';
 import { TradingOpsTaskPreflightDefinition } from '../../modules/trading-ops/constants/preflight.types';
+import { expandJobTypeAliases } from './job-domains.constant';
 
 export interface BotTaskDefinition {
   jobType: string;      // Loại job trong bot_jobs (VD: 'CHECK_KLGD')
@@ -402,13 +403,6 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
   },
 
   // ── 6. CÁC TÁC VỤ KHÔNG CẦN PRE-FLIGHT (LIGHTWEIGHT / API / CRAWLER) ─────────
-  AUTO_CHECK_SOD: {
-    jobType: 'AUTO_CHECK_SOD',
-    botCheckType: 'AUTO_CHECK_SOD',
-    displayName: 'Đối Chiếu Đầu Ngày SOD',
-    description: 'Đối chiếu số dư đầu ngày SOD (M-System vs CQG)',
-    category: 'SESSION_OPEN',
-  },
   CHECK_EOD_MS: {
     jobType: 'CHECK_EOD_MS',
     botCheckType: 'CHECK_EOD_MS',
@@ -419,8 +413,8 @@ export const BOT_TASK_REGISTRY: Record<string, BotTaskDefinition> = {
   CHECK_CQG_SYNC: {
     jobType: 'CHECK_CQG_SYNC',
     botCheckType: 'CHECK_CQG_SYNC',
-    displayName: 'Đồng Bộ Số Dư CQG',
-    description: 'Đối chiếu và đồng bộ số dư tài khoản CQG vs M-System',
+    displayName: 'Đối Chiếu Số Dư CQG (SOD)',
+    description: 'Đối chiếu số dư CQG CAST vs M-System QLTKGD (Mở phiên SOD & Trong phiên)',
     category: 'RECONCILIATION',
   },
   CHECK_MARGIN_DECISION: {
@@ -491,12 +485,15 @@ export function findBotTasksInShift(
     );
 
   const targetBotType = config?.botCheckType || normalizedKey;
+  const candidateTypes = new Set(
+    expandJobTypeAliases([targetBotType, normalizedKey]).map((k) => k.toUpperCase()),
+  );
 
-  // 1. Tìm Task Con chạy bot dựa 100% vào thuộc tính botCheckType do Admin gán trong Template/Ca
+  // 1. Tìm Task Con chạy bot dựa 100% vào thuộc tính botCheckType do Admin gán trong Template/Ca (liên thông 2 chiều qua alias)
   let subTask = details.find(
     (t) =>
-      (t.botCheckTypeSnapshot && t.botCheckTypeSnapshot.toUpperCase() === targetBotType) ||
-      (t.botCheckType && t.botCheckType.toUpperCase() === targetBotType),
+      (t.botCheckTypeSnapshot && candidateTypes.has(String(t.botCheckTypeSnapshot).toUpperCase())) ||
+      (t.botCheckType && candidateTypes.has(String(t.botCheckType).toUpperCase())),
   );
 
   // 2. Tìm Task Cha dựa 100% vào quan hệ parentTaskIdSnapshot lưu trong Database

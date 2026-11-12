@@ -17,14 +17,22 @@ import {
 /**
  * CcpCeDownloadJobHandler — Điều phối Job tải báo cáo từ VNCLEAR CoreCCP / CoreEX.
  *
- * Trigger qua BotJob với jobType: 'DOWNLOAD_CCP_REPORT' hoặc 'DOWNLOAD_CE_REPORT'.
+ * Trigger qua BotJob với jobType chuẩn: 'DOWNLOAD_CCP' hoặc 'DOWNLOAD_CE'.
+ * Đồng thời hỗ trợ backwards compatibility: 'DOWNLOAD_CCP_REPORT', 'DOWNLOAD_CE_REPORT', 'RPA_DOWNLOAD_CCP_PHASE1', 'RPA_DOWNLOAD_CE'.
  * Hoàn toàn Data-driven và ủy quyền 100% cho IngressService (fail-fast, zero silent swallow, zero fallback).
  */
 @Injectable()
 export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
   private readonly logger = new Logger(CcpCeDownloadJobHandler.name);
 
-  readonly jobTypes = ['DOWNLOAD_CCP_REPORT', 'DOWNLOAD_CE_REPORT'];
+  readonly jobTypes = [
+    'DOWNLOAD_CCP',
+    'DOWNLOAD_CE',
+    'DOWNLOAD_CCP_REPORT',
+    'DOWNLOAD_CE_REPORT',
+    'RPA_DOWNLOAD_CCP_PHASE1',
+    'RPA_DOWNLOAD_CE',
+  ];
 
   constructor(
     private readonly registry: BotJobHandlerRegistry,
@@ -38,7 +46,10 @@ export class CcpCeDownloadJobHandler implements IBotJobHandler, OnModuleInit {
 
   async execute(job: any, context: IJobExecutionContext): Promise<any> {
     const { jobType } = job;
-    const isCcp = jobType === 'DOWNLOAD_CCP_REPORT';
+    const isCcp =
+      jobType === 'DOWNLOAD_CCP' ||
+      jobType === 'DOWNLOAD_CCP_REPORT' ||
+      jobType === 'RPA_DOWNLOAD_CCP_PHASE1';
     const sourceKey = isCcp ? 'CCP' : 'CORE_EX';
     const systemLabel = isCcp ? 'CoreCCP' : 'CoreEX';
 

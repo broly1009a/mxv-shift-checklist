@@ -52,7 +52,7 @@ export default function LegacyCqgSyncSection({
   const handleTriggerCheck = async () => {
     if (!token || triggering) return;
     setTriggering(true);
-    const toastId = toast.loading('Đang khởi chạy đối chiếu số dư CQG...');
+    const toastId = toast.loading('Đang khởi chạy đối chiếu số dư CQG (tải dữ liệu tươi)...');
 
     try {
       const result = await api.tradingOps.triggerRun(
@@ -71,9 +71,9 @@ export default function LegacyCqgSyncSection({
         return;
       }
 
-      // Poll until completion
+      // Poll until completion (tối đa 3 phút cho quy trình tải tươi qua Playwright + REST API)
       const startTime = Date.now();
-      const MAX_WAIT_MS = 120000;
+      const MAX_WAIT_MS = 180000;
       const POLL_INTERVAL_MS = 3000;
       let completed = false;
 
@@ -84,9 +84,16 @@ export default function LegacyCqgSyncSection({
           const job = await api.checklistHub.getJobDetail(jobId, token);
           if (!job) continue;
 
-          if (job.status === 'COMPLETED') {
+          if (job.status === 'PROCESSING') {
+            toast.loading('Đang tải dữ liệu tươi từ CQG CAST & M-System...', { id: toastId });
+          } else if (job.status === 'COMPLETED') {
             completed = true;
-            toast.success('Đồng bộ số dư CQG hoàn tất!', { id: toastId });
+            const passed = job.payload?.result?.passed !== false;
+            if (passed) {
+              toast.success(job.payload?.result?.summary || 'Đồng bộ số dư CQG hoàn tất: Khớp 100%!', { id: toastId });
+            } else {
+              toast(job.payload?.result?.summary || 'Đã đối chiếu số dư CQG: Phát hiện chênh lệch!', { id: toastId });
+            }
             break;
           } else if (job.status === 'WAITING' || job.payload?.result?.isWaitingFiles) {
             completed = true;

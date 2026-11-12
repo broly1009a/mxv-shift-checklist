@@ -21,10 +21,11 @@ export const AUDIT_JOB_TYPES = [
   'FILE_AUDIT_ACM',
   'FILE_AUDIT_CQG',
   'FILE_AUDIT_MS',
-  'AUTO_CHECK_SOD',
   'RUN_MACRO',
   'RUN_LOT_MACRO',
   'RUN_VALUE_MACRO',
+  'VERIFY_EMAIL_STATUS',
+  'EMAIL_STATUS_CHECK',
 ] as const;
 
 export type AuditJobType = (typeof AUDIT_JOB_TYPES)[number];

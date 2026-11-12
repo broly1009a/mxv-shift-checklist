@@ -10,11 +10,9 @@ import {
   isMarketWeekendClosed,
   getAcmBackupBase,
 } from '../../../shared/helpers/file-path.helper';
+import { expandJobTypeAliases, isReconMasterSwitchJob } from '../../../shared';
 
-import {
-  SchedulerTaskConfig,
-  seedBotSchedulerConfig,
-} from '../helpers/scheduler-config-seeder.helper';
+import { SchedulerTaskConfig } from '../helpers/scheduler-config-seeder.helper';
 
 export type { SchedulerTaskConfig };
 @Injectable()
@@ -29,13 +27,9 @@ export class AutonomousSchedulerService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('Dynamic Scheduler Service initialized.');
-    // Seed default scheduler config if not present
-    await this.seedDefaultConfig();
-  }
-
-  private async seedDefaultConfig() {
-    await seedBotSchedulerConfig(this.settingsService, this.logger);
+    this.logger.log(
+      'Dynamic Scheduler Service initialized (Auto-Seeding bot_scheduler_config is DISABLED for operational safety).',
+    );
   }
 
   /**
@@ -241,7 +235,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
 
     try {
       // 1. M-System: Tải báo cáo trực tiếp từ sàn qua RPA_DOWNLOAD_REPORTS
-      await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+      await this.jobQueueService.enqueue('DOWNLOAD_MS', {
         targets: msTargets,
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
@@ -252,7 +246,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
       });
 
       // 2. CQG: Tải báo cáo thô từ web và tự động ghép nối qua DOWNLOAD_CQG_BACKUP
-      await this.jobQueueService.enqueue('DOWNLOAD_CQG_BACKUP', {
+      await this.jobQueueService.enqueue('DOWNLOAD_CQG', {
         targetDate: sessionDayStr,
         sessionDay: sessionDayStr,
         reports: {
@@ -273,7 +267,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
       });
 
       // 3. CoreCCP: Tự động tải Full CoreCCP
-      await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
+      await this.jobQueueService.enqueue('DOWNLOAD_CCP', {
         startDate: sessionDayStr,
         endDate: sessionDayStr,
         sessionDay: sessionDayStr,
@@ -286,7 +280,7 @@ export class AutonomousSchedulerService implements OnModuleInit {
       });
 
       // 4. CoreEX: Tự động tải Full CoreEX
-      await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
+      await this.jobQueueService.enqueue('DOWNLOAD_CE', {
         startDate: sessionDayStr,
         endDate: sessionDayStr,
         sessionDay: sessionDayStr,
@@ -325,14 +319,17 @@ export class AutonomousSchedulerService implements OnModuleInit {
     timeZone: 'Asia/Saigon',
   })
   async checkSchedule() {
-    // Check Master Switch: bot_auto_backup_enabled
-    const autoBackupSetting = await this.settingsService.getSetting(
-      'bot_auto_backup_enabled',
-      'true',
-    );
-    if (autoBackupSetting === 'false') {
+    // Check Master Switches:
+    // - bot_auto_backup_enabled: kiểm soát tải backup & chạy thống kê
+    // - bot_auto_recon_enabled: kiểm soát các tác vụ đối chiếu (CHECK_CQG_SYNC, CHECK_DSGD_BEFORE_EOD, CHECK_EOD_MS, ...)
+    const [autoBackupSetting, autoReconSetting] = await Promise.all([
+      this.settingsService.getSetting('bot_auto_backup_enabled', 'true'),
+      this.settingsService.getSetting('bot_auto_recon_enabled', 'true'),
+    ]);
+
+    if (autoBackupSetting === 'false' && autoReconSetting === 'false') {
       this.logger.debug(
-        'Dynamic bot scheduler is paused by user switch (bot_auto_backup_enabled=false).',
+        'Dynamic bot scheduler is paused by user switches (bot_auto_backup_enabled=false & bot_auto_recon_enabled=false).',
       );
       return;
     }
@@ -378,83 +375,46 @@ export class AutonomousSchedulerService implements OnModuleInit {
       );
     }
 
-    // 1. Đồng bộ giờ backup động (RPA_DOWNLOAD_MS, DOWNLOAD_CQG_BACKUP, CoreCCP và CoreEX)
+    // 1. Đồng bộ giờ backup động cho các tác vụ backup ĐANG CÓ TRONG CSDL (KHÔNG tự động seed thêm tác vụ nếu chưa được cấu hình)
     if (backupTime && /^\d{2}:\d{2}$/.test(backupTime)) {
-      const rpaTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS');
+      const rpaTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_MS' || t.jobType === 'DOWNLOAD_MS' || t.jobType === 'RPA_DOWNLOAD_REPORTS');
       if (rpaTask) {
         rpaTask.time = backupTime;
-        rpaTask.enabled = backupTimeEnabled !== 'false';
+        if (backupTimeEnabled === 'false') rpaTask.enabled = false;
       }
-      const cqgTask = tasks.find((t) => t.id === 'DOWNLOAD_CQG_BACKUP');
+      const cqgTask = tasks.find((t) => t.id === 'DOWNLOAD_CQG_BACKUP' || t.jobType === 'DOWNLOAD_CQG' || t.jobType === 'DOWNLOAD_CQG_BACKUP');
       if (cqgTask) {
         cqgTask.time = backupTime;
-        cqgTask.enabled = backupTimeEnabled !== 'false';
+        if (backupTimeEnabled === 'false') cqgTask.enabled = false;
       }
 
-      // Đồng bộ mốc giờ tải cho CoreCCP
-      let ccpTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CCP_PHASE1' || t.jobType === 'DOWNLOAD_CCP_REPORT');
+      const ccpTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CCP_PHASE1' || t.jobType === 'DOWNLOAD_CCP' || t.jobType === 'DOWNLOAD_CCP_REPORT');
       if (ccpTask) {
         ccpTask.time = backupTime;
-        ccpTask.enabled = backupTimeEnabled !== 'false';
+        if (backupTimeEnabled === 'false') ccpTask.enabled = false;
         ccpTask.payload = { ...(ccpTask.payload || {}), reports: ['FULL'] };
-      } else {
-        tasks.push({
-          id: 'RPA_DOWNLOAD_CCP_PHASE1',
-          name: 'Tự động tải Full báo cáo CoreCCP (VNCLEAR)',
-          enabled: backupTimeEnabled !== 'false',
-          time: backupTime,
-          jobType: 'DOWNLOAD_CCP_REPORT',
-          payload: { reports: ['FULL'] },
-        });
       }
 
-      // Đồng bộ mốc giờ tải cho CoreEX
-      let ceTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CE' || t.jobType === 'DOWNLOAD_CE_REPORT');
+      const ceTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_CE' || t.jobType === 'DOWNLOAD_CE' || t.jobType === 'DOWNLOAD_CE_REPORT');
       if (ceTask) {
         ceTask.time = backupTime;
-        ceTask.enabled = backupTimeEnabled !== 'false';
+        if (backupTimeEnabled === 'false') ceTask.enabled = false;
         ceTask.payload = { ...(ceTask.payload || {}), reports: ['FULL'] };
-      } else {
-        tasks.push({
-          id: 'RPA_DOWNLOAD_CE',
-          name: 'Tự động tải Full báo cáo CoreEX (Liên thông)',
-          enabled: backupTimeEnabled !== 'false',
-          time: backupTime,
-          jobType: 'DOWNLOAD_CE_REPORT',
-          payload: { reports: ['FULL'] },
-        });
       }
 
-      // Đồng bộ mốc giờ tải cho ACM
-      let acmTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_ACM' || t.jobType === 'FILE_AUDIT_ACM');
+      const acmTask = tasks.find((t) => t.id === 'RPA_DOWNLOAD_ACM' || t.jobType === 'DOWNLOAD_ACM' || t.jobType === 'FILE_AUDIT_ACM');
       if (acmTask) {
         acmTask.time = backupTime;
-        acmTask.enabled = backupTimeEnabled !== 'false';
-      } else {
-        tasks.push({
-          id: 'RPA_DOWNLOAD_ACM',
-          name: 'Tự động tải & kiểm tra file backup ACM (Web & SFTP)',
-          enabled: backupTimeEnabled !== 'false',
-          time: backupTime,
-          jobType: 'FILE_AUDIT_ACM',
-        });
+        if (backupTimeEnabled === 'false') acmTask.enabled = false;
       }
     }
 
-    // 2. Đồng bộ giờ thống kê động (RUN_LOT_MACRO / RUN_VALUE_MACRO)
+    // 2. Đồng bộ giờ thống kê động cho tác vụ thống kê ĐANG CÓ TRONG CSDL (KHÔNG tự động seed thêm)
     if (statTime && /^\d{2}:\d{2}$/.test(statTime)) {
-      let statTask = tasks.find((t) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO');
-      if (statTask) {
+      const statTasks = tasks.filter((t) => t.id === 'AUTO_GENERATE_STATISTICS' || t.jobType === 'RUN_LOT_MACRO' || t.jobType === 'RUN_VALUE_MACRO' || t.jobType === 'RUN_MACRO_CE');
+      for (const statTask of statTasks) {
         statTask.time = statTime;
-        statTask.enabled = statTimeEnabled !== 'false';
-      } else {
-        tasks.push({
-          id: 'AUTO_GENERATE_STATISTICS',
-          name: 'Tự động tạo báo cáo thống kê số lot & GTGD',
-          enabled: statTimeEnabled !== 'false',
-          time: statTime,
-          jobType: 'RUN_LOT_MACRO',
-        });
+        if (statTimeEnabled === 'false') statTask.enabled = false;
       }
     }
 
@@ -473,6 +433,21 @@ export class AutonomousSchedulerService implements OnModuleInit {
       const lastRunDate = this.lastRunMap.get(task.id);
       if (lastRunDate === todayStr) continue;
 
+      // Enforce per-capability master switch (Auto Recon vs Auto Backup/Statistics)
+      const isReconTask = isReconMasterSwitchJob(task.jobType);
+      if (isReconTask && autoReconSetting === 'false') {
+        this.logger.debug(
+          `Scheduled reconciliation task "${task.name}" (${task.jobType}) skipped because bot_auto_recon_enabled=false.`,
+        );
+        continue;
+      }
+      if (!isReconTask && autoBackupSetting === 'false') {
+        this.logger.debug(
+          `Scheduled backup/statistics task "${task.name}" (${task.jobType}) skipped because bot_auto_backup_enabled=false.`,
+        );
+        continue;
+      }
+
       this.logger.log(
         `Scheduled task "${task.name}" (${task.id}) triggered at ${task.time}.`,
       );
@@ -480,7 +455,10 @@ export class AutonomousSchedulerService implements OnModuleInit {
       // Prepare payload and look for matching checklist task to link
       const sessionStartSetting = await this.settingsService.getSetting('session_start_time');
       if (!sessionStartSetting) {
-        throw new Error('Chưa cấu hình giờ mở phiên (session_start_time) trong CSDL SystemSettings.');
+        this.logger.warn(
+          `[Scheduler] Bỏ qua task "${task.name}" (${task.id}) lúc ${task.time} do chưa cấu hình session_start_time trong CSDL.`,
+        );
+        continue;
       }
 
       // Market Weekend Guard: Không kích hoạt các task sao lưu / báo cáo thị trường khi cuối tuần đóng cửa
@@ -508,30 +486,18 @@ export class AutonomousSchedulerService implements OnModuleInit {
       };
 
       if (activeShift) {
-        // Map scheduler task id/jobType to botCheckTypeSnapshot
-        let checkTypeToFind = '';
-        if (task.jobType === 'DOWNLOAD_CAST') {
-          checkTypeToFind = 'RPA_DOWNLOAD_CAST';
-        } else if (task.jobType === 'AUTO_CHECK_SOD') {
-          checkTypeToFind = 'AUTO_CHECK_SOD';
-        } else if (task.jobType === 'RPA_DOWNLOAD_REPORTS') {
-          checkTypeToFind = 'RPA_DOWNLOAD';
-        } else {
-          checkTypeToFind = task.jobType;
-        }
-
-        if (checkTypeToFind) {
-          const matchedTask = activeShift.details.find(
-            (t) => t.botCheckTypeSnapshot === checkTypeToFind && !t.isChecked,
+        // Map scheduler task id/jobType to botCheckTypeSnapshot using expandJobTypeAliases
+        const candidateTypes = expandJobTypeAliases([task.jobType]);
+        const matchedTask = activeShift.details.find(
+          (t) => candidateTypes.includes(t.botCheckTypeSnapshot || '') && !t.isChecked,
+        );
+        if (matchedTask) {
+          jobPayload.taskId = matchedTask.taskId;
+          jobPayload.shiftLogId = activeShift._id.toString();
+          jobPayload.isStandalone = false;
+          this.logger.log(
+            `Linked scheduled job ${task.jobType} to checklist task ${matchedTask.taskId} in shift ${activeShift._id}.`,
           );
-          if (matchedTask) {
-            jobPayload.taskId = matchedTask.taskId;
-            jobPayload.shiftLogId = activeShift._id.toString();
-            jobPayload.isStandalone = false;
-            this.logger.log(
-              `Linked scheduled job ${task.jobType} to checklist task ${matchedTask.taskId} in shift ${activeShift._id}.`,
-            );
-          }
         }
       }
 

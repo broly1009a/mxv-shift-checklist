@@ -35,6 +35,7 @@ import {
   resolveStoragePathCrossPlatform,
   parseJobPayload,
 } from '../../../shared/helpers/file-path.helper';
+import { expandJobTypeAliases } from '../../../shared';
 
 @Controller(['api/v1/checklist-hub', 'api/v1/bot-engine'])
 @UseGuards(JwtAuthGuard)
@@ -69,8 +70,9 @@ export class ChecklistBotJobsController {
     }
     if (jobTypes) {
       const types = jobTypes.split(',').map((t) => t.trim()).filter(Boolean);
-      if (types.length > 0) {
-        filter.jobType = { $in: types };
+      const expandedTypes = expandJobTypeAliases(types);
+      if (expandedTypes.length > 0) {
+        filter.jobType = { $in: expandedTypes };
       }
     }
     if (status) {
@@ -647,7 +649,7 @@ export class ChecklistBotJobsController {
     }
 
     const checkType = task.botCheckTypeSnapshot;
-    let jobType: any = 'RPA_DOWNLOAD_REPORTS';
+    let jobType: any = 'DOWNLOAD_MS';
     const payload: any = {
       taskId: task.taskId,
       shiftLogId,
@@ -655,30 +657,42 @@ export class ChecklistBotJobsController {
       maxAttempts: 1,
     };
 
-    if (checkType === 'AUTO_DOWNLOAD_MS') {
-      jobType = 'RPA_DOWNLOAD_REPORTS';
+    if (
+      checkType === 'DOWNLOAD_MS' ||
+      checkType === 'RPA_DOWNLOAD' ||
+      checkType === 'RPA_DOWNLOAD_REPORTS'
+    ) {
+      jobType = 'DOWNLOAD_MS';
       payload.targets = targets;
     } else if (
-      checkType === 'AUTO_DOWNLOAD_CQG' ||
+      checkType === 'DOWNLOAD_CQG' ||
       checkType === 'DOWNLOAD_CQG_BACKUP'
     ) {
-      jobType = 'DOWNLOAD_CQG_BACKUP';
+      jobType = 'DOWNLOAD_CQG';
     } else if (
-      checkType === 'AUTO_DOWNLOAD_CCP' ||
-      checkType === 'DOWNLOAD_CCP_REPORT'
+      checkType === 'DOWNLOAD_CCP' ||
+      checkType === 'DOWNLOAD_CCP_REPORT' ||
+      checkType === 'RPA_DOWNLOAD_CCP_PHASE1'
     ) {
-      jobType = 'DOWNLOAD_CCP_REPORT';
+      jobType = 'DOWNLOAD_CCP';
     } else if (
-      checkType === 'AUTO_DOWNLOAD_CE' ||
-      checkType === 'DOWNLOAD_CE_REPORT'
+      checkType === 'DOWNLOAD_CE' ||
+      checkType === 'DOWNLOAD_CE_REPORT' ||
+      checkType === 'RPA_DOWNLOAD_CE'
     ) {
-      jobType = 'DOWNLOAD_CE_REPORT';
+      jobType = 'DOWNLOAD_CE';
     } else if (
-      checkType === 'AUTO_DOWNLOAD_CAST' ||
-      checkType === 'DOWNLOAD_CAST'
+      checkType === 'DOWNLOAD_CAST' ||
+      checkType === 'RPA_DOWNLOAD_CAST'
     ) {
       jobType = 'DOWNLOAD_CAST';
+    } else if (
+      checkType === 'CHECK_CQG_SYNC' ||
+      checkType === 'CQG_SYNC'
+    ) {
+      jobType = 'CHECK_CQG_SYNC';
     } else {
+      jobType = checkType || 'DOWNLOAD_MS';
       payload.targets = targets;
     }
 

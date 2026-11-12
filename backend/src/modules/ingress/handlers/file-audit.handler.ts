@@ -45,6 +45,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
     'FILE_AUDIT_ACM',
     'FILE_AUDIT_CCP',
     'FILE_AUDIT_CE',
+    'DOWNLOAD_CQG',
     'DOWNLOAD_CQG_BACKUP',
   ];
 
@@ -74,6 +75,7 @@ export class FileAuditJobHandler implements IBotJobHandler, OnModuleInit {
         return this.handleFileAuditCcpJob(job);
       case 'FILE_AUDIT_CE':
         return this.handleFileAuditCeJob(job);
+      case 'DOWNLOAD_CQG':
       case 'DOWNLOAD_CQG_BACKUP':
         return this.handleDownloadCqgBackupJob(job);
       default:

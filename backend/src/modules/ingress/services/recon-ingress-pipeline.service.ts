@@ -160,6 +160,24 @@ export class ReconIngressPipelineService {
       };
     });
 
+    const rawPreflightTimeout = parseInt(
+      await this.settingsService.getSetting('recon_cqg_preflight_timeout_ms', '45000'),
+      10,
+    );
+    const preflightTimeoutMs =
+      Number.isFinite(rawPreflightTimeout) && rawPreflightTimeout >= 5000
+        ? rawPreflightTimeout
+        : 45000;
+
+    const rawCqgReadyTimeout = parseInt(
+      await this.settingsService.getSetting('recon_cqg_ready_timeout_ms', '70000'),
+      10,
+    );
+    const cqgReadyTimeoutMs =
+      Number.isFinite(rawCqgReadyTimeout) && rawCqgReadyTimeout >= 10000
+        ? rawCqgReadyTimeout
+        : 70000;
+
     const readyState = {
       ms: false,
       acm: false,
@@ -167,11 +185,15 @@ export class ReconIngressPipelineService {
       cqg1: false,
       cqg2: false,
     };
+    let preflightDoneAt: number | null = null;
 
-    const BARRIER_TIMEOUT_MS = 120_000;
+    const BARRIER_TIMEOUT_MS = preflightTimeoutMs + cqgReadyTimeoutMs + 20_000;
     const barrierTimer = setTimeout(() => {
       if (!barrierTriggered && !barrierAborted) {
-        abortBarrierIfStrict('ĐỒNG BỘ NGUỒN', 'Hết thời gian chờ các hệ thống cùng sẵn sàng (120s timeout)');
+        abortBarrierIfStrict(
+          'ĐỒNG BỘ NGUỒN',
+          `Hết thời gian chờ các hệ thống cùng sẵn sàng (${Math.round(BARRIER_TIMEOUT_MS / 1000)}s timeout)`,
+        );
       }
     }, BARRIER_TIMEOUT_MS);
 
@@ -214,13 +236,20 @@ export class ReconIngressPipelineService {
     };
 
     const waitForPair = async (pair: ReconPairKey, timeoutMs: number = 90_000) => {
-      await Promise.race([
-        pairPromises[pair],
-        new Promise<void>((resolve) => setTimeout(() => {
-          log(`⚠️ [Pipelined-Sync] Chờ cặp [${pair}] từ CQG quá ${timeoutMs / 1000}s. Tự động kích hoạt tải fallback.`);
-          resolve();
-        }, timeoutMs)),
-      ]);
+      let pairTimer: NodeJS.Timeout | undefined;
+      try {
+        await Promise.race([
+          pairPromises[pair],
+          new Promise<void>((resolve) => {
+            pairTimer = setTimeout(() => {
+              log(`⚠️ [Pipelined-Sync] Chờ cặp [${pair}] từ CQG quá ${timeoutMs / 1000}s. Tự động kích hoạt tải fallback.`);
+              resolve();
+            }, timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (pairTimer) clearTimeout(pairTimer);
+      }
     };
 
     const checkAllReadyAndTrigger = () => {
@@ -627,6 +656,17 @@ export class ReconIngressPipelineService {
 
     // ── 3. WORKER CORECCP (VNCLEAR) ──────────────────────────────────────────
     const runWorkerCcp = async () => {
+      if (
+        options.checkKlgd === false &&
+        options.checkTtm === false &&
+        options.checkTttt === false
+      ) {
+        log('CCP  Bỏ qua CoreCCP theo tùy chọn.');
+        readyState.ccp = true;
+        checkAllReadyAndTrigger();
+        return;
+      }
+
       const ingressModeCcp = await this.settingsService.getSetting(
         'ingress_mode_ccp',
         await this.settingsService.getSetting('ingress_mode', 'REST_API'),
@@ -845,8 +885,11 @@ export class ReconIngressPipelineService {
         // Pre-Flight Barrier Guard: Chờ các phân hệ REST API (MS, CoreCCP, ACM) hoàn tất pre-flight trước khi mở trình duyệt CQG
         // Bảo vệ tài khoản CQG tuyệt đối: Không mở trình duyệt và không đăng nhập CQG nếu bất kỳ bên nào lỗi kết nối/xác thực
         const preflightStart = Date.now();
-        while (!barrierAborted && Date.now() - preflightStart < 15000) {
-          if (readyState.ms && readyState.acm && readyState.ccp) break;
+        while (!barrierAborted && Date.now() - preflightStart < preflightTimeoutMs) {
+          if (readyState.ms && readyState.acm && readyState.ccp) {
+            if (preflightDoneAt === null) preflightDoneAt = Date.now();
+            break;
+          }
           await new Promise((r) => setTimeout(r, 200));
         }
 
@@ -862,7 +905,8 @@ export class ReconIngressPipelineService {
           if (!readyState.ms) missing.push('M-System');
           if (!readyState.acm) missing.push('ACM');
           if (!readyState.ccp) missing.push('CoreCCP');
-          const preflightErr = `[CQG_ABORT_PREFLIGHT] Hủy mở trình duyệt CQG do đối tác chưa sẵn sàng sau 15s Pre-flight: ${missing.join(', ')}`;
+          const preflightSec = Math.round(preflightTimeoutMs / 1000);
+          const preflightErr = `[CQG_ABORT_PREFLIGHT] Hủy mở trình duyệt CQG do đối tác chưa sẵn sàng sau ${preflightSec}s Pre-flight: ${missing.join(', ')}`;
           log(`CQG  ${preflightErr}`);
           readyState.cqg1 = true;
           readyState.cqg2 = true;
@@ -898,10 +942,16 @@ export class ReconIngressPipelineService {
           (msg) => log(msg),
           (pair) => triggerPair(pair),
         );
-        const timeoutPromise = new Promise<{ errors: string[]; downloaded: string[] }>((_, reject) =>
-          setTimeout(() => reject(new Error('Hết thời gian chờ tối đa (4 phút) khi mở trình duyệt và tải file từ CQG.')), cqgTimeoutMs),
-        );
-        const result = await Promise.race([cqgPromise, timeoutPromise]);
+        let cqgTimer: NodeJS.Timeout | undefined;
+        const timeoutPromise = new Promise<{ errors: string[]; downloaded: string[] }>((_, reject) => {
+          cqgTimer = setTimeout(
+            () => reject(new Error('Hết thời gian chờ tối đa (4 phút) khi mở trình duyệt và tải file từ CQG.')),
+            cqgTimeoutMs,
+          );
+        });
+        const result = await Promise.race([cqgPromise, timeoutPromise]).finally(() => {
+          if (cqgTimer) clearTimeout(cqgTimer);
+        });
 
         if (result.downloaded.length > 0) {
           downloadedFiles.push(...result.downloaded);
@@ -928,10 +978,17 @@ export class ReconIngressPipelineService {
 
     // ── BỘ ĐIỀU KHIỂN ĐỒNG BỘ ─────────────────────────────────────────────────
     const startBarrierController = async () => {
-      const waitStart = Date.now();
-      const maxWaitMs = 70000;
-      while (Date.now() - waitStart < maxWaitMs) {
-        if (barrierAborted) return;
+      const controllerStart = Date.now();
+      const maxPreflightWaitPlusBufferMs = preflightTimeoutMs + 5000;
+      while (!barrierAborted) {
+        if (
+          readyState.ms &&
+          readyState.acm &&
+          readyState.ccp &&
+          preflightDoneAt === null
+        ) {
+          preflightDoneAt = Date.now();
+        }
         if (
           readyState.ms &&
           readyState.acm &&
@@ -941,22 +998,37 @@ export class ReconIngressPipelineService {
         ) {
           break;
         }
+        // Chỉ bắt đầu đếm ngân sách chờ CQG (cqgReadyTimeoutMs) SAU KHI Pre-flight 3 bên đã xong
+        if (preflightDoneAt === null) {
+          if (Date.now() - controllerStart >= maxPreflightWaitPlusBufferMs) {
+            break;
+          }
+        } else if (Date.now() - preflightDoneAt >= cqgReadyTimeoutMs) {
+          break;
+        }
         await new Promise((r) => setTimeout(r, 400));
       }
       if (!barrierTriggered && !barrierAborted) {
-        log(' Hết thời gian chờ chuẩn bị (70s). Bắt đầu xuất file từ các hệ thống đã sẵn sàng...');
+        clearTimeout(barrierTimer);
+        log(
+          ` Hết thời gian chờ CQG chuẩn bị (${Math.round(cqgReadyTimeoutMs / 1000)}s sau Pre-flight). Bắt đầu xuất file từ các hệ thống đã sẵn sàng...`,
+        );
         triggerBarrierResolve();
       }
     };
 
     // Chạy song song cả 4 Worker và Bộ điều khiển rào cản
-    await Promise.allSettled([
-      runWorkerMs(),
-      runWorkerAcm(),
-      runWorkerCcp(),
-      runWorkerCqg(),
-      startBarrierController(),
-    ]);
+    try {
+      await Promise.allSettled([
+        runWorkerMs(),
+        runWorkerAcm(),
+        runWorkerCcp(),
+        runWorkerCqg(),
+        startBarrierController(),
+      ]);
+    } finally {
+      clearTimeout(barrierTimer);
+    }
 
     if (barrierAborted) {
       log(` QUY TRÌNH ĐỐI SOÁT TẠM DỪNG: ${abortReason}. Hệ thống không thực hiện so khớp khi chưa đủ dữ liệu.`);

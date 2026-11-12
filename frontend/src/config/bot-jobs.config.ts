@@ -12,10 +12,9 @@ export const JOB_TYPE_LABELS: Record<string, string> = {
   CHECK_DSGD_BEFORE_EOD: 'Đối Chiếu DSGD Trước EOD',
   CHECK_EOD_MS: 'Đối Chiếu EOD M-System',
   CHECK_EOD: 'Đối Chiếu EOD M-System',
-  CHECK_CQG_SYNC: 'Đối Chiếu Số Dư CQG',
-  CQG_SYNC: 'Đối Chiếu Số Dư CQG',
+  CHECK_CQG_SYNC: 'Đối Chiếu Số Dư CQG (SOD)',
+  CQG_SYNC: 'Đối Chiếu Số Dư CQG (SOD)',
   SCAN_NEGATIVE_MARGIN: 'Quét Ký Quỹ Âm MM',
-  AUTO_CHECK_SOD: 'Kiểm Tra Đầu Ngày SOD',
 
   // ── 2. TẢI BÁO CÁO TỪ CÁC HỆ THỐNG / CRAWLER (INGRESS) ──────────────────────
   DOWNLOAD_CQG_BACKUP: 'Tải Báo Cáo CQG',
@@ -81,7 +80,6 @@ export const TRADING_JOB_TYPES: readonly string[] = [
   'RUN_MACRO',
   'RUN_LOT_TVKD_MACRO',
   'RUN_VALUE_TVKD_MACRO',
-  'AUTO_CHECK_SOD',
   'DOWNLOAD_CAST',
   'DOWNLOAD_CQG_BACKUP',
   'RPA_DOWNLOAD_REPORTS',

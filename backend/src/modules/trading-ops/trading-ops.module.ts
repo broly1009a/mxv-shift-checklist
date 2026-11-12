@@ -29,7 +29,6 @@ import { NegativeMarginWorker } from './workers/negative-margin.worker';
 import { CcpLotWorker } from './workers/ccp-lot.worker';
 import { CcpValueWorker } from './workers/ccp-value.worker';
 import { CcpEodWorker } from './workers/ccp-eod.worker';
-import { SodReconWorker } from './workers/sod-recon.worker';
 import { CqgSyncWorker } from './workers/cqg-sync.worker';
 import { EodMsWorker } from './workers/eod-ms.worker';
 import { CeCcpGttWorker } from './workers/ce-ccp-gtt.worker';
@@ -141,7 +140,6 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CcpLotWorker,
     CcpValueWorker,
     CcpEodWorker,
-    SodReconWorker,
     CqgSyncWorker,
     EodMsWorker,
     CeCcpGttWorker,
@@ -189,7 +187,6 @@ import { RECON_PIPELINE_PORT } from '../../shared';
     CcpLotWorker,
     CcpValueWorker,
     CcpEodWorker,
-    SodReconWorker,
     CqgSyncWorker,
     EodMsWorker,
     CeCcpGttWorker,

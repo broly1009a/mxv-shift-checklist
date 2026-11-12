@@ -226,8 +226,8 @@ export const TRADING_JOB_TYPE_TITLES: Record<string, { title: string; desc: stri
     desc: 'Thực hiện chốt sổ và đối chiếu dữ liệu thanh toán bù trừ với hệ thống CoreCCP cuối ngày.',
   },
   CHECK_CQG_SYNC: {
-    title: 'Kích hoạt đồng bộ số dư & trạng thái CQG',
-    desc: 'Đồng bộ hóa dữ liệu số dư, vị thế mở từ 2 tài khoản giao dịch CQG.',
+    title: 'Kích hoạt đối chiếu số dư CQG (SOD)',
+    desc: 'Tải dữ liệu tươi từ CQG CAST & M-System QLTKGD và đối chiếu cân bằng số dư tài khoản.',
   },
   CHECK_GTT: {
     title: 'Kích hoạt kiểm tra đối chiếu giá thanh toán (GTT)',

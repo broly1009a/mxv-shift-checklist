@@ -13,7 +13,6 @@ import { NegativeMarginWorker } from '../../trading-ops/workers/negative-margin.
 import { CcpLotWorker } from '../../trading-ops/workers/ccp-lot.worker';
 import { CcpValueWorker } from '../../trading-ops/workers/ccp-value.worker';
 import { CcpEodWorker } from '../../trading-ops/workers/ccp-eod.worker';
-import { SodReconWorker } from '../../trading-ops/workers/sod-recon.worker';
 import { CqgSyncWorker } from '../../trading-ops/workers/cqg-sync.worker';
 import { EodMsWorker } from '../../trading-ops/workers/eod-ms.worker';
 import { CeCcpGttWorker } from '../../trading-ops/workers/ce-ccp-gtt.worker';
@@ -35,7 +34,6 @@ export class BotDispatcherService implements OnModuleInit {
     @Optional() private readonly ccpLotWorker?: CcpLotWorker,
     @Optional() private readonly ccpValueWorker?: CcpValueWorker,
     @Optional() private readonly ccpEodWorker?: CcpEodWorker,
-    @Optional() private readonly sodWorker?: SodReconWorker,
     @Optional() private readonly cqgSyncWorker?: CqgSyncWorker,
     @Optional() private readonly EodMsWorker?: EodMsWorker,
     @Optional() private readonly ceCcpGttWorker?: CeCcpGttWorker,
@@ -50,7 +48,6 @@ export class BotDispatcherService implements OnModuleInit {
     if (this.ccpLotWorker) this.registerWorker(this.ccpLotWorker);
     if (this.ccpValueWorker) this.registerWorker(this.ccpValueWorker);
     if (this.ccpEodWorker) this.registerWorker(this.ccpEodWorker);
-    if (this.sodWorker) this.registerWorker(this.sodWorker);
     if (this.cqgSyncWorker) this.registerWorker(this.cqgSyncWorker);
     if (this.EodMsWorker) this.registerWorker(this.EodMsWorker);
     if (this.ceCcpGttWorker) this.registerWorker(this.ceCcpGttWorker);

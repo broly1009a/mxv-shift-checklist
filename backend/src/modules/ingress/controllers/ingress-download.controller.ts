@@ -82,7 +82,7 @@ export class IngressDownloadController {
     });
     const actualSessionDay = resolvedSession.dateStr;
 
-    const job = await this.jobQueueService.enqueue('RPA_DOWNLOAD_REPORTS', {
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_MS', {
       targets: actualTargets,
       sessionDay: actualSessionDay,
       maxAttempts: 1,
@@ -90,7 +90,7 @@ export class IngressDownloadController {
 
     return {
       success: true,
-      message: 'Đã đưa yêu cầu chạy RPA tải báo cáo vào hàng đợi.',
+      message: 'Đã đưa yêu cầu tải báo cáo M-System vào hàng đợi.',
       jobId: job._id,
       sessionDay: actualSessionDay,
     };
@@ -117,7 +117,7 @@ export class IngressDownloadController {
     });
     const actualSessionDay = resolvedSession.dateStr;
 
-    const job = await this.jobQueueService.enqueue('DOWNLOAD_CQG_BACKUP', {
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CQG', {
       reports,
       targetDate: actualSessionDay,
       sessionDay: actualSessionDay,
@@ -202,7 +202,7 @@ export class IngressDownloadController {
       reports,
     );
 
-    const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP_REPORT', {
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CCP', {
       startDate: targetStart,
       endDate: targetEnd,
       reports: effectiveReports,
@@ -264,7 +264,7 @@ export class IngressDownloadController {
       reports,
     );
 
-    const job = await this.jobQueueService.enqueue('DOWNLOAD_CE_REPORT', {
+    const job = await this.jobQueueService.enqueue('DOWNLOAD_CE', {
       startDate: targetStart,
       endDate: targetEnd,
       reports: effectiveReports,

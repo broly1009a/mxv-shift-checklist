@@ -40,7 +40,7 @@ const BOT_CHECK_TYPE_OPTIONS: { value: string; label: string; technical: string 
   { value: 'API_STATUS', label: 'Kiểm tra trạng thái API', technical: 'API_STATUS' },
   { value: 'CHECK_KLGD', label: 'Đối chiếu khớp lệnh trong phiên', technical: 'CHECK_KLGD' },
   { value: 'CHECK_DSGD_BEFORE_EOD', label: 'Đối chiếu DSGD trước EOD', technical: 'CHECK_DSGD_BEFORE_EOD' },
-  { value: 'AUTO_CHECK_SOD', label: 'Đối chiếu số dư CQG SOD', technical: 'AUTO_CHECK_SOD' },
+  { value: 'CHECK_CQG_SYNC', label: 'Đối Chiếu Số Dư CQG (SOD)', technical: 'CHECK_CQG_SYNC' },
   { value: 'CHECK_EOD_MS', label: 'Đối chiếu số dư EOD MS', technical: 'CHECK_EOD_MS' },
   { value: 'FILE_AUDIT_ACM', label: 'Kiểm tra file backup ACM', technical: 'FILE_AUDIT_ACM' },
   { value: 'FILE_AUDIT_MS', label: 'Kiểm tra file backup MS', technical: 'FILE_AUDIT_MS' },
@@ -70,11 +70,20 @@ const RPA_REPORT_OPTIONS = [
 
 const BOT_TYPES_NEEDING_TARGET = ['EMAIL_PARSE', 'FILE_EXISTS', 'API_STATUS', 'RPA_DOWNLOAD'] as const;
 
+function normalizeBotCheckType(type?: string): string {
+  if (!type) return '';
+  if (['AUTO_CHECK_SOD', 'CHECK_SOD', 'CQG_SYNC'].includes(type)) {
+    return 'CHECK_CQG_SYNC';
+  }
+  return type;
+}
+
 function getBotCheckTypeLabel(type?: string, technical = false): string {
   if (!type) return 'Tự động';
-  const found = BOT_CHECK_TYPE_OPTIONS.find((o) => o.value === type);
+  const normalized = normalizeBotCheckType(type);
+  const found = BOT_CHECK_TYPE_OPTIONS.find((o) => o.value === normalized);
   if (!found) return type;
-  return technical ? `${found.label} (${found.technical})` : found.label;
+  return technical ? `${found.label} (${type})` : found.label;
 }
 
 function parseEmailBotTarget(raw: string): { subject: string; sender: string; downloadDir: string } {
@@ -524,7 +533,7 @@ export default function AdminTemplatesPage() {
     setNewTimetable(task.timetable || '');
     setNewIsBotCheck(!!task.isBotCheck);
     setNewBotTriggerTime(task.botTriggerTime || '');
-    setNewBotCheckType(task.botCheckType || 'EMAIL_PARSE');
+    setNewBotCheckType(normalizeBotCheckType(task.botCheckType) || 'EMAIL_PARSE');
     setNewBotCheckTarget(task.botCheckTarget || '');
     setNewBotSuccessCondition(task.botSuccessCondition || '');
     setNewBotFailureAction(task.botFailureAction || 'ALERT_TELEGRAM');
