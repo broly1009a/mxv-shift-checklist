@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -145,6 +146,7 @@ export default function PartnerAuthMonitorPage() {
   const [pageSize, setPageSize] = useState<number>(20);
 
   // Trạng thái vận hành
+  const [mounted, setMounted] = useState<boolean>(false);
   const [autoRefreshSec, setAutoRefreshSec] = useState<number>(5);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -276,6 +278,11 @@ export default function PartnerAuthMonitorPage() {
     }
     return 'Tài khoản CSDL';
   };
+
+  // Đảm bảo client mounted trước khi render Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Lần đầu tải trang hoặc khi đổi bộ lọc / trang
   useEffect(() => {
@@ -1615,19 +1622,26 @@ export default function PartnerAuthMonitorPage() {
           </div>
         </div>
 
-        {/* Modal Cấu Hình Ngưỡng & Cảnh Báo (Đồng bộ chuẩn giao diện Enterprise) */}
-        {isModalOpen && editingConfig && (
+        {/* Modal Cấu Hình Ngưỡng & Cảnh Báo (Đồng bộ chuẩn giao diện Enterprise & createPortal) */}
+        {mounted && isModalOpen && editingConfig && typeof document !== 'undefined' && createPortal(
           <div
             style={{
               position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '16px',
-              backgroundColor: 'rgba(0, 0, 0, 0.72)',
-              backdropFilter: 'blur(8px)',
+              zIndex: 999999,
+              padding: '20px',
+              boxSizing: 'border-box',
             }}
             onClick={() => setIsModalOpen(false)}
           >
@@ -1636,21 +1650,22 @@ export default function PartnerAuthMonitorPage() {
               style={{
                 borderRadius: '16px',
                 width: '100%',
-                maxWidth: '720px',
+                maxWidth: '860px',
                 maxHeight: '90vh',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 backgroundColor: 'var(--bg-card)',
                 border: '1px solid var(--border-color)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                boxShadow: 'var(--glass-shadow, 0 25px 50px -12px rgba(0, 0, 0, 0.35))',
+                color: 'var(--text-primary)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
               <div
                 style={{
-                  padding: '16px 20px',
+                  padding: '18px 24px',
                   borderBottom: '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
@@ -1661,8 +1676,8 @@ export default function PartnerAuthMonitorPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
                     style={{
-                      width: '38px',
-                      height: '38px',
+                      width: '40px',
+                      height: '40px',
                       borderRadius: '10px',
                       backgroundColor: 'rgba(59, 130, 246, 0.12)',
                       display: 'flex',
@@ -1674,42 +1689,44 @@ export default function PartnerAuthMonitorPage() {
                     <Sliders size={20} style={{ color: '#3b82f6' }} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                       Cấu Hình Ngưỡng Giám Sát & Cảnh Báo
                     </h3>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                       Thiết lập giới hạn lưu lượng và thời gian giãn cách gửi thông báo email.
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
+                    background: 'var(--bg-input, rgba(255,255,255,0.04))',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
                     cursor: 'pointer',
                     padding: '6px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    transition: 'all 0.15s ease',
                   }}
-                  title="Đóng"
+                  title="Đóng (Esc)"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px', fontSize: '0.8rem' }}>
+              <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '0.8rem' }}>
                 {/* Switch Bật/Tắt & Thời gian giãn cách */}
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                     gap: '16px',
-                    padding: '16px',
+                    padding: '18px',
                     backgroundColor: 'var(--bg-input, rgba(255,255,255,0.02))',
                     borderRadius: '12px',
                     border: '1px solid var(--border-color)',
@@ -1763,7 +1780,7 @@ export default function PartnerAuthMonitorPage() {
                         {editingConfig.enabled ? 'Đang bật nhận email' : 'Đang tạm tắt'}
                       </span>
                     </button>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block', lineHeight: 1.4 }}>
                       Tự động gửi email tới danh sách vận hành khi phát hiện sự cố đăng nhập hoặc quá tải.
                     </span>
                   </div>
@@ -1784,29 +1801,25 @@ export default function PartnerAuthMonitorPage() {
                           cooldownMinutes: Math.max(1, parseInt(e.target.value, 10) || 15),
                         })
                       }
+                      className="form-input"
                       style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
+                        width: '120px',
+                        height: '38px',
+                        padding: '6px 12px',
                         fontSize: '0.85rem',
                         fontWeight: 700,
-                        fontFamily: 'monospace',
-                        outline: 'none',
-                        boxSizing: 'border-box',
+                        textAlign: 'center',
                       }}
                     />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '6px', display: 'block' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block', lineHeight: 1.4 }}>
                       Khoảng cách tối thiểu giữa các lần gửi email khi hệ thống phát hiện lỗi liên tục.
                     </span>
                   </div>
                 </div>
 
                 {/* Email Recipients */}
-                <div>
-                  <label style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '6px', fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
                     Danh sách email nhận cảnh báo (phân cách bởi dấu phẩy):
                   </label>
                   <input
@@ -1821,40 +1834,50 @@ export default function PartnerAuthMonitorPage() {
                           .filter(Boolean),
                       })
                     }
+                    className="form-input"
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-input, rgba(255,255,255,0.03))',
-                      color: 'var(--text-primary)',
+                      height: '40px',
+                      padding: '8px 14px',
                       fontSize: '0.82rem',
-                      fontFamily: 'monospace',
-                      outline: 'none',
-                      boxSizing: 'border-box',
                     }}
                     placeholder="it.support@mxv.vn, trading.ops@mxv.vn"
                   />
                 </div>
 
                 {/* Thresholds Table */}
-                <div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'block', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'block', fontSize: '0.84rem' }}>
                       Ngưỡng cảnh báo theo từng phân hệ:
                     </label>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       Hệ thống tự động kích hoạt cảnh báo khi vượt quá ngưỡng đăng nhập hoặc lưu lượng cho phép.
                     </span>
                   </div>
-                  <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
+                  <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ backgroundColor: 'var(--bg-input, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                          <th style={{ padding: '10px 14px' }}>Hệ Thống</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>Đăng nhập tối đa (lần/phút)</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>Số lỗi liên tiếp tối đa</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>Lưu lượng tối đa (lượt/phút)</th>
+                        <tr
+                          style={{
+                            backgroundColor: 'var(--bg-input, rgba(255,255,255,0.03))',
+                            borderBottom: '1px solid var(--border-color)',
+                            color: 'var(--text-secondary)',
+                            fontWeight: 700,
+                            fontSize: '0.74rem',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          <th style={{ padding: '12px 18px', whiteSpace: 'nowrap' }}>Hệ Thống</th>
+                          <th style={{ padding: '12px 18px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            Đăng nhập tối đa (lần/phút)
+                          </th>
+                          <th style={{ padding: '12px 18px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            Số lỗi liên tiếp tối đa
+                          </th>
+                          <th style={{ padding: '12px 18px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            Lưu lượng tối đa (lượt/phút)
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1874,17 +1897,17 @@ export default function PartnerAuthMonitorPage() {
                                 transition: 'background-color 0.15s',
                               }}
                             >
-                              <td style={{ padding: '10px 14px' }}>
+                              <td style={{ padding: '12px 18px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <strong style={{ color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+                                  <strong style={{ color: 'var(--text-primary)', fontSize: '0.82rem' }}>
                                     {meta?.name || pKey}
                                   </strong>
-                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                     {pKey}
                                   </span>
                                 </div>
                               </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              <td style={{ padding: '10px 18px', textAlign: 'center' }}>
                                 <input
                                   type="number"
                                   min={1}
@@ -1899,22 +1922,19 @@ export default function PartnerAuthMonitorPage() {
                                       },
                                     });
                                   }}
+                                  className="form-input"
                                   style={{
-                                    width: '75px',
-                                    padding: '6px 8px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    backgroundColor: 'var(--bg-card)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.84rem',
+                                    width: '85px',
+                                    height: '36px',
+                                    padding: '4px 8px',
                                     fontWeight: 700,
-                                    fontFamily: 'monospace',
+                                    fontSize: '0.85rem',
                                     textAlign: 'center',
-                                    outline: 'none',
+                                    margin: '0 auto',
                                   }}
                                 />
                               </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              <td style={{ padding: '10px 18px', textAlign: 'center' }}>
                                 <input
                                   type="number"
                                   min={1}
@@ -1929,22 +1949,19 @@ export default function PartnerAuthMonitorPage() {
                                       },
                                     });
                                   }}
+                                  className="form-input"
                                   style={{
-                                    width: '75px',
-                                    padding: '6px 8px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    backgroundColor: 'var(--bg-card)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.84rem',
+                                    width: '85px',
+                                    height: '36px',
+                                    padding: '4px 8px',
                                     fontWeight: 700,
-                                    fontFamily: 'monospace',
+                                    fontSize: '0.85rem',
                                     textAlign: 'center',
-                                    outline: 'none',
+                                    margin: '0 auto',
                                   }}
                                 />
                               </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              <td style={{ padding: '10px 18px', textAlign: 'center' }}>
                                 <input
                                   type="number"
                                   min={1}
@@ -1959,18 +1976,15 @@ export default function PartnerAuthMonitorPage() {
                                       },
                                     });
                                   }}
+                                  className="form-input"
                                   style={{
-                                    width: '75px',
-                                    padding: '6px 8px',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    backgroundColor: 'var(--bg-card)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.84rem',
+                                    width: '85px',
+                                    height: '36px',
+                                    padding: '4px 8px',
                                     fontWeight: 700,
-                                    fontFamily: 'monospace',
+                                    fontSize: '0.85rem',
                                     textAlign: 'center',
-                                    outline: 'none',
+                                    margin: '0 auto',
                                   }}
                                 />
                               </td>
@@ -1986,37 +2000,49 @@ export default function PartnerAuthMonitorPage() {
               {/* Modal Footer */}
               <div
                 style={{
-                  padding: '14px 20px',
+                  padding: '16px 24px',
                   borderTop: '1px solid var(--border-color)',
                   display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'flex-end',
-                  gap: '10px',
+                  gap: '12px',
                   backgroundColor: 'var(--bg-input, rgba(255,255,255,0.02))',
                 }}
               >
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-secondary"
-                  style={{ fontSize: '0.8rem', padding: '8px 20px', cursor: 'pointer' }}
+                  style={{ fontSize: '0.82rem', padding: '8px 20px', cursor: 'pointer', fontWeight: 600 }}
                 >
                   Hủy Bỏ
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveConfig}
                   disabled={isSavingConfig}
                   className="btn btn-primary"
-                  style={{ fontSize: '0.8rem', padding: '8px 22px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                  style={{
+                    fontSize: '0.82rem',
+                    padding: '8px 22px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
                 >
-                  <Save size={14} />
+                  <Save size={15} />
                   {isSavingConfig ? 'Đang Lưu...' : 'Lưu Cấu Hình'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
-        {/* Modal Chi Tiết Yêu Cầu & Phản Hồi (Request / Response Inspector) */}
-        {selectedDetailEvent && (
+        {/* Modal Chi Tiết Yêu Cầu & Phản Hồi (Request / Response Inspector & createPortal) */}
+        {mounted && selectedDetailEvent && typeof document !== 'undefined' && createPortal(
           <div
             style={{
               position: 'fixed',
@@ -2024,29 +2050,34 @@ export default function PartnerAuthMonitorPage() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.72)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 1000,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              zIndex: 999999,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '20px',
+              boxSizing: 'border-box',
             }}
             onClick={() => setSelectedDetailEvent(null)}
           >
             <div
-              className="glass-panel"
+              className="glass-panel animate-fade-in"
               style={{
-                width: '920px',
-                maxWidth: '96vw',
+                width: '100%',
+                maxWidth: '920px',
                 maxHeight: '90vh',
                 display: 'flex',
                 flexDirection: 'column',
                 borderRadius: '16px',
                 overflow: 'hidden',
                 backgroundColor: 'var(--bg-card)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                boxShadow: 'var(--glass-shadow, 0 25px 50px -12px rgba(0, 0, 0, 0.35))',
                 border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -2431,7 +2462,8 @@ export default function PartnerAuthMonitorPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </ProtectedRoute>
